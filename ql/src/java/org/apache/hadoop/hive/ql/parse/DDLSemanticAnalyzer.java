@@ -75,17 +75,17 @@ import org.apache.hadoop.hive.ql.plan.DropDatabaseDesc;
 import org.apache.hadoop.hive.ql.plan.DropIndexDesc;
 import org.apache.hadoop.hive.ql.plan.DropTableDesc;
 import org.apache.hadoop.hive.ql.plan.FetchWork;
+import org.apache.hadoop.hive.ql.plan.LockTableDesc;
 import org.apache.hadoop.hive.ql.plan.MsckDesc;
 import org.apache.hadoop.hive.ql.plan.ShowDatabasesDesc;
 import org.apache.hadoop.hive.ql.plan.ShowFunctionsDesc;
+import org.apache.hadoop.hive.ql.plan.ShowLocksDesc;
 import org.apache.hadoop.hive.ql.plan.ShowPartitionsDesc;
 import org.apache.hadoop.hive.ql.plan.ShowTableStatusDesc;
 import org.apache.hadoop.hive.ql.plan.ShowTablesDesc;
-import org.apache.hadoop.hive.ql.plan.ShowLocksDesc;
-import org.apache.hadoop.hive.ql.plan.LockTableDesc;
-import org.apache.hadoop.hive.ql.plan.UnlockTableDesc;
 import org.apache.hadoop.hive.ql.plan.SwitchDatabaseDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
+import org.apache.hadoop.hive.ql.plan.UnlockTableDesc;
 import org.apache.hadoop.hive.ql.plan.AlterTableDesc.AlterTableTypes;
 import org.apache.hadoop.hive.serde.Constants;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
@@ -336,6 +336,7 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
     String indexTableName = null;
     boolean deferredRebuild = false;
     String location = null;
+    Map<String, String> tblProps = null;
     Map<String, String> idxProps = null;
 
     RowFormatParams rowFormatParams = new RowFormatParams();
@@ -362,6 +363,9 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
         location = unescapeSQLString(child.getChild(0).getText());
         break;
       case HiveParser.TOK_TABLEPROPERTIES:
+        tblProps = DDLSemanticAnalyzer.getProps((ASTNode) child.getChild(0));
+        break;
+      case HiveParser.TOK_INDEXPROPERTIES:
         idxProps = DDLSemanticAnalyzer.getProps((ASTNode) child.getChild(0));
         break;
       case HiveParser.TOK_TABLESERIALIZER:
@@ -379,7 +383,7 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
 
     CreateIndexDesc crtIndexDesc = new CreateIndexDesc(tableName, indexName,
         indexedCols, indexTableName, deferredRebuild, storageFormat.inputFormat, storageFormat.outputFormat,
-        storageFormat.storageHandler, typeName, location, idxProps,
+        storageFormat.storageHandler, typeName, location, idxProps, tblProps,
         shared.serde, shared.serdeProps, rowFormatParams.collItemDelim,
         rowFormatParams.fieldDelim, rowFormatParams.fieldEscape,
         rowFormatParams.lineDelim, rowFormatParams.mapKeyDelim);

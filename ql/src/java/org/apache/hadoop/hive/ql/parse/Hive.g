@@ -164,6 +164,8 @@ TOK_EXPLAIN;
 TOK_TABLESERIALIZER;
 TOK_TABLEPROPERTIES;
 TOK_TABLEPROPLIST;
+TOK_INDEXPROPERTIES;
+TOK_INDEXPROPLIST;
 TOK_TABTYPE;
 TOK_LIMIT;
 TOK_TABLEPROPERTY;
@@ -338,12 +340,14 @@ createIndexStatement
       KW_ON KW_TABLE tab=Identifier LPAREN indexedCols=columnNameList RPAREN 
       KW_AS typeName=StringLiteral
       autoRebuild?
+      indexPropertiesPrefixed?
       indexTblName?
       tableRowFormat?
       tableFileFormat?
       tableLocation?
     ->^(TOK_CREATEINDEX $indexName $typeName $tab $indexedCols 
         autoRebuild?
+        indexPropertiesPrefixed?
         indexTblName?
         tableRowFormat?
         tableFileFormat?
@@ -372,10 +376,17 @@ indexPropertiesPrefixed
     ;
 
 indexProperties
-@init { msgs.push("table properties"); }
+@init { msgs.push("index properties"); }
 @after { msgs.pop(); }
     :
-      LPAREN propertiesList RPAREN -> ^(TOK_TABLEPROPERTIES propertiesList)
+      LPAREN indexPropertiesList RPAREN -> ^(TOK_INDEXPROPERTIES indexPropertiesList)
+    ;
+
+indexPropertiesList
+@init { msgs.push("index properties list"); }
+@after { msgs.pop(); }
+    :
+      keyValueProperty (COMMA keyValueProperty)* -> ^(TOK_INDEXPROPLIST keyValueProperty+)
     ;
 
 dropIndexStatement
@@ -793,11 +804,11 @@ tableProperties
 @init { msgs.push("table properties"); }
 @after { msgs.pop(); }
     :
-      LPAREN propertiesList RPAREN -> ^(TOK_TABLEPROPERTIES propertiesList)
+      LPAREN tablePropertiesList RPAREN -> ^(TOK_TABLEPROPERTIES tablePropertiesList)
     ;
 
-propertiesList
-@init { msgs.push("properties list"); }
+tablePropertiesList
+@init { msgs.push("table properties list"); }
 @after { msgs.pop(); }
     :
       keyValueProperty (COMMA keyValueProperty)* -> ^(TOK_TABLEPROPLIST keyValueProperty+)
@@ -1820,7 +1831,7 @@ KW_SERDEPROPERTIES: 'SERDEPROPERTIES';
 KW_LIMIT: 'LIMIT';
 KW_SET: 'SET';
 KW_TBLPROPERTIES: 'TBLPROPERTIES';
-KW_IDXPROPERTIES: 'INDEXPROPERTIES';
+KW_IDXPROPERTIES: 'IDXPROPERTIES';
 KW_VALUE_TYPE: '$VALUE$';
 KW_ELEM_TYPE: '$ELEM$';
 KW_CASE: 'CASE';
