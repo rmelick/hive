@@ -471,10 +471,6 @@ public class Hive {
         org.apache.hadoop.hive.metastore.api.Table temp = null;
         try {
           temp = getMSC().getTable(dbName, indexTblName);
-          if (tblProps != null)
-          {
-            temp.getParameters().putAll(tblProps);
-          }
         } catch (Exception e) {
         }
         if (temp != null) {
@@ -560,6 +556,11 @@ public class Hive {
         List<FieldSchema> partKeys = baseTbl.getPartitionKeys();
         tt.setPartitionKeys(partKeys);
         tt.setTableType(TableType.INDEX_TABLE.toString());
+        if (tblProps != null) {
+          for (Entry<String, String> prop : tblProps.entrySet()) {
+            tt.putToParameters(prop.getKey(), prop.getValue());
+          }
+        }
       }
 
       if(!deferredRebuild) {

@@ -601,8 +601,12 @@ alterStatementSuffixClusterbySortby
 alterIndexRebuild
 @init { msgs.push("update index statement");}
 @after {msgs.pop();}
-    : KW_ALTER KW_INDEX indexName=Identifier KW_ON base_table_name=Identifier partitionSpec? KW_REBUILD
-    ->^(TOK_ALTERINDEX_REBUILD $base_table_name $indexName partitionSpec?)
+    : KW_ALTER KW_INDEX indexName=Identifier 
+      KW_ON base_table_name=Identifier 
+      partitionSpec?
+      indexPropertiesPrefixed? 
+      KW_REBUILD
+    ->^(TOK_ALTERINDEX_REBUILD $base_table_name $indexName partitionSpec? indexPropertiesPrefixed?)
     ;
 
 fileFormat
