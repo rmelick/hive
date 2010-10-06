@@ -345,13 +345,15 @@ createIndexStatement
       tableRowFormat?
       tableFileFormat?
       tableLocation?
+      tablePropertiesPrefixed?
     ->^(TOK_CREATEINDEX $indexName $typeName $tab $indexedCols 
         autoRebuild?
         indexPropertiesPrefixed?
         indexTblName?
         tableRowFormat?
         tableFileFormat?
-        tableLocation?)
+        tableLocation?
+        tablePropertiesPrefixed?)
     ;
 
 autoRebuild
