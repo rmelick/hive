@@ -1500,4 +1500,14 @@ public class Hive {
     }
   }
 
+  public List<String> getIndexes(String dbName, String tblName, short max) throws HiveException {
+    List<String> names = null;
+    try {
+      names = getMSC().listIndexNames(dbName, tblName, max);
+    } catch (Exception e) {
+      LOG.error(StringUtils.stringifyException(e));
+      throw new HiveException(e);
+    }
+    return names;
+  }
 };
