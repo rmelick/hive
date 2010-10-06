@@ -233,6 +233,9 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
     } else if (ast.getToken().getType() == HiveParser.TOK_SHOWPARTITIONS) {
       ctx.setResFile(new Path(ctx.getLocalTmpFileURI()));
       analyzeShowPartitions(ast);
+    } else if (ast.getToken().getType() == HiveParser.TOK_SHOWINDEXES) {
+      ctx.setResFile(new Path(ctx.getLocalTmpFileURI()));
+      analyzeShowIndexes(ast);
     } else if (ast.getToken().getType() == HiveParser.TOK_LOCKTABLE) {
       analyzeLockTable(ast);
     } else if (ast.getToken().getType() == HiveParser.TOK_UNLOCKTABLE) {
