@@ -31,12 +31,12 @@ import java.io.Writer;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -64,11 +64,22 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Order;
 import org.apache.hadoop.hive.ql.Context;
 import org.apache.hadoop.hive.ql.DriverContext;
-import org.apache.hadoop.hive.ql.Context;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
-import org.apache.hadoop.hive.ql.metadata.*;
+import org.apache.hadoop.hive.ql.lockmgr.HiveLock;
+import org.apache.hadoop.hive.ql.lockmgr.HiveLockManager;
+import org.apache.hadoop.hive.ql.lockmgr.HiveLockMode;
+import org.apache.hadoop.hive.ql.lockmgr.HiveLockObject;
+import org.apache.hadoop.hive.ql.metadata.CheckResult;
+import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.HiveMetaStoreChecker;
+import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
+import org.apache.hadoop.hive.ql.metadata.InvalidTableException;
+import org.apache.hadoop.hive.ql.metadata.MetaDataFormatUtils;
+import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.plan.AddPartitionDesc;
 import org.apache.hadoop.hive.ql.plan.AlterTableDesc;
 import org.apache.hadoop.hive.ql.plan.AlterTableSimpleDesc;
@@ -83,22 +94,19 @@ import org.apache.hadoop.hive.ql.plan.DescTableDesc;
 import org.apache.hadoop.hive.ql.plan.DropDatabaseDesc;
 import org.apache.hadoop.hive.ql.plan.DropIndexDesc;
 import org.apache.hadoop.hive.ql.plan.DropTableDesc;
+import org.apache.hadoop.hive.ql.plan.LockTableDesc;
 import org.apache.hadoop.hive.ql.plan.MsckDesc;
 import org.apache.hadoop.hive.ql.plan.ShowDatabasesDesc;
 import org.apache.hadoop.hive.ql.plan.ShowFunctionsDesc;
+import org.apache.hadoop.hive.ql.plan.ShowIndexesDesc;
 import org.apache.hadoop.hive.ql.plan.ShowLocksDesc;
-import org.apache.hadoop.hive.ql.plan.LockTableDesc;
-import org.apache.hadoop.hive.ql.plan.UnlockTableDesc;
 import org.apache.hadoop.hive.ql.plan.ShowPartitionsDesc;
 import org.apache.hadoop.hive.ql.plan.ShowTableStatusDesc;
 import org.apache.hadoop.hive.ql.plan.ShowTablesDesc;
 import org.apache.hadoop.hive.ql.plan.SwitchDatabaseDesc;
+import org.apache.hadoop.hive.ql.plan.UnlockTableDesc;
 import org.apache.hadoop.hive.ql.plan.AlterTableDesc.AlterTableTypes;
 import org.apache.hadoop.hive.ql.plan.api.StageType;
-import org.apache.hadoop.hive.ql.lockmgr.HiveLock;
-import org.apache.hadoop.hive.ql.lockmgr.HiveLockMode;
-import org.apache.hadoop.hive.ql.lockmgr.HiveLockObject;
-import org.apache.hadoop.hive.ql.lockmgr.HiveLockManager;
 import org.apache.hadoop.hive.serde.Constants;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.MetadataTypedColumnsetSerDe;
@@ -272,6 +280,11 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
       ShowPartitionsDesc showParts = work.getShowPartsDesc();
       if (showParts != null) {
         return showPartitions(db, showParts);
+      }
+
+      ShowIndexesDesc showIndexes = work.getShowIndexesDesc();
+      if (showIndexes != null) {
+        return showIndexes(db, showIndexes);
       }
 
     } catch (InvalidTableException e) {
@@ -1056,6 +1069,58 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
       FileSystem fs = resFile.getFileSystem(conf);
       DataOutput outStream = fs.create(resFile);
       Iterator<String> iterParts = parts.iterator();
+
+      while (iterParts.hasNext()) {
+        // create a row per partition name
+        outStream.writeBytes(iterParts.next());
+        outStream.write(terminator);
+      }
+      ((FSDataOutputStream) outStream).close();
+    } catch (FileNotFoundException e) {
+      LOG.info("show partitions: " + stringifyException(e));
+      throw new HiveException(e.toString());
+    } catch (IOException e) {
+      LOG.info("show partitions: " + stringifyException(e));
+      throw new HiveException(e.toString());
+    } catch (Exception e) {
+      throw new HiveException(e.toString());
+    }
+
+    return 0;
+  }
+
+  /**
+   * Write a list of indexes to a file.
+   *
+   * @param db
+   *          The database in question.
+   * @param showIndexes
+   *          These are the indexes we're interested in.
+   * @return Returns 0 when execution succeeds and above 0 if it fails.
+   * @throws HiveException
+   *           Throws this exception if an unexpected error occurs.
+   */
+  private int showIndexes(Hive db, ShowIndexesDesc showIndexes) throws HiveException {
+    // get the partitions for the table and populate the output
+    String tableName = showIndexes.getTableName();
+    Table tbl = null;
+    List<String> indexes = null;
+
+    tbl = db.getTable(tableName);
+
+    /*if (!tbl.isIndexed()) {
+      console.printError("Table " + tableName + " does not have any indexes");
+      return 1;
+    }*/
+
+    indexes = db.getIndexes(db.getCurrentDatabase(), tbl.getTableName(), (short) -1);
+
+    // write the results in the file
+    try {
+      Path resFile = new Path(showIndexes.getResFile());
+      FileSystem fs = resFile.getFileSystem(conf);
+      DataOutput outStream = fs.create(resFile);
+      Iterator<String> iterParts = indexes.iterator();
 
       while (iterParts.hasNext()) {
         // create a row per partition name
@@ -2322,7 +2387,7 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
       validateSerDe(crtTbl.getSerName());
       tbl.setSerializationLib(crtTbl.getSerName());
     }
-    
+
     if (crtTbl.getFieldDelim() != null) {
       tbl.setSerdeParam(Constants.FIELD_DELIM, crtTbl.getFieldDelim());
       tbl.setSerdeParam(Constants.SERIALIZATION_FORMAT, crtTbl.getFieldDelim());

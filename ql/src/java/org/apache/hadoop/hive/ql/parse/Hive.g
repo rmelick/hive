@@ -641,7 +641,7 @@ showStatement
     | KW_SHOW KW_TABLE KW_EXTENDED ((KW_FROM|KW_IN) db_name=Identifier)? KW_LIKE showStmtIdentifier partitionSpec?
     -> ^(TOK_SHOW_TABLESTATUS showStmtIdentifier $db_name? partitionSpec?)
     | KW_SHOW KW_LOCKS -> ^(TOK_SHOWLOCKS)
-    | KW_SHOW (KW_INDEX|KW_INDEXES) (KW_FROM|KW_IN) showStmtIdentifier ((KW_FROM|KW_IN) db_name=Ident)?
+    | KW_SHOW (KW_INDEX|KW_INDEXES) (KW_FROM|KW_IN) showStmtIdentifier ((KW_FROM|KW_IN) db_name=Identifier)?
     -> ^(TOK_SHOWINDEXES showStmtIdentifier $db_name?)
     ;
 

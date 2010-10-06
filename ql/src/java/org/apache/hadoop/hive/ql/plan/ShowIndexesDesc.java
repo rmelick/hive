@@ -41,6 +41,14 @@ public class ShowIndexesDesc extends DDLDesc implements Serializable {
     return schema;
   }
 
+  public String getTableName() {
+    return tableName;
+  }
+
+  public String getResFile() {
+    return resFile;
+  }
+
   /**
    *
    * @param tableName
