@@ -58,6 +58,7 @@ import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Index;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
@@ -129,6 +130,7 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
   transient HiveConf conf;
   private static final int separator = Utilities.tabCode;
   private static final int terminator = Utilities.newLineCode;
+  private static final String tempSeparator = "  ";
 
   // These are suffixes attached to intermediate directory names used in the
   // archiving / un-archiving process.
@@ -1101,10 +1103,10 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
    *           Throws this exception if an unexpected error occurs.
    */
   private int showIndexes(Hive db, ShowIndexesDesc showIndexes) throws HiveException {
-    // get the partitions for the table and populate the output
+    // get the indexes for the table and populate the output
     String tableName = showIndexes.getTableName();
     Table tbl = null;
-    List<String> indexes = null;
+    List<Index> indexes = null;
 
     tbl = db.getTable(tableName);
 
@@ -1120,19 +1122,55 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
       Path resFile = new Path(showIndexes.getResFile());
       FileSystem fs = resFile.getFileSystem(conf);
       DataOutput outStream = fs.create(resFile);
-      Iterator<String> iterParts = indexes.iterator();
 
-      while (iterParts.hasNext()) {
-        // create a row per partition name
-        outStream.writeBytes(iterParts.next());
-        outStream.write(terminator);
+      // column headers
+      String[] columnNames = {"Index_Name", "Table_Name", "Column_Name", "Index_Table_Name",
+          "Index_Table_Size", "Index_Type", "Comment"};
+      for (String column : columnNames)
+      {
+        outStream.writeBytes(column);
+        outStream.writeBytes(tempSeparator);
       }
+      outStream.write(terminator);
+
+      for (Index index : indexes)
+      {
+        outStream.writeBytes(index.getIndexName());
+        outStream.writeBytes(tempSeparator);
+
+        outStream.writeBytes(index.getOrigTableName());
+        outStream.writeBytes(tempSeparator);
+
+        outStream.writeBytes("Column_Name");
+        outStream.writeBytes(tempSeparator);
+
+        outStream.writeBytes(index.getIndexTableName());
+        outStream.writeBytes(tempSeparator);
+
+        outStream.write(terminator);
+
+        Map<String, String> params = index.getParameters();
+        for (String key : params.keySet())
+        {
+          outStream.writeBytes(tempSeparator);
+
+          outStream.writeBytes(key);
+          outStream.writeBytes(tempSeparator);
+
+          outStream.writeBytes(params.get(key));
+          outStream.writeBytes(tempSeparator);
+
+          outStream.write(terminator);
+        }
+
+      }
+
       ((FSDataOutputStream) outStream).close();
     } catch (FileNotFoundException e) {
-      LOG.info("show partitions: " + stringifyException(e));
+      LOG.info("show indexes: " + stringifyException(e));
       throw new HiveException(e.toString());
     } catch (IOException e) {
-      LOG.info("show partitions: " + stringifyException(e));
+      LOG.info("show indexes: " + stringifyException(e));
       throw new HiveException(e.toString());
     } catch (Exception e) {
       throw new HiveException(e.toString());
