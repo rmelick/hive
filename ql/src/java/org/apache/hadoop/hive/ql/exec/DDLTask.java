@@ -68,6 +68,8 @@ import org.apache.hadoop.hive.ql.DriverContext;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
+import org.apache.hadoop.hive.ql.index.HiveIndex;
+import org.apache.hadoop.hive.ql.index.HiveIndex.IndexType;
 import org.apache.hadoop.hive.ql.lockmgr.HiveLock;
 import org.apache.hadoop.hive.ql.lockmgr.HiveLockManager;
 import org.apache.hadoop.hive.ql.lockmgr.HiveLockMode;
@@ -130,7 +132,6 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
   transient HiveConf conf;
   private static final int separator = Utilities.tabCode;
   private static final int terminator = Utilities.newLineCode;
-  private static final String tempSeparator = "  ";
 
   // These are suffixes attached to intermediate directory names used in the
   // archiving / un-archiving process.
@@ -1124,45 +1125,38 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
       DataOutput outStream = fs.create(resFile);
 
       // column headers
+      /* TODO: Use MetaDataFormatUtils, like in describeTable() */
       String[] columnNames = {"Index_Name", "Table_Name", "Column_Name", "Index_Table_Name",
-          "Index_Table_Size", "Index_Type", "Comment"};
+          "Index_Type", "Comment"};
       for (String column : columnNames)
       {
         outStream.writeBytes(column);
-        outStream.writeBytes(tempSeparator);
+        outStream.write(separator);
       }
       outStream.write(terminator);
 
       for (Index index : indexes)
       {
         outStream.writeBytes(index.getIndexName());
-        outStream.writeBytes(tempSeparator);
+        outStream.write(separator);
 
         outStream.writeBytes(index.getOrigTableName());
-        outStream.writeBytes(tempSeparator);
+        outStream.write(separator);
 
-        outStream.writeBytes("Column_Name");
-        outStream.writeBytes(tempSeparator);
+        outStream.writeBytes(index.getSd().getCols().get(0).getName());
+        outStream.write(separator);
 
         outStream.writeBytes(index.getIndexTableName());
-        outStream.writeBytes(tempSeparator);
+        outStream.write(separator);
+
+        String indexHandlerClass = index.getIndexHandlerClass();
+        IndexType indexType = HiveIndex.getIndexTypeByClassName(indexHandlerClass);
+        outStream.writeBytes(indexType.getName());
+        outStream.write(separator);
+
+        /* TODO: add column for comments */
 
         outStream.write(terminator);
-
-        Map<String, String> params = index.getParameters();
-        for (String key : params.keySet())
-        {
-          outStream.writeBytes(tempSeparator);
-
-          outStream.writeBytes(key);
-          outStream.writeBytes(tempSeparator);
-
-          outStream.writeBytes(params.get(key));
-          outStream.writeBytes(tempSeparator);
-
-          outStream.write(terminator);
-        }
-
       }
 
       ((FSDataOutputStream) outStream).close();

@@ -35,7 +35,8 @@ public class ShowIndexesDesc extends DDLDesc implements Serializable {
   /**
    * thrift ddl for the result of show indexes.
    */
-  private static final String schema = "index_name#string";
+  private static final String schema = "idx_name,tab_name,col_name,idx_tab_name,idx_type,comment"
+                                        + "#string:string:string:string:string:string";
 
   public String getSchema() {
     return schema;
