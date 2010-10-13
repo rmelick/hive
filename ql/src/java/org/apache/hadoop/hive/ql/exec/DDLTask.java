@@ -19,6 +19,7 @@
 package org.apache.hadoop.hive.ql.exec;
 
 import static org.apache.commons.lang.StringUtils.join;
+import static org.apache.hadoop.util.StringUtils.stringifyException;
 
 import java.io.BufferedWriter;
 import java.io.DataOutput;
@@ -43,6 +44,11 @@ import java.util.Map.Entry;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FsShell;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
@@ -62,6 +68,8 @@ import org.apache.hadoop.hive.ql.DriverContext;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
+import org.apache.hadoop.hive.ql.index.HiveIndex;
+import org.apache.hadoop.hive.ql.index.HiveIndex.IndexType;
 import org.apache.hadoop.hive.ql.lockmgr.HiveLock;
 import org.apache.hadoop.hive.ql.lockmgr.HiveLockManager;
 import org.apache.hadoop.hive.ql.lockmgr.HiveLockMode;
@@ -112,8 +120,8 @@ import org.apache.hadoop.hive.serde2.dynamic_type.DynamicSerDe;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.hive.shims.HadoopShims;
 import org.apache.hadoop.hive.shims.ShimLoader;
+import org.apache.hadoop.util.ToolRunner;
 
-import sun.management.FileSystem;
 /**
  * DDLTask implementation.
  *
@@ -1132,7 +1140,6 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
       {
         outStream.writeBytes(index.getIndexName());
         outStream.write(separator);
-        outStream.write(separator);
 
         outStream.writeBytes(index.getOrigTableName());
         outStream.write(separator);
@@ -1143,11 +1150,11 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
         outStream.writeBytes(index.getIndexTableName());
         outStream.write(separator);
 
-        /*
+
         String indexHandlerClass = index.getIndexHandlerClass();
         IndexType indexType = HiveIndex.getIndexTypeByClassName(indexHandlerClass);
         outStream.writeBytes(indexType.getName());
-        outStream.write(separator);*/
+        outStream.write(separator);
 
         /* TODO: add column for comments */
 

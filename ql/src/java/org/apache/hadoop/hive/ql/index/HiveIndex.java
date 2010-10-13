@@ -59,7 +59,7 @@ public class HiveIndex {
     return null;
   }
 
-  /*public static IndexType getIndexTypeByClassName(String className) {
+  public static IndexType getIndexTypeByClassName(String className) {
     IndexType[] types = IndexType.values();
     for (IndexType type : types) {
       if(type.getHandlerClsName().equals(className)) {
@@ -67,7 +67,7 @@ public class HiveIndex {
       }
     }
     return null;
-  }*/
+  }
 
 }
 
