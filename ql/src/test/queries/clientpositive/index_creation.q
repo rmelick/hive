@@ -23,6 +23,13 @@ desc extended default__src_src_index_6__;
 create index src_index_7 on table src(key) as 'compact' WITH DEFERRED REBUILD in table src_idx_src_index_7 STORED AS RCFILE; 
 desc extended src_idx_src_index_7;
 
+create table `_t`(`_i` int, `_j` int);
+create index x on table `_t` as 'compact' WITH DEFERRED REBUILD;
+alter index x on table `_t`;
+
+drop index x on table `_t`;
+drop table `_t`;
+
 drop index src_index_2 on src;
 drop index src_index_3 on src;
 drop index src_index_4 on src;
