@@ -218,8 +218,10 @@
 
   <!-- the normal classpath -->
   <path id="common-classpath">
-    <pathelement location="${hadoop.jar}"/>
-    <pathelement location="${hadoop.tools.jar}"/>
+    <pathelement location="${hadoop.oldstyle-name.jar}"/>
+    <pathelement location="${hadoop.oldstyle-name.tools.jar}"/>
+    <pathelement location="${hadoop.newstyle-name.jar}"/>
+    <pathelement location="${hadoop.newstyle-name.tools.jar}"/>
     <pathelement location="${build.dir.hive}/classes"/>
     <fileset dir="${build.dir.hive}" includes="*/*.jar"/>
     <fileset dir="${hive.root}/lib" includes="*.jar"/>
@@ -292,6 +294,7 @@
         <attribute name="Implementation-Version" value="${version}"/>
         <attribute name="Implementation-Vendor" value="Apache"/>
       </manifest>
+      <metainf dir="${hive.root}" includes="LICENSE,NOTICE"/>
     </jar>
   </target>
 

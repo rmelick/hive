@@ -465,7 +465,8 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
       Partition part = db.getPartition(baseTbl, partSpec, false);
       if (part == null) {
         throw new HiveException("Partition "
-            + Warehouse.makePartName(partSpec) + " does not exist in table "
+            + Warehouse.makePartName(partSpec, false)
+            + " does not exist in table "
             + baseTbl.getTableName());
       }
       baseTblPartitions.add(part);
@@ -609,6 +610,9 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
       inputFormat = RCFILE_INPUT;
       outputFormat = RCFILE_OUTPUT;
       serde = COLUMNAR_SERDE;
+      break;
+    case HiveParser.TOK_FILEFORMAT_GENERIC:
+      handleGenericFileFormat(child);
       break;
     }
 
@@ -804,9 +808,12 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
       partSpec = getPartSpec(partspec);
     }
 
-    boolean isExt = ast.getChildCount() > 1;
-    DescTableDesc descTblDesc = new DescTableDesc(ctx.getResFile(), tableName,
-        partSpec, isExt);
+    DescTableDesc descTblDesc = new DescTableDesc(ctx.getResFile(), tableName, partSpec);
+    if (ast.getChildCount() == 2) {
+      int descOptions = ast.getChild(1).getType();
+      descTblDesc.setFormatted(descOptions == HiveParser.KW_FORMATTED);
+      descTblDesc.setExt(descOptions == HiveParser.KW_EXTENDED);
+    }
     rootTasks.add(TaskFactory.get(new DDLWork(getInputs(), getOutputs(),
         descTblDesc), conf));
     setFetchTask(createFetchTask(DescTableDesc.getSchema()));
