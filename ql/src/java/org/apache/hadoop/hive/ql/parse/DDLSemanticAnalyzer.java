@@ -228,7 +228,9 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
     } else if (ast.getToken().getType() == HiveParser.TOK_ALTERTABLE_CLUSTER_SORT) {
       analyzeAlterTableClusterSort(ast);
     } else if (ast.getToken().getType() == HiveParser.TOK_ALTERINDEX_REBUILD) {
-      analyzeUpdateIndex(ast);
+      analyzeAlterIndexRebuild(ast);
+    } else if (ast.getToken().getType() == HiveParser.TOK_ALTERINDEX_PROPERTIES) {
+      analyzeAlterIndexProps(ast);
     } else if (ast.getToken().getType() == HiveParser.TOK_SHOWPARTITIONS) {
       ctx.setResFile(new Path(ctx.getLocalTmpFileURI()));
       analyzeShowPartitions(ast);
@@ -399,7 +401,7 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
         dropIdxDesc), conf));
   }
 
-  private void analyzeUpdateIndex(ASTNode ast) throws SemanticException {
+  private void analyzeAlterIndexRebuild(ASTNode ast) throws SemanticException {
     String baseTableName = unescapeIdentifier(ast.getChild(0).getText());
     String indexName = unescapeIdentifier(ast.getChild(1).getText());
     HashMap<String, String> partSpec = null;
@@ -409,6 +411,17 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
     }
     List<Task<?>> indexBuilder = getIndexBuilderMapRed(baseTableName, indexName, partSpec);
     rootTasks.addAll(indexBuilder);
+  }
+
+  private void analyzeAlterIndexProps(ASTNode ast)
+    throws SemanticException {
+
+    String baseTableName = unescapeIdentifier(ast.getChild(0).getText());
+    String indexName = unescapeIdentifier(ast.getChild(1).getText());
+    HashMap<String, String> mapProp = getProps((ASTNode) (ast.getChild(2))
+        .getChild(0));
+
+    // Stub for alter index properties
   }
 
   private List<Task<?>> getIndexBuilderMapRed(String baseTableName, String indexName,
