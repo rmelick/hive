@@ -341,6 +341,7 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
     boolean deferredRebuild = false;
     String location = null;
     Map<String, String> idxProps = null;
+    String indexComment = null;
 
     RowFormatParams rowFormatParams = new RowFormatParams();
     StorageFormat storageFormat = new StorageFormat();
@@ -376,6 +377,9 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
               shared.serdeProps);
         }
         break;
+      case HiveParser.TOK_INDEXCOMMENT:
+        child = (ASTNode) child.getChild(0);
+        indexComment = unescapeSQLString(child.getText());
       }
     }
 
@@ -386,7 +390,7 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
         storageFormat.storageHandler, typeName, location, idxProps,
         shared.serde, shared.serdeProps, rowFormatParams.collItemDelim,
         rowFormatParams.fieldDelim, rowFormatParams.fieldEscape,
-        rowFormatParams.lineDelim, rowFormatParams.mapKeyDelim);
+        rowFormatParams.lineDelim, rowFormatParams.mapKeyDelim, indexComment);
     Task<?> createIndex = TaskFactory.get(new DDLWork(crtIndexDesc), conf);
     rootTasks.add(createIndex);
   }

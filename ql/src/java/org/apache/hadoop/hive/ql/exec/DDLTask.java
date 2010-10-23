@@ -327,7 +327,7 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
         crtIndex.getInputFormat(), crtIndex.getOutputFormat(), crtIndex.getSerde(),
         crtIndex.getStorageHandler(), crtIndex.getLocation(), crtIndex.getIdxProps(), crtIndex.getSerdeProps(),
         crtIndex.getCollItemDelim(), crtIndex.getFieldDelim(), crtIndex.getFieldEscape(),
-        crtIndex.getLineDelim(), crtIndex.getMapKeyDelim()
+        crtIndex.getLineDelim(), crtIndex.getMapKeyDelim(), crtIndex.getIndexComment()
         );
     return 0;
   }
@@ -1154,7 +1154,11 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
         outStream.writeBytes(indexType.getName());
         outStream.write(separator);
 
-        /* TODO: add column for comments */
+        String indexComment = index.getParameters().get("comment");
+        if (indexComment != null) {
+          outStream.writeBytes(indexComment);
+        }
+        outStream.write(separator);
 
         outStream.write(terminator);
       }

@@ -446,7 +446,7 @@ public class Hive {
       String storageHandler, String location,
       Map<String, String> idxProps, Map<String, String> serdeProps,
       String collItemDelim, String fieldDelim, String fieldEscape,
-      String lineDelim, String mapKeyDelim)
+      String lineDelim, String mapKeyDelim, String indexComment)
       throws HiveException {
 
     try {
@@ -564,6 +564,7 @@ public class Hive {
 
       Index indexDesc = new Index(indexName, indexHandlerClass, dbName, tableName, time, time, indexTblName,
           storageDescriptor, params, deferredRebuild);
+      indexDesc.getParameters().put("comment", indexComment);
       indexHandler.analyzeIndexDefinition(baseTbl, indexDesc, tt);
 
       this.getMSC().createIndex(indexDesc, tt);

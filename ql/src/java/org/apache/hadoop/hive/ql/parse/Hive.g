@@ -184,6 +184,7 @@ TOK_LATERAL_VIEW;
 TOK_TABALIAS;
 TOK_ANALYZE;
 TOK_SHOWINDEXES;
+TOK_INDEXCOMMENT;
 }
 
 
@@ -343,14 +344,23 @@ createIndexStatement
       tableRowFormat?
       tableFileFormat?
       tableLocation?
-    ->^(TOK_CREATEINDEX $indexName $typeName $tab $indexedCols 
+      indexComment?
+    ->^(TOK_CREATEINDEX $indexName $typeName $tab $indexedCols     	
         autoRebuild?
         indexTblName?
         tableRowFormat?
         tableFileFormat?
-        tableLocation?)
+        tableLocation?
+        indexComment?)
     ;
 
+indexComment
+@init { msgs.push("comment on an index");}
+@after {msgs.pop();}
+	:
+		KW_COMMENT comment=StringLiteral  -> ^(TOK_INDEXCOMMENT $comment)
+	;
+	
 autoRebuild
 @init { msgs.push("auto rebuild index");}
 @after {msgs.pop();}
