@@ -1486,10 +1486,6 @@ public class RCFile {
     public String toString() {
       return file.toString();
     }
-    
-    public boolean isCompressedRCFile() {
-      return this.decompress;
-    }
 
     /** Close the reader. */
     public void close() {

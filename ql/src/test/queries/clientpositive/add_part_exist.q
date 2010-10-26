@@ -14,6 +14,8 @@ ALTER TABLE add_part_test ADD IF NOT EXISTS PARTITION (ds='2010-01-01') PARTITIO
 SHOW PARTITIONS add_part_test;
 
 DROP TABLE add_part_test;
+
+DROP TABLE add_part_test;
 SHOW TABLES;
 
 -- Test ALTER TABLE ADD PARTITION in non-default Database

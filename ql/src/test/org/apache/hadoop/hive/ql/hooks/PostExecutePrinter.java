@@ -109,8 +109,12 @@ public class PostExecutePrinter implements PostExecute {
       console.printError("POSTHOOK: type: " + sess.getCommandType());
     }
 
-    PreExecutePrinter.printEntities(console, inputs, "POSTHOOK: Input: ");
-    PreExecutePrinter.printEntities(console, outputs, "POSTHOOK: Output: ");
+    for (ReadEntity re : inputs) {
+      console.printError("POSTHOOK: Input: " + re.toString());
+    }
+    for (WriteEntity we : outputs) {
+      console.printError("POSTHOOK: Output: " + we.toString());
+    }
 
     // Also print out the generic lineage information if there is any
     if (linfo != null) {
@@ -122,10 +126,6 @@ public class PostExecutePrinter implements PostExecute {
         Map.Entry<DependencyKey, Dependency> it = iter.next();
         Dependency dep = it.getValue();
         DependencyKey depK = it.getKey();
-
-        if(dep == null) {
-          continue;
-        }
 
         StringBuilder sb = new StringBuilder();
         sb.append("POSTHOOK: Lineage: ");

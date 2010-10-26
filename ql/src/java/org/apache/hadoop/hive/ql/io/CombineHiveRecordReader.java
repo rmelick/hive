@@ -40,7 +40,7 @@ import org.apache.hadoop.mapred.Reporter;
  * @param <V>
  */
 public class CombineHiveRecordReader<K extends WritableComparable, V extends Writable>
-    extends HiveContextAwareRecordReader<K, V> {
+    implements RecordReader<K, V> {
 
   private final RecordReader recordReader;
 
@@ -66,10 +66,9 @@ public class CombineHiveRecordReader<K extends WritableComparable, V extends Wri
         .getLocations());
 
     this.recordReader = inputFormat.getRecordReader(fsplit, job, reporter);
-    this.initIOContext(fsplit, job, inputFormatClass);
   }
 
-  public void doClose() throws IOException {
+  public void close() throws IOException {
     recordReader.close();
   }
 
@@ -89,10 +88,15 @@ public class CombineHiveRecordReader<K extends WritableComparable, V extends Wri
     return recordReader.getProgress();
   }
 
-  public boolean doNext(K key, V value) throws IOException {
+  public boolean next(K key, V value) throws IOException {
     if (ExecMapper.getDone()) {
       return false;
     }
-    return recordReader.next(key, value);
+    try {
+      return recordReader.next(key, value);
+    } catch (IOException e) {
+      ExecMapper.setAbort(true);
+      throw e;
+    }
   }
 }

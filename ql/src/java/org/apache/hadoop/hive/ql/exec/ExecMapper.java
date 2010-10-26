@@ -23,7 +23,6 @@ import java.io.Serializable;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,7 +32,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hive.ql.plan.FetchWork;
 import org.apache.hadoop.hive.ql.plan.MapredLocalWork;
 import org.apache.hadoop.hive.ql.plan.MapredWork;
-import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
@@ -53,7 +51,7 @@ public class ExecMapper extends MapReduceBase implements Mapper {
   private Map<String, FetchOperator> fetchOperators;
   private OutputCollector oc;
   private JobConf jc;
-  private boolean abort = false;
+  private static boolean abort = false;
   private Reporter rp;
   public static final Log l4j = LogFactory.getLog("ExecMapper");
   private static boolean done;
@@ -100,46 +98,21 @@ public class ExecMapper extends MapReduceBase implements Mapper {
       if (localWork == null) {
         return;
       }
-
       fetchOperators = new HashMap<String, FetchOperator>();
-
-      Map<FetchOperator, JobConf> fetchOpJobConfMap = new HashMap<FetchOperator, JobConf>();
       // create map local operators
       for (Map.Entry<String, FetchWork> entry : localWork.getAliasToFetchWork()
           .entrySet()) {
-        JobConf jobClone = new JobConf(job);
-        Operator<? extends Serializable> tableScan = localWork.getAliasToWork()
-        .get(entry.getKey());
-        boolean setColumnsNeeded = false;
-        if(tableScan instanceof TableScanOperator) {
-          ArrayList<Integer> list = ((TableScanOperator)tableScan).getNeededColumnIDs();
-          if (list != null) {
-            ColumnProjectionUtils.appendReadColumnIDs(jobClone, list);
-            setColumnsNeeded = true;
-          }
-        }
-
-        if (!setColumnsNeeded) {
-          ColumnProjectionUtils.setFullyReadColumns(jobClone);
-        }
-        FetchOperator fetchOp = new FetchOperator(entry.getValue(),jobClone);
-        fetchOpJobConfMap.put(fetchOp, jobClone);
-        fetchOperators.put(entry.getKey(), fetchOp);
+        fetchOperators.put(entry.getKey(), new FetchOperator(entry.getValue(),
+            job));
         l4j.info("fetchoperator for " + entry.getKey() + " created");
       }
-
       // initialize map local operators
       for (Map.Entry<String, FetchOperator> entry : fetchOperators.entrySet()) {
         Operator<? extends Serializable> forwardOp = localWork.getAliasToWork()
             .get(entry.getKey());
         forwardOp.setExecContext(execContext);
         // All the operators need to be initialized before process
-        FetchOperator fetchOp = entry.getValue();
-        JobConf jobConf = fetchOpJobConfMap.get(fetchOp);
-        if (jobConf == null) {
-          jobConf = job;
-        }
-        forwardOp.initialize(jobConf, new ObjectInspector[] {fetchOp
+        forwardOp.initialize(jc, new ObjectInspector[] {entry.getValue()
             .getOutputObjectInspector()});
         l4j.info("fetchoperator for " + entry.getKey() + " initialized");
       }
@@ -177,7 +150,7 @@ public class ExecMapper extends MapReduceBase implements Mapper {
       } else {
         // Since there is no concept of a group, we don't invoke
         // startGroup/endGroup for a mapper
-        mo.process((Writable)value);
+        mo.process((Writable) value);
         if (l4j.isInfoEnabled()) {
           numRows++;
           if (numRows == nextCntr) {
@@ -219,11 +192,6 @@ public class ExecMapper extends MapReduceBase implements Mapper {
       l4j.trace("Close called. no row processed by map.");
     }
 
-    // check if there are IOExceptions
-    if (!abort) {
-      abort = execContext.getIoCxt().getIOExceptions();
-    }
-
     // detecting failed executions by exceptions thrown by the operator tree
     // ideally hadoop should let us know whether map execution failed or not
     try {
@@ -245,6 +213,9 @@ public class ExecMapper extends MapReduceBase implements Mapper {
 
       reportStats rps = new reportStats(rp);
       mo.preorderMap(rps);
+
+      // reset abort flag so that ExecMapper instance can be potentially reused
+      setAbort(false);
       return;
     } catch (Exception e) {
       if (!abort) {
@@ -263,8 +234,8 @@ public class ExecMapper extends MapReduceBase implements Mapper {
     return abort;
   }
 
-  public void setAbort(boolean abort) {
-    this.abort = abort;
+  public static void setAbort(boolean abrt) {
+    abort = abrt;
   }
 
   public static void setDone(boolean done) {

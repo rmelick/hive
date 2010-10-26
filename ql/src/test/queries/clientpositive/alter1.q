@@ -1,3 +1,4 @@
+drop table alter1;
 create table alter1(a int, b int);
 describe extended alter1;
 alter table alter1 set tblproperties ('a'='1', 'c'='3');
@@ -24,6 +25,8 @@ describe extended alter1;
 
 alter table alter1 replace columns (a int, b int, c string);
 describe alter1;
+
+drop table alter1;
 
 -- Cleanup
 DROP TABLE alter1;

@@ -18,23 +18,10 @@
 
 package org.apache.hadoop.hive.jdbc;
 
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.ql.session.SessionState;
-import org.apache.hadoop.hive.service.HiveClient;
-import org.apache.hadoop.hive.service.HiveInterface;
-import org.apache.hadoop.hive.service.HiveServer;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TSocket;
-import org.apache.thrift.transport.TTransport;
-import org.apache.thrift.transport.TTransportException;
-
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
 import java.sql.Clob;
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.NClob;
 import java.sql.PreparedStatement;
@@ -48,16 +35,29 @@ import java.sql.Struct;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.hive.service.HiveClient;
+import org.apache.hadoop.hive.service.HiveInterface;
+import org.apache.hadoop.hive.service.HiveServer;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TProtocol;
+import org.apache.thrift.transport.TSocket;
+import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
+
 /**
  * HiveConnection.
  *
  */
 public class HiveConnection implements java.sql.Connection {
-  private final JdbcSessionState session;
+  JdbcSessionState session;
+
   private TTransport transport;
   private HiveInterface client;
-  private boolean isClosed = true;
-  private SQLWarning warningChain = null;
+  boolean isClosed = true;
+  SQLWarning warningChain = null;
 
   private static final String URI_PREFIX = "jdbc:hive://";
 
@@ -70,6 +70,7 @@ public class HiveConnection implements java.sql.Connection {
     session.out = null;
     session.err = null;
     SessionState.start(session);
+    String originalUri = uri;
 
     if (!uri.startsWith(URI_PREFIX)) {
       throw new SQLException("Invalid URL: " + uri, "08S01");
@@ -104,18 +105,10 @@ public class HiveConnection implements java.sql.Connection {
         transport.open();
       } catch (TTransportException e) {
         throw new SQLException("Could not establish connecton to "
-            + uri + ": " + e.getMessage(), "08S01");
+            + originalUri + ": " + e.getMessage(), "08S01");
       }
     }
     isClosed = false;
-    configureConnection();
-  }
-
-  private void configureConnection() throws SQLException {
-    Statement stmt = createStatement();
-    stmt.execute(
-        "set hive.fetch.output.serde = org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe");
-    stmt.close();
   }
 
   /*
@@ -279,7 +272,8 @@ public class HiveConnection implements java.sql.Connection {
    */
 
   public String getCatalog() throws SQLException {
-    return "";
+    // TODO Auto-generated method stub
+    throw new SQLException("Method not supported");
   }
 
   /*
@@ -322,7 +316,7 @@ public class HiveConnection implements java.sql.Connection {
    */
 
   public DatabaseMetaData getMetaData() throws SQLException {
-    return new HiveDatabaseMetaData(client);
+    return new HiveDatabaseMetaData();
   }
 
   /*
@@ -332,7 +326,8 @@ public class HiveConnection implements java.sql.Connection {
    */
 
   public int getTransactionIsolation() throws SQLException {
-    return Connection.TRANSACTION_NONE;
+    // TODO Auto-generated method stub
+    throw new SQLException("Method not supported");
   }
 
   /*
@@ -373,7 +368,8 @@ public class HiveConnection implements java.sql.Connection {
    */
 
   public boolean isReadOnly() throws SQLException {
-    return false;
+    // TODO Auto-generated method stub
+    throw new SQLException("Method not supported");
   }
 
   /*

@@ -1,5 +1,7 @@
+drop table tmp1;
 create table tmp1 (a string, b string) clustered by (a) sorted by (a) into 10 buckets;
 
+drop table tmp2;
 create table tmp2 (a string, b string) clustered by (a) sorted by (a) into 10 buckets;
 
 
@@ -16,6 +18,7 @@ set hive.optimize.bucketmapjoin.sortedmerge = true;
 set hive.merge.mapfiles=false;
 set hive.input.format=org.apache.hadoop.hive.ql.io.BucketizedHiveInputFormat;
 
+drop table tmp3;
 create table tmp3 (a string, b string, c string) clustered by (a) sorted by (a) into 10 buckets;
 
 
@@ -24,3 +27,7 @@ insert overwrite table tmp3
   from tmp1 i join tmp2 l ON i.a = l.a;
 
 select * from tmp3 order by a, b, c;
+
+drop table tmp1;
+drop table tmp2;
+drop table tmp3;

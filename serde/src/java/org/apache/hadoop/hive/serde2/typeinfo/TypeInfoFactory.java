@@ -97,18 +97,6 @@ public final class TypeInfoFactory {
     return result;
   }
 
-  static HashMap<List<?>, TypeInfo> cachedUnionTypeInfo =
-    new HashMap<List<?>, TypeInfo>();
-
-  public static TypeInfo getUnionTypeInfo(List<TypeInfo> typeInfos) {
-    TypeInfo result = cachedUnionTypeInfo.get(typeInfos);
-    if (result == null) {
-      result = new UnionTypeInfo(typeInfos);
-      cachedUnionTypeInfo.put(typeInfos, result);
-    }
-    return result;
-  }
-
   static HashMap<TypeInfo, TypeInfo> cachedListTypeInfo = new HashMap<TypeInfo, TypeInfo>();
 
   public static TypeInfo getListTypeInfo(TypeInfo elementTypeInfo) {

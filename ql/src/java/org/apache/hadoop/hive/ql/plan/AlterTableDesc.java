@@ -42,13 +42,8 @@ public class AlterTableDesc extends DDLDesc implements Serializable {
   public static enum AlterTableTypes {
     RENAME, ADDCOLS, REPLACECOLS, ADDPROPS, ADDSERDE, ADDSERDEPROPS,
     ADDFILEFORMAT, ADDCLUSTERSORTCOLUMN, RENAMECOLUMN, ADDPARTITION,
-    TOUCH, ARCHIVE, UNARCHIVE, ALTERPROTECTMODE, ALTERPARTITIONPROTECTMODE, ALTERLOCATION,
+    TOUCH, ARCHIVE, UNARCHIVE,
   };
-
-  public static enum ProtectModeType {
-    NO_DROP, OFFLINE, READ_ONLY
-  };
-
 
   AlterTableTypes op;
   String oldName;
@@ -70,10 +65,6 @@ public class AlterTableDesc extends DDLDesc implements Serializable {
   boolean first;
   String afterCol;
   boolean expectView;
-  HashMap<String, String> partSpec;
-  private String newLocation;
-  boolean protectModeEnable;
-  ProtectModeType protectModeType;
 
   public AlterTableDesc() {
   }
@@ -151,10 +142,9 @@ public class AlterTableDesc extends DDLDesc implements Serializable {
    *          new table input format
    * @param outputFormat
    *          new table output format
-   * @param partSpec 
    */
   public AlterTableDesc(String name, String inputFormat, String outputFormat,
-      String serdeName, String storageHandler, HashMap<String, String> partSpec) {
+      String serdeName, String storageHandler) {
     super();
     op = AlterTableTypes.ADDFILEFORMAT;
     oldName = name;
@@ -162,7 +152,6 @@ public class AlterTableDesc extends DDLDesc implements Serializable {
     this.outputFormat = outputFormat;
     this.serdeName = serdeName;
     this.storageHandler = storageHandler;
-    this.partSpec = partSpec;
   }
 
   public AlterTableDesc(String tableName, int numBuckets,
@@ -172,14 +161,6 @@ public class AlterTableDesc extends DDLDesc implements Serializable {
     numberBuckets = numBuckets;
     bucketColumns = new ArrayList<String>(bucketCols);
     sortColumns = new ArrayList<Order>(sortCols);
-  }
-
-  public AlterTableDesc(String tableName, String newLocation,
-      HashMap<String, String> partSpec) {
-    op = AlterTableTypes.ALTERLOCATION;
-    this.oldName = tableName;
-    this.newLocation = newLocation;
-    this.partSpec = partSpec;
   }
 
   @Explain(displayName = "new columns")
@@ -491,49 +472,5 @@ public class AlterTableDesc extends DDLDesc implements Serializable {
    */
   public void setExpectView(boolean expectView) {
     this.expectView = expectView;
-  }
-
-  /**
-   * @return part specification
-   */
-  public HashMap<String, String> getPartSpec() {
-    return partSpec;
-  }
-
-  /**
-   * @param partSpec
-   */
-  public void setPartSpec(HashMap<String, String> partSpec) {
-    this.partSpec = partSpec;
-  }
-
-  /**
-   * @return new location
-   */
-  public String getNewLocation() {
-    return newLocation;
-  }
-
-  /**
-   * @param newLocation new location
-   */
-  public void setNewLocation(String newLocation) {
-    this.newLocation = newLocation;
-  }
-
-  public boolean isProtectModeEnable() {
-    return protectModeEnable;
-  }
-
-  public void setProtectModeEnable(boolean protectModeEnable) {
-    this.protectModeEnable = protectModeEnable;
-  }
-
-  public ProtectModeType getProtectModeType() {
-    return protectModeType;
-  }
-
-  public void setProtectModeType(ProtectModeType protectModeType) {
-    this.protectModeType = protectModeType;
   }
 }

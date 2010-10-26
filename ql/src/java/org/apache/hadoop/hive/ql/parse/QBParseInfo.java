@@ -28,11 +28,10 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer.tableSpec;
 
 /**
  * Implementation of the parse information related to a query block.
- *
+ * 
  **/
 
 public class QBParseInfo {
@@ -47,12 +46,6 @@ public class QBParseInfo {
   private final Map<String, ASTNode> destToSelExpr;
   private final HashMap<String, ASTNode> destToWhereExpr;
   private final HashMap<String, ASTNode> destToGroupby;
-
-  private boolean isAnalyzeCommand; // used for the analyze command (statistics)
-  private boolean isInsertToTable;  // used for insert overwrite command (statistics)
-
-  private final HashMap<String, tableSpec> tableSpecs; // used for statistics
-
   /**
    * ClusterBy is a short name for both DistributeBy and SortBy.
    */
@@ -107,8 +100,6 @@ public class QBParseInfo {
     outerQueryLimit = -1;
 
     aliasToLateralViews = new HashMap<String, ArrayList<ASTNode>>();
-
-    tableSpecs = new HashMap<String, BaseSemanticAnalyzer.tableSpec>();
   }
 
   public void setAggregationExprsForClause(String clause,
@@ -146,7 +137,7 @@ public class QBParseInfo {
 
   /**
    * Set the Cluster By AST for the clause.
-   *
+   * 
    * @param clause
    *          the name of the clause
    * @param ast
@@ -158,7 +149,7 @@ public class QBParseInfo {
 
   /**
    * Set the Distribute By AST for the clause.
-   *
+   * 
    * @param clause
    *          the name of the clause
    * @param ast
@@ -170,7 +161,7 @@ public class QBParseInfo {
 
   /**
    * Set the Sort By AST for the clause.
-   *
+   * 
    * @param clause
    *          the name of the clause
    * @param ast
@@ -222,7 +213,7 @@ public class QBParseInfo {
 
   /**
    * Get the Cluster By AST for the clause.
-   *
+   * 
    * @param clause
    *          the name of the clause
    * @return the abstract syntax tree
@@ -237,7 +228,7 @@ public class QBParseInfo {
 
   /**
    * Get the Distribute By AST for the clause.
-   *
+   * 
    * @param clause
    *          the name of the clause
    * @return the abstract syntax tree
@@ -252,7 +243,7 @@ public class QBParseInfo {
 
   /**
    * Get the Sort By AST for the clause.
-   *
+   * 
    * @param clause
    *          the name of the clause
    * @return the abstract syntax tree
@@ -406,38 +397,4 @@ public class QBParseInfo {
     }
     lateralViews.add(lateralView);
   }
-
-  public void setIsAnalyzeCommand(boolean isAnalyzeCommand) {
-    this.isAnalyzeCommand = isAnalyzeCommand;
-  }
-
-  public boolean isAnalyzeCommand() {
-    return isAnalyzeCommand;
-  }
-
-  public void setIsInsertToTable(boolean isInsertToTable) {
-    this.isInsertToTable = isInsertToTable;
-  }
-
-  public boolean isInsertToTable() {
-    return isInsertToTable;
-  }
-
-  public void addTableSpec(String tName, tableSpec tSpec) {
-    tableSpecs.put(tName, tSpec);
-  }
-
-  public tableSpec getTableSpec(String tName) {
-    return tableSpecs.get(tName);
-  }
-
-  /**
-   * This method is used only for the anlayze command to get the partition specs
-   */
-  public tableSpec getTableSpec() {
-
-    Iterator<String> tName = tableSpecs.keySet().iterator();
-    return tableSpecs.get(tName.next());
-  }
-
 }

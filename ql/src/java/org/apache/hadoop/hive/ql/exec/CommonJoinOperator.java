@@ -24,8 +24,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -44,12 +44,8 @@ import org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils;
-import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
-import org.apache.hadoop.io.BooleanWritable;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.util.ReflectionUtils;
 
@@ -98,34 +94,17 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
 
   protected transient int numAliases; // number of aliases
   /**
-   * The expressions for join inputs.
+   * The expressions for join outputs.
    */
   protected transient Map<Byte, List<ExprNodeEvaluator>> joinValues;
-
-  /**
-   * The filters for join
-   */
-  protected transient Map<Byte, List<ExprNodeEvaluator>> joinFilters;
-
   /**
    * The ObjectInspectors for the join inputs.
    */
   protected transient Map<Byte, List<ObjectInspector>> joinValuesObjectInspectors;
-
-  /**
-   * The ObjectInspectors for join filters.
-   */
-  protected transient
-    Map<Byte, List<ObjectInspector>> joinFilterObjectInspectors;
   /**
    * The standard ObjectInspectors for the join inputs.
    */
   protected transient Map<Byte, List<ObjectInspector>> joinValuesStandardObjectInspectors;
-  /**
-   * The standard ObjectInspectors for the row container.
-   */
-  protected transient
-    Map<Byte, List<ObjectInspector>> rowContainerStandardObjectInspectors;
 
   protected static transient Byte[] order; // order in which the results should
   // be output
@@ -160,9 +139,6 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
   transient Byte lastAlias = null;
 
   transient boolean handleSkewJoin = false;
-
-  protected transient int countAfterReport;
-  protected transient int heartbeatInterval;
 
   public CommonJoinOperator() {
   }
@@ -204,8 +180,6 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
     this.posToAliasMap = clone.posToAliasMap;
     this.spillTableDesc = clone.spillTableDesc;
     this.statsMap = clone.statsMap;
-    this.joinFilters = clone.joinFilters;
-    this.joinFilterObjectInspectors = clone.joinFilterObjectInspectors;
   }
 
   protected int populateJoinKeyValue(Map<Byte, List<ExprNodeEvaluator>> outMap,
@@ -292,11 +266,6 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
   protected void initializeOp(Configuration hconf) throws HiveException {
     this.handleSkewJoin = conf.getHandleSkewJoin();
     this.hconf = hconf;
-
-    heartbeatInterval = HiveConf.getIntVar(hconf,
-        HiveConf.ConfVars.HIVESENDHEARTBEAT);
-    countAfterReport = 0;
-
     totalSz = 0;
     // Map that contains the rows for each alias
     storage = new HashMap<Byte, RowContainer<ArrayList<Object>>>();
@@ -305,8 +274,6 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
 
     joinValues = new HashMap<Byte, List<ExprNodeEvaluator>>();
 
-    joinFilters = new HashMap<Byte, List<ExprNodeEvaluator>>();
-
     if (order == null) {
       order = conf.getTagOrder();
     }
@@ -314,30 +281,10 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
     noOuterJoin = conf.isNoOuterJoin();
 
     totalSz = populateJoinKeyValue(joinValues, conf.getExprs());
-    populateJoinKeyValue(joinFilters, conf.getFilters());
 
     joinValuesObjectInspectors = getObjectInspectorsFromEvaluators(joinValues,
         inputObjInspectors);
-    joinFilterObjectInspectors = getObjectInspectorsFromEvaluators(joinFilters,
-        inputObjInspectors);
     joinValuesStandardObjectInspectors = getStandardObjectInspectors(joinValuesObjectInspectors);
-
-    if (noOuterJoin) {
-      rowContainerStandardObjectInspectors = joinValuesStandardObjectInspectors;
-    } else {
-      Map<Byte, List<ObjectInspector>> rowContainerObjectInspectors =
-        new HashMap<Byte, List<ObjectInspector>>();
-      for (Byte alias : order) {
-        ArrayList<ObjectInspector> rcOIs = new ArrayList<ObjectInspector>();
-        rcOIs.addAll(joinValuesObjectInspectors.get(alias));
-        // for each alias, add object inspector for boolean as the last element
-        rcOIs.add(
-            PrimitiveObjectInspectorFactory.writableBooleanObjectInspector);
-        rowContainerObjectInspectors.put(alias, rcOIs);
-      }
-      rowContainerStandardObjectInspectors =
-        getStandardObjectInspectors(rowContainerObjectInspectors);
-    }
 
     dummyObj = new Object[numAliases];
     dummyObjVectors = new RowContainer[numAliases];
@@ -357,13 +304,6 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
 
       for (int j = 0; j < sz; j++) {
         nr.add(null);
-      }
-
-      if (!noOuterJoin) {
-        // add whether the row is filtered or not
-        // this value does not matter for the dummyObj
-        // because the join values are already null
-        nr.add(new BooleanWritable(false));
       }
       dummyObj[pos] = nr;
       // there should be only 1 dummy object in the RowContainer
@@ -406,7 +346,7 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
       List<String> colNames = Utilities.getColumnNames(tblDesc.getProperties());
       // object inspector for serializing input tuples
       rcOI = ObjectInspectorFactory.getStandardStructObjectInspector(colNames,
-          rowContainerStandardObjectInspectors.get(pos));
+          joinValuesStandardObjectInspectors.get(pos));
     }
 
     rc.setSerDe(serde, rcOI);
@@ -465,12 +405,6 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
         colTypes.append(valueCols.get(k).getTypeString());
         colTypes.append(',');
       }
-      if (!noOuterJoin) {
-        colNames.append("filtered");
-        colNames.append(',');
-        colTypes.append(TypeInfoFactory.booleanTypeInfo.getTypeName());
-        colTypes.append(',');
-      }
       // remove the last ','
       colNames.setLength(colNames.length() - 1);
       colTypes.setLength(colTypes.length() - 1);
@@ -508,44 +442,20 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
   protected transient Byte alias;
 
   /**
-   * Return the key as a standard object. StandardObject can be inspected by a
-   * standard ObjectInspector.
-   */
-  protected static ArrayList<Object> computeKeys(Object row,
-      List<ExprNodeEvaluator> keyFields, List<ObjectInspector> keyFieldsOI)
-      throws HiveException {
-
-    // Compute the keys
-    ArrayList<Object> nr = new ArrayList<Object>(keyFields.size());
-    for (int i = 0; i < keyFields.size(); i++) {
-
-      nr.add(ObjectInspectorUtils.copyToStandardObject(keyFields.get(i)
-          .evaluate(row), keyFieldsOI.get(i),
-          ObjectInspectorCopyOption.WRITABLE));
-    }
-
-    return nr;
-  }
-
-  /**
    * Return the value as a standard object. StandardObject can be inspected by a
    * standard ObjectInspector.
    */
   protected static ArrayList<Object> computeValues(Object row,
-      List<ExprNodeEvaluator> valueFields, List<ObjectInspector> valueFieldsOI,
-      List<ExprNodeEvaluator> filters, List<ObjectInspector> filtersOI,
-      boolean noOuterJoin) throws HiveException {
+      List<ExprNodeEvaluator> valueFields, List<ObjectInspector> valueFieldsOI)
+      throws HiveException {
 
     // Compute the values
     ArrayList<Object> nr = new ArrayList<Object>(valueFields.size());
     for (int i = 0; i < valueFields.size(); i++) {
+
       nr.add(ObjectInspectorUtils.copyToStandardObject(valueFields.get(i)
           .evaluate(row), valueFieldsOI.get(i),
           ObjectInspectorCopyOption.WRITABLE));
-    }
-    if (!noOuterJoin) {
-      // add whether the row is filtered or not.
-      nr.add(new BooleanWritable(isFiltered(row, filters, filtersOI)));
     }
 
     return nr;
@@ -570,9 +480,7 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
         }
       }
     }
-
     forward(forwardCache, outputObjInspector);
-    countAfterReport = 0;
   }
 
   private void copyOldArray(boolean[] src, boolean[] dest) {
@@ -630,12 +538,6 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
       ArrayList<boolean[]> resNulls, ArrayList<boolean[]> inputNulls,
       ArrayList<Object> newObj, IntermediateObject intObj, int left,
       boolean newObjNull) {
-    // newObj is null if is already null or
-    // if the row corresponding to the left alias does not pass through filter
-    newObjNull = newObjNull ||
-        ((BooleanWritable) (intObj.getObjs()[left].get(
-            joinValues.get(order[left]).size()))).get();
-
     Iterator<boolean[]> nullsIter = inputNulls.iterator();
     while (nullsIter.hasNext()) {
       boolean[] oldNulls = nullsIter.next();
@@ -681,14 +583,10 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
       }
     }
 
-    // if the row does not pass through filter, all old Objects are null
-    if (((BooleanWritable)newObj.get(newObj.size()-1)).get()) {
-      allOldObjsNull = true;
-    }
     nullsIter = inputNulls.iterator();
     while (nullsIter.hasNext()) {
       boolean[] oldNulls = nullsIter.next();
-      boolean oldObjNull = oldNulls[left] || allOldObjsNull;
+      boolean oldObjNull = oldNulls[left];
 
       if (!oldObjNull) {
         boolean[] newNulls = new boolean[intObj.getCurSize()];
@@ -744,21 +642,13 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
         break;
       }
     }
-
-    // if the row does not pass through filter, all old Objects are null
-    if (((BooleanWritable)newObj.get(newObj.size()-1)).get()) {
-      allOldObjsNull = true;
-    }
     boolean rhsPreserved = false;
 
     nullsIter = inputNulls.iterator();
     while (nullsIter.hasNext()) {
       boolean[] oldNulls = nullsIter.next();
-      // old obj is null even if the row corresponding to the left alias
-      // does not pass through filter
-      boolean oldObjNull = oldNulls[left] || ((BooleanWritable)
-        (intObj.getObjs()[left].get(joinValues.get(order[left]).size()))).get()
-        || allOldObjsNull;
+      boolean oldObjNull = oldNulls[left];
+
       if (!oldObjNull) {
         boolean[] newNulls = new boolean[intObj.getCurSize()];
         copyOldArray(oldNulls, newNulls);
@@ -926,7 +816,6 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
       }
 
       forward(forwardCache, outputObjInspector);
-      countAfterReport = 0;
       return;
     }
 
@@ -987,36 +876,6 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
           true);
       LOG.trace("called genObject");
     }
-  }
-
-  protected void reportProgress() {
-    // Send some status periodically
-    countAfterReport++;
-
-    if ((countAfterReport % heartbeatInterval) == 0
-        && (reporter != null)) {
-      reporter.progress();
-      countAfterReport = 0;
-    }
-  }
-
-  /**
-   * Returns true if the row does not pass through filters.
-   */
-  protected static Boolean isFiltered(Object row,
-      List<ExprNodeEvaluator> filters, List<ObjectInspector> ois)
-      throws HiveException {
-    // apply join filters on the row.
-    Boolean ret = false;
-    for (int j = 0; j < filters.size(); j++) {
-      Object condition = filters.get(j).evaluate(row);
-      ret = (Boolean) ((PrimitiveObjectInspector)
-          ois.get(j)).getPrimitiveJavaObject(condition);
-      if (ret == null || !ret) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /**

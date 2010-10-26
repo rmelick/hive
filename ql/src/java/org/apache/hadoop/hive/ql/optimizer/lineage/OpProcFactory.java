@@ -20,11 +20,8 @@ package org.apache.hadoop.hive.ql.optimizer.lineage;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
@@ -51,7 +48,6 @@ import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.lib.NodeProcessor;
 import org.apache.hadoop.hive.ql.lib.NodeProcessorCtx;
 import org.apache.hadoop.hive.ql.lib.Utils;
-import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
 import org.apache.hadoop.hive.ql.parse.ParseContext;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.AggregationDesc;
@@ -142,27 +138,16 @@ public class OpProcFactory {
       // Generate the mappings
       RowSchema rs = top.getSchema();
       List<FieldSchema> cols = t.getAllCols();
-      Map<String, FieldSchema> fieldSchemaMap = new HashMap<String, FieldSchema>();
-      for(FieldSchema col : cols) {
-        fieldSchemaMap.put(col.getName(), col);
-      }
-
-      Iterator<VirtualColumn> vcs = VirtualColumn.registry.values().iterator();
-      while (vcs.hasNext()) {
-        VirtualColumn vc = vcs.next();
-        fieldSchemaMap.put(vc.getName(), new FieldSchema(vc.getName(),
-            vc.getTypeInfo().getTypeName(), ""));
-      }
-
       TableAliasInfo tai = new TableAliasInfo();
       tai.setAlias(top.getConf().getAlias());
       tai.setTable(tab);
+      int cnt = 0;
       for(ColumnInfo ci : rs.getSignature()) {
         // Create a dependency
         Dependency dep = new Dependency();
         BaseColumnInfo bci = new BaseColumnInfo();
         bci.setTabAlias(tai);
-        bci.setColumn(fieldSchemaMap.get(ci.getInternalName()));
+        bci.setColumn(cols.get(cnt++));
 
         // Populate the dependency
         dep.setType(LineageInfo.DependencyType.SIMPLE);
@@ -347,17 +332,15 @@ public class OpProcFactory {
         // the dependency list of the input operator.
         if (bci_set.isEmpty()) {
           Set<TableAliasInfo> tai_set = new LinkedHashSet<TableAliasInfo>();
-          if (inpOp.getSchema() != null && inpOp.getSchema().getSignature() != null ) {
-            for(ColumnInfo ci : inpOp.getSchema().getSignature()) {
-              Dependency inp_dep = lctx.getIndex().getDependency(inpOp, ci);
-            	// The dependency can be null as some of the input cis may not have
-            	// been set in case of joins.
-            	if (inp_dep != null) {
-            	  for(BaseColumnInfo bci : inp_dep.getBaseCols()) {
-            	    new_type = LineageCtx.getNewDependencyType(inp_dep.getType(), new_type);
-            	    tai_set.add(bci.getTabAlias());
-            	  }
-            	}
+          for(ColumnInfo ci : inpOp.getSchema().getSignature()) {
+            Dependency inp_dep = lctx.getIndex().getDependency(inpOp, ci);
+            // The dependency can be null as some of the input cis may not have
+            // been set in case of joins.
+            if (inp_dep != null) {
+              for(BaseColumnInfo bci : inp_dep.getBaseCols()) {
+                new_type = LineageCtx.getNewDependencyType(inp_dep.getType(), new_type);
+                tai_set.add(bci.getTabAlias());
+              }
             }
           }
 

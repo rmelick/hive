@@ -18,9 +18,6 @@
 
 package org.apache.hadoop.hive.ql.hooks;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
 import org.apache.hadoop.hive.ql.session.SessionState;
@@ -49,18 +46,12 @@ public class PreExecutePrinter implements PreExecute {
       console.printError("PREHOOK: type: " + sess.getCommandType());
     }
 
-    printEntities(console, inputs, "PREHOOK: Input: ");
-    printEntities(console, outputs, "PREHOOK: Output: ");
+    for (ReadEntity re : inputs) {
+      console.printError("PREHOOK: Input: " + re.toString());
+    }
+    for (WriteEntity we : outputs) {
+      console.printError("PREHOOK: Output: " + we.toString());
+    }
   }
 
-  static void printEntities(LogHelper console, Set<?> entities, String prefix) {
-    List<String> strings = new ArrayList<String>();
-    for (Object o : entities) {
-      strings.add(o.toString());
-    }
-    Collections.sort(strings);
-    for (String s : strings) {
-      console.printError(prefix + s);
-    }
-  }
 }

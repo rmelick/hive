@@ -42,38 +42,15 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 
 import org.apache.hadoop.hive.service.HiveInterface;
-import org.apache.hadoop.hive.service.HiveServerException;
 
 /**
  * HivePreparedStatement.
  *
  */
 public class HivePreparedStatement implements PreparedStatement {
-  private String sql;
-  private JdbcSessionState session;
-  private HiveInterface client;
-  /**
-   * We need to keep a reference to the result set to support the following:
-   * <code>
-   * statement.execute(String sql);
-   * statement.getResultSet();
-   * </code>.
-   */
-  private ResultSet resultSet = null;
-  /**
-   * The maximum number of rows this statement should return (0 => all rows).
-   */
-  private final int maxRows = 0;
-
-  /**
-   * Add SQLWarnings to the warningChain if needed.
-   */
-  private final SQLWarning warningChain = null;
-
-  /**
-   * Keep state so we can fail certain calls made after close().
-   */
-  private boolean isClosed = false;
+  String sql;
+  JdbcSessionState session;
+  HiveInterface client;
 
   /**
    *
@@ -107,29 +84,30 @@ public class HivePreparedStatement implements PreparedStatement {
     // throw new SQLException("Method not supported");
   }
 
-  /**
-   *  Invokes executeQuery(sql) using the sql provided to the constructor.
-   *
-   *  @return boolean Returns true if a resultSet is created, false if not.
-   *                  Note: If the result set is empty a true is returned.
-   *
-   *  @throws
+  /*
+   * (non-Javadoc)
+   * 
+   * @see java.sql.PreparedStatement#execute()
    */
 
   public boolean execute() throws SQLException {
-    ResultSet rs = executeImmediate(sql);
-    return rs != null;
+    // TODO Auto-generated method stub
+    throw new SQLException("Method not supported");
   }
 
-  /**
-   *  Invokes executeQuery(sql) using the sql provided to the constructor.
-   *
-   *  @return ResultSet
-   *  @throws
+  /*
+   * (non-Javadoc)
+   * 
+   * @see java.sql.PreparedStatement#executeQuery()
    */
 
   public ResultSet executeQuery() throws SQLException {
-    return executeImmediate(sql);
+    try {
+      client.execute(sql);
+    } catch (Exception ex) {
+      throw new SQLException(ex.toString());
+    }
+    return new HiveResultSet(client);
   }
 
   /*
@@ -142,36 +120,6 @@ public class HivePreparedStatement implements PreparedStatement {
     // TODO Auto-generated method stub
     throw new SQLException("Method not supported");
   }
-
-  /**
-   *  Executes the SQL statement.
-   *
-   *  @param sql The sql, as a string, to execute
-   *  @return ResultSet
-   *  @throws SQLException if the prepared statement is closed or there is a database error.
-   *                       caught Exceptions are thrown as SQLExceptions with the description
-   *                       "08S01".
-   */
-
-  protected ResultSet executeImmediate(String sql) throws SQLException {
-    if (isClosed) {
-      throw new SQLException("Can't execute after statement has been closed");
-    }
-
-    try {
-      clearWarnings();
-      resultSet = null;
-      client.execute(sql);
-    } catch (HiveServerException e) {
-      throw new SQLException(e.getMessage(), e.getSQLState(), e.getErrorCode());
-    } catch (Exception ex) {
-      throw new SQLException(ex.toString(), "08S01");
-    }
-    resultSet = new HiveQueryResultSet(client, maxRows);
-    return resultSet;
-  }
-
-
 
   /*
    * (non-Javadoc)
@@ -315,8 +263,7 @@ public class HivePreparedStatement implements PreparedStatement {
    * @see java.sql.PreparedStatement#setBlob(int, java.io.InputStream, long)
    */
 
-  public void setBlob(int parameterIndex, InputStream inputStream, long length)
-          throws SQLException {
+  public void setBlob(int parameterIndex, InputStream inputStream, long length) throws SQLException {
     // TODO Auto-generated method stub
     throw new SQLException("Method not supported");
   }
@@ -786,19 +733,15 @@ public class HivePreparedStatement implements PreparedStatement {
     throw new SQLException("Method not supported");
   }
 
-  /**
-   *  Closes the prepared statement.
-   *
-   *  @throws
+  /*
+   * (non-Javadoc)
+   * 
+   * @see java.sql.Statement#close()
    */
 
   public void close() throws SQLException {
-    client = null;
-    if (resultSet!=null) {
-      resultSet.close();
-      resultSet = null;
-    }
-    isClosed = true;
+    // TODO Auto-generated method stub
+    throw new SQLException("Method not supported");
   }
 
   /*

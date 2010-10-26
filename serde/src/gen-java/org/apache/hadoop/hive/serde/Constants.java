@@ -74,8 +74,6 @@ public class Constants {
 
   public static final String STRUCT_TYPE_NAME = "struct";
 
-  public static final String UNION_TYPE_NAME = "uniontype";
-
   public static final String LIST_COLUMNS = "columns";
 
   public static final String LIST_COLUMN_TYPES = "columns.types";

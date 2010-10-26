@@ -60,8 +60,6 @@ public class CliDriver {
   public static final String prompt = "hive";
   public static final String prompt2 = "    "; // when ';' is not yet seen
 
-  public static final String HIVERCFILE = ".hiverc";
-
   private final LogHelper console;
   private final Configuration conf;
 
@@ -130,7 +128,7 @@ public class CliDriver {
       }
 
     } else {
-      CommandProcessor proc = CommandProcessorFactory.get(tokens[0], (HiveConf)conf);
+      CommandProcessor proc = CommandProcessorFactory.get(tokens[0]);
       if (proc != null) {
         if (proc instanceof Driver) {
           Driver qp = (Driver) proc;
@@ -201,11 +199,9 @@ public class CliDriver {
       lastRet = ret;
       boolean ignoreErrors = HiveConf.getBoolVar(conf, HiveConf.ConfVars.CLIIGNOREERRORS);
       if (ret != 0 && !ignoreErrors) {
-        CommandProcessorFactory.clean((HiveConf)conf);
         return ret;
       }
     }
-    CommandProcessorFactory.clean((HiveConf)conf);
     return lastRet;
   }
 
@@ -218,50 +214,6 @@ public class CliDriver {
     }
 
     return (processLine(qsb.toString()));
-  }
-
-  public int processFile(String fileName) throws IOException {
-    FileReader fileReader = null;
-    try {
-      fileReader = new FileReader(fileName);
-      return processReader(new BufferedReader(fileReader));
-    } finally {
-      if (fileReader != null) {
-        fileReader.close();
-      }
-    }
-  }
-
-  public void processInitFiles(CliSessionState ss) throws IOException {
-    boolean saveSilent = ss.getIsSilent();
-    ss.setIsSilent(true);
-    for (String initFile : ss.initFiles) {
-      int rc = processFile(initFile);
-      if (rc != 0) {
-        System.exit(rc);
-      }
-    }
-    if (ss.initFiles.size() == 0) {
-      if (System.getenv("HIVE_HOME") != null) {
-        String hivercDefault = System.getenv("HIVE_HOME") + File.separator + "bin" + File.separator + HIVERCFILE;
-        if (new File(hivercDefault).exists()) {
-          int rc = processFile(hivercDefault);
-          if (rc != 0) {
-            System.exit(rc);
-          }
-        }
-      }
-      if (System.getProperty("user.home") != null) {
-        String hivercUser = System.getProperty("user.home") + File.separator + HIVERCFILE;
-        if (new File(hivercUser).exists()) {
-          int rc = processFile(hivercUser);
-          if (rc != 0) {
-            System.exit(rc);
-          }
-        }
-      }
-    }
-    ss.setIsSilent(saveSilent);
   }
 
   public static void main(String[] args) throws Exception {
@@ -311,16 +263,13 @@ public class CliDriver {
 
     CliDriver cli = new CliDriver();
 
-    // Execute -i init files (always in silent mode)
-    cli.processInitFiles(ss);
-
     if (ss.execString != null) {
       System.exit(cli.processLine(ss.execString));
     }
 
     try {
       if (ss.fileName != null) {
-        System.exit(cli.processFile(ss.fileName));
+        System.exit(cli.processReader(new BufferedReader(new FileReader(ss.fileName))));
       }
     } catch (FileNotFoundException e) {
       System.err.println("Could not open input file for reading. (" + e.getMessage() + ")");

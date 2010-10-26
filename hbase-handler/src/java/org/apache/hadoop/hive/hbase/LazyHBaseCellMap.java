@@ -18,30 +18,29 @@
 
 package org.apache.hadoop.hive.hbase;
 
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.NavigableMap;
-import java.util.Map.Entry;
 
-import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.io.RowResult;
 import org.apache.hadoop.hive.serde2.lazy.ByteArrayRef;
 import org.apache.hadoop.hive.serde2.lazy.LazyFactory;
 import org.apache.hadoop.hive.serde2.lazy.LazyMap;
 import org.apache.hadoop.hive.serde2.lazy.LazyObject;
 import org.apache.hadoop.hive.serde2.lazy.LazyPrimitive;
+import org.apache.hadoop.hive.serde2.lazy.LazyUtils;
 import org.apache.hadoop.hive.serde2.lazy.objectinspector.LazyMapObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
-import org.apache.hadoop.io.Writable;
 
 /**
  * LazyHBaseCellMap refines LazyMap with HBase column mapping.
  */
 public class LazyHBaseCellMap extends LazyMap {
-
-  private Result result;
-  private byte [] columnFamilyBytes;
-
+  
+  private RowResult rowResult;
+  private String hbaseColumnFamily;
+  
   /**
    * Construct a LazyCellMap object with the ObjectInspector.
    * @param oi
@@ -50,68 +49,76 @@ public class LazyHBaseCellMap extends LazyMap {
     super(oi);
   }
 
-  public void init(Result r, byte [] columnFamilyBytes) {
-    result = r;
-    this.columnFamilyBytes = columnFamilyBytes;
+  @Override
+  public void init(ByteArrayRef bytes, int start, int length) {
+    // do nothing
+  }
+  
+  public void init(RowResult rr, String columnFamily) {
+    rowResult = rr;
+    hbaseColumnFamily = columnFamily;
     setParsed(false);
   }
-
+  
   private void parse() {
     if (cachedMap == null) {
       cachedMap = new LinkedHashMap<Object, Object>();
     } else {
       cachedMap.clear();
     }
+    
+    Iterator<byte[]> iter = rowResult.keySet().iterator();
+    
+    byte[] columnFamily = hbaseColumnFamily.getBytes();
+    while (iter.hasNext()) {
+      byte [] columnKey = iter.next();
+      if (columnFamily.length > columnKey.length) {
+        continue;
+      }
+      
+      if (0 == LazyUtils.compare(
+          columnFamily, 0, columnFamily.length, 
+          columnKey, 0, columnFamily.length)) {
 
-    NavigableMap<byte [], byte []> familyMap = result.getFamilyMap(columnFamilyBytes);
-
-    if (familyMap != null) {
-
-      for (Entry<byte [], byte []> e : familyMap.entrySet()) {
-        // null values and values of zero length are not added to the cachedMap
-        if (e.getValue() == null || e.getValue().length == 0) {
+        byte [] columnValue = rowResult.get(columnKey).getValue();
+        if (columnValue == null || columnValue.length == 0) {
+          // an empty object
           continue;
         }
-
+        
         // Keys are always primitive
-        LazyPrimitive<? extends ObjectInspector, ? extends Writable> key =
-          LazyFactory.createLazyPrimitiveClass(
-              (PrimitiveObjectInspector) getInspector().getMapKeyObjectInspector());
-
+        LazyPrimitive<?, ?> key = LazyFactory.createLazyPrimitiveClass(
+            (PrimitiveObjectInspector)
+            ((MapObjectInspector) getInspector()).getMapKeyObjectInspector());
         ByteArrayRef keyRef = new ByteArrayRef();
-        keyRef.setData(e.getKey());
-        key.init(keyRef, 0, keyRef.getData().length);
-
+        keyRef.setData(columnKey);
+        key.init(
+          keyRef, columnFamily.length, columnKey.length - columnFamily.length);
+        
         // Value
-        LazyObject<?> value =
-          LazyFactory.createLazyObject(
-              getInspector().getMapValueObjectInspector());
-
+        LazyObject value = LazyFactory.createLazyObject(
+          ((MapObjectInspector) getInspector()).getMapValueObjectInspector());
         ByteArrayRef valueRef = new ByteArrayRef();
-        valueRef.setData(e.getValue());
-        value.init(valueRef, 0, valueRef.getData().length);
-
-        // Put the key/value into the map
+        valueRef.setData(columnValue);
+        value.init(valueRef, 0, columnValue.length);
+        
+        // Put it into the map
         cachedMap.put(key.getObject(), value.getObject());
       }
     }
-
-    setParsed(true);
   }
-
-
+  
   /**
    * Get the value in the map for the given key.
-   *
+   * 
    * @param key
    * @return
    */
-  @Override
   public Object getMapValueElement(Object key) {
     if (!getParsed()) {
       parse();
     }
-
+    
     for (Map.Entry<Object, Object> entry : cachedMap.entrySet()) {
       LazyPrimitive<?, ?> lazyKeyI = (LazyPrimitive<?, ?>) entry.getKey();
       // getWritableObject() will convert LazyPrimitive to actual primitive
@@ -122,27 +129,26 @@ public class LazyHBaseCellMap extends LazyMap {
       }
       if (keyI.equals(key)) {
         // Got a match, return the value
-        LazyObject<?> v = (LazyObject<?>) entry.getValue();
+        LazyObject v = (LazyObject) entry.getValue();
         return v == null ? v : v.getObject();
       }
     }
-
+    
     return null;
   }
-
-  @Override
+  
   public Map<Object, Object> getMap() {
     if (!getParsed()) {
       parse();
     }
     return cachedMap;
   }
-
-  @Override
+  
   public int getMapSize() {
     if (!getParsed()) {
       parse();
     }
     return cachedMap.size();
   }
+
 }

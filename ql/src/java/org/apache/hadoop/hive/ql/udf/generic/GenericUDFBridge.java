@@ -133,7 +133,6 @@ public class GenericUDFBridge extends GenericUDF implements Serializable {
           .getTypeInfoFromObjectInspector(argument));
     }
     udfMethod = udf.getResolver().getEvalMethod(argumentTypeInfos);
-    udfMethod.setAccessible(true);
 
     // Create parameter converters
     conversionHelper = new ConversionHelper(udfMethod, arguments);

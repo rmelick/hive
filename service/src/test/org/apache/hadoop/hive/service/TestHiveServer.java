@@ -50,7 +50,6 @@ public class TestHiveServer extends TestCase {
   @Override
   protected void setUp() throws Exception {
     super.setUp();
-
     if (standAloneServer) {
       try {
         transport = new TSocket(host, port);
@@ -75,7 +74,6 @@ public class TestHiveServer extends TestCase {
 
   public void testExecute() throws Exception {
     try {
-      client.execute("set hive.support.concurrency = false");
       client.execute("drop table " + tableName);
     } catch (Exception ex) {
     }
@@ -108,7 +106,6 @@ public class TestHiveServer extends TestCase {
 
   public void notestExecute() throws Exception {
     try {
-      client.execute("set hive.support.concurrency = false");
       client.execute("drop table " + tableName);
     } catch (Exception ex) {
     }
@@ -125,7 +122,6 @@ public class TestHiveServer extends TestCase {
 
   public void testNonHiveCommand() throws Exception {
     try {
-      client.execute("set hive.support.concurrency = false");
       client.execute("drop table " + tableName);
     } catch (Exception ex) {
     }
@@ -177,7 +173,6 @@ public class TestHiveServer extends TestCase {
    */
   public void testMetastore() throws Exception {
     try {
-      client.execute("set hive.support.concurrency = false");
       client.execute("drop table " + tableName);
     } catch (Exception ex) {
     }
@@ -203,13 +198,12 @@ public class TestHiveServer extends TestCase {
         || clusterStatus.getState() == JobTrackerState.RUNNING);
   }
 
-  /**
+  /** 
    *
    */
   public void testFetch() throws Exception {
     // create and populate a table with 500 rows.
     try {
-      client.execute("set hive.support.concurrency = false");
       client.execute("drop table " + tableName);
     } catch (Exception ex) {
     }
@@ -245,7 +239,6 @@ public class TestHiveServer extends TestCase {
 
   public void testDynamicSerde() throws Exception {
     try {
-      client.execute("set hive.support.concurrency = false");
       client.execute("drop table " + tableName);
     } catch (Exception ex) {
     }

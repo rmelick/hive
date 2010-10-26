@@ -35,3 +35,8 @@ key	int
 value	string	
 ds	string	
 hr	string	
+PREHOOK: query: DROP TABLE TEST10
+PREHOOK: type: DROPTABLE
+POSTHOOK: query: DROP TABLE TEST10
+POSTHOOK: type: DROPTABLE
+POSTHOOK: Output: default@test10

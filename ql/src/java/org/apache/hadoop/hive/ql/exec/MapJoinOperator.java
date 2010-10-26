@@ -160,11 +160,11 @@ public class MapJoinOperator extends AbstractMapJoinOperator<MapJoinDesc> implem
 
   @Override
   public void processOp(Object row, int tag) throws HiveException {
-
+    
     if (tag == posBigTable) {
       this.getExecContext().processInputFileChangeForLocalWork();
     }
-
+    
     try {
       // get alias
       alias = (byte) tag;
@@ -174,11 +174,10 @@ public class MapJoinOperator extends AbstractMapJoinOperator<MapJoinDesc> implem
       }
 
       // compute keys and values as StandardObjects
-      ArrayList<Object> key = computeKeys(row, joinKeys.get(alias),
+      ArrayList<Object> key = computeValues(row, joinKeys.get(alias),
           joinKeysObjectInspectors.get(alias));
       ArrayList<Object> value = computeValues(row, joinValues.get(alias),
-          joinValuesObjectInspectors.get(alias), joinFilters.get(alias),
-          joinFilterObjectInspectors.get(alias), noOuterJoin);
+          joinValuesObjectInspectors.get(alias));
 
       // does this source need to be stored in the hash map
       if (tag != posBigTable) {
@@ -202,7 +201,6 @@ public class MapJoinOperator extends AbstractMapJoinOperator<MapJoinDesc> implem
         }
 
         reportProgress();
-        numMapRowsRead++;
 
         if ((numMapRowsRead > maxMapJoinSize) && (reporter != null)
             && (counterNameToEnum != null)) {
@@ -283,8 +281,7 @@ public class MapJoinOperator extends AbstractMapJoinOperator<MapJoinDesc> implem
           MapJoinObjectKey keyMap = new MapJoinObjectKey(metadataKeyTag, key);
           MapJoinObjectValue o = mapJoinTables.get(pos).get(keyMap);
 
-          // there is no join-value or join-key has all null elements
-          if (o == null || (hasAnyNulls(key))) {
+          if (o == null) {
             if (noOuterJoin) {
               storage.put(pos, emptyList);
             } else {

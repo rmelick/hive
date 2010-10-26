@@ -18,8 +18,6 @@
 
 package org.apache.hadoop.hive.cli;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -44,11 +42,6 @@ public class CliSessionState extends SessionState {
    * properties set from -hiveconf via cmdline.
    */
   public Properties cmdProperties = new Properties();
-
-  /**
-   * -i option if any that the session has been invoked with.
-   */
-  public List<String> initFiles = new ArrayList<String>();
 
   public CliSessionState() {
     super();

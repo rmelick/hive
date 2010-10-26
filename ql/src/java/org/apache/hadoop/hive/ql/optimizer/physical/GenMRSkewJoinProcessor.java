@@ -267,8 +267,8 @@ public final class GenMRSkewJoinProcessor {
 
       MapJoinDesc mapJoinDescriptor = new MapJoinDesc(newJoinKeys, keyTblDesc,
           newJoinValues, newJoinValueTblDesc, joinDescriptor
-          .getOutputColumnNames(), i, joinDescriptor.getConds(),
-          joinDescriptor.getFilters(), joinDescriptor.getNoOuterJoin());
+          .getOutputColumnNames(), i, joinDescriptor.getConds());
+      mapJoinDescriptor.setNoOuterJoin(joinDescriptor.isNoOuterJoin());
       mapJoinDescriptor.setTagOrder(tags);
       mapJoinDescriptor.setHandleSkewJoin(false);
 

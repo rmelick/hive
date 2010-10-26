@@ -115,8 +115,7 @@
 
   <!-- the normal classpath -->
   <path id="common-classpath">
-    <pathelement location="${hadoop.oldstyle-name.jar}"/>
-    <pathelement location="${hadoop.newstyle-name.jar}"/>
+    <pathelement location="${hadoop.jar}"/>
     <pathelement location="${build.dir.hive}/classes"/>
     <fileset dir="${hive.root}" includes="hive-*.jar"/>
     <fileset dir="${hive.root}/lib" includes="*.jar"/>
@@ -180,7 +179,6 @@
   <!-- create an html report from junit output files -->
   <target name="testreport"
           description="Generate JUnit HTML test report">
-    <mkdir dir="${test.build.dir}"/>
     <junitreport todir="${test.build.dir}">
       <fileset dir="${build.dir.hive}">
         <include name="**/TEST-*.xml"/>
@@ -193,7 +191,6 @@
           description="Clean test results">
     <iterate target="clean-test"/>
     <delete dir="${build.dir.hive}/test"/>
-    <delete dir="${hive.root}/ql/TempStatsStore"/>
   </target>
 
   <target name="clean"
@@ -270,10 +267,7 @@
       </filterset>
     </copy>
     <copy todir="${target.conf.dir}">
-     <fileset dir="${basedir}/conf">
-       <include name="*.properties"/>
-       <include name="*.template"/>
-     </fileset>
+     <fileset dir="${basedir}/conf" includes="*.properties"/>
     </copy>
     <!-- Create php thrift package -->
     <copy todir="${target.lib.dir}/php">
@@ -359,16 +353,16 @@
     <getversionpref property="hadoop.version.ant-internal.prefix" input="${hadoop.version.ant-internal}"/>
 
     <condition property="jetty.jar" value="jetty-6.1.14.jar" else="jetty-5.1.4.jar">
-      <matches string="${hadoop.version.ant-internal}" pattern="^0\.20\..*" />
+      <equals arg1="${hadoop.version.ant-internal.prefix}" arg2="0.20" />
     </condition>
 
     <condition property="jetty.util.jar" value="jetty-util-6.1.14.jar" else="jetty-ext/jsp-api.jar">
       <!-- hadoop 0.19 and earlier does not have jetty-util.jar, so we just load another jar -->
-      <matches string="${hadoop.version.ant-internal}" pattern="^0\.20\..*" />
+      <equals arg1="${hadoop.version.ant-internal.prefix}" arg2="0.20" />
     </condition>
 
     <condition property="servlet-api.jar" value="servlet-api-2.5-6.1.14.jar" else="servlet-api.jar">
-      <matches string="${hadoop.version.ant-internal}" pattern="^0\.20\..*" />
+      <equals arg1="${hadoop.version.ant-internal.prefix}" arg2="0.20" />
     </condition>
 
     <pathconvert property="eclipse.project">
@@ -381,7 +375,6 @@
         <exclude name="${vcs.excludes}"/>
       </fileset>
       <filterset>
-        <filtersfile file="${hive.root}/ivy/libraries.properties"/>
         <filter token="PROJECT" value="${eclipse.project}"/>
         <filter token="HADOOPVER" value="${hadoop.version.ant-internal}"/>
         <filter token="HADOOPVERPREF" value="${hadoop.version.ant-internal.prefix}"/>
@@ -500,6 +493,10 @@
           <include name="**"/>
           <exclude name="bin/**"/>
           <exclude name="lib/py/**/*-remote"/>
+          <!-- Exclude incomplete docs imported from wiki -->
+          <exclude name="docs/index.html"/>
+          <exclude name="docs/site.css"/>
+          <exclude name="docs/language_manual/**"/>
         </tarfileset>
         <tarfileset dir="${hive.root}" mode="664" prefix="${tar.final.name}/src"
                     excludes="${vcs.excludes}">

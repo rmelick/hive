@@ -23,6 +23,8 @@ ALTER TABLE kv_rename_test CHANGE COLUMN a2 a INT AFTER b;
 DESCRIBE kv_rename_test;
 
 DROP TABLE kv_rename_test;
+
+DROP TABLE kv_rename_test;
 SHOW TABLES;
 
 -- Using non-default Database

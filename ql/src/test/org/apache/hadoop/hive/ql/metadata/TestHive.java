@@ -51,11 +51,13 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 public class TestHive extends TestCase {
   private Hive hm;
   private HiveConf hiveConf;
+  private FileSystem fs;
 
   @Override
   protected void setUp() throws Exception {
     super.setUp();
     hiveConf = new HiveConf(this.getClass());
+    fs = FileSystem.get(hiveConf);
     try {
       hm = Hive.get(hiveConf);
     } catch (Exception e) {
@@ -91,18 +93,22 @@ public class TestHive extends TestCase {
         e1.printStackTrace();
         assertTrue("Unable to drop table", false);
       }
-      Table tbl = new Table(MetaStoreUtils.DEFAULT_DATABASE_NAME, tableName);
+      Table tbl = new Table(DEFAULT_DATABASE_NAME, tableName);
       List<FieldSchema> fields = tbl.getCols();
 
-      fields.add(new FieldSchema("col1", Constants.INT_TYPE_NAME, "int -- first column"));
-      fields.add(new FieldSchema("col2", Constants.STRING_TYPE_NAME, "string -- second column"));
-      fields.add(new FieldSchema("col3", Constants.DOUBLE_TYPE_NAME, "double -- thrift column"));
+      fields.add(new FieldSchema("col1", Constants.INT_TYPE_NAME,
+          "int -- first column"));
+      fields.add(new FieldSchema("col2", Constants.STRING_TYPE_NAME,
+          "string -- second column"));
+      fields.add(new FieldSchema("col3", Constants.DOUBLE_TYPE_NAME,
+          "double -- thrift column"));
       tbl.setFields(fields);
 
       tbl.setOutputFormatClass(HiveIgnoreKeyTextOutputFormat.class);
       tbl.setInputFormatClass(SequenceFileInputFormat.class);
 
-      tbl.setProperty("comment", "this is a test table created as part junit tests");
+      tbl.setProperty("comment",
+          "this is a test table created as part junit tests");
 
       List<String> bucketCols = tbl.getBucketCols();
       bucketCols.add("col1");
@@ -156,9 +162,9 @@ public class TestHive extends TestCase {
         assertEquals("Table retention didn't match for table: " + tableName,
             tbl.getRetention(), ft.getRetention());
         String dbPath = wh.getDefaultDatabasePath(DEFAULT_DATABASE_NAME).toString();
-        assertEquals("Data location is not set correctly",
-            wh.getDefaultTablePath(DEFAULT_DATABASE_NAME, tableName).toString(),
-            ft.getDataLocation().toString());
+        assertEquals("Data location is not set correctly", wh
+            .getDefaultTablePath(MetaStoreUtils.DEFAULT_DATABASE_NAME,
+            tableName).toString(), ft.getDataLocation().toString());
         // now that URI is set correctly, set the original table's uri and then
         // compare the two tables
         tbl.setDataLocation(ft.getDataLocation());
@@ -191,7 +197,7 @@ public class TestHive extends TestCase {
 
   /**
    * Tests create and fetch of a thrift based table.
-   *
+   * 
    * @throws Throwable
    */
   public void testThriftTable() throws Throwable {
@@ -203,7 +209,7 @@ public class TestHive extends TestCase {
         System.err.println(StringUtils.stringifyException(e1));
         assertTrue("Unable to drop table", false);
       }
-      Table tbl = new Table(MetaStoreUtils.DEFAULT_DATABASE_NAME, tableName);
+      Table tbl = new Table(DEFAULT_DATABASE_NAME, tableName);
       tbl.setInputFormatClass(SequenceFileInputFormat.class.getName());
       tbl.setOutputFormatClass(SequenceFileOutputFormat.class.getName());
       tbl.setSerializationLib(ThriftDeserializer.class.getName());
@@ -229,10 +235,9 @@ public class TestHive extends TestCase {
             .getOwner(), ft.getOwner());
         assertEquals("Table retention didn't match for table: " + tableName,
             tbl.getRetention(), ft.getRetention());
-        String dbPath = wh.getDefaultDatabasePath(DEFAULT_DATABASE_NAME).toString();
-        assertEquals("Data location is not set correctly",
-            wh.getDefaultTablePath(DEFAULT_DATABASE_NAME, tableName).toString(),
-            ft.getDataLocation().toString());
+        assertEquals("Data location is not set correctly", wh
+            .getDefaultTablePath(MetaStoreUtils.DEFAULT_DATABASE_NAME,
+            tableName).toString(), ft.getDataLocation().toString());
         // now that URI is set correctly, set the original table's uri and then
         // compare the two tables
         tbl.setDataLocation(ft.getDataLocation());
@@ -246,7 +251,7 @@ public class TestHive extends TestCase {
         System.err.println(StringUtils.stringifyException(e));
         assertTrue("Unable to fetch table correctly: " + tableName, false);
       }
-      hm.dropTable(DEFAULT_DATABASE_NAME, tableName);
+      hm.dropTable(MetaStoreUtils.DEFAULT_DATABASE_NAME, tableName);
     } catch (Throwable e) {
       System.err.println(StringUtils.stringifyException(e));
       System.err.println("testThriftTable() failed");
@@ -309,7 +314,6 @@ public class TestHive extends TestCase {
       assertNotNull(table1);
       assertEquals(table1Name, table1.getTableName());
 
-      FileSystem fs = table1.getPath().getFileSystem(hiveConf);
       assertTrue(fs.exists(table1.getPath()));
       // and test dropping this specific table
       hm.dropTable(dbName, table1Name);

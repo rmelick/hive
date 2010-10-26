@@ -1,3 +1,4 @@
+drop table columnarserde_create_shortcut;
 CREATE TABLE columnarserde_create_shortcut(a array<int>, b array<string>, c map<string,string>, d int, e string) STORED AS RCFILE;
 
 EXPLAIN
@@ -11,6 +12,9 @@ SELECT columnarserde_create_shortcut.* FROM columnarserde_create_shortcut DISTRI
 
 SELECT columnarserde_create_shortcut.a[0], columnarserde_create_shortcut.b[0], columnarserde_create_shortcut.c['key2'], columnarserde_create_shortcut.d, columnarserde_create_shortcut.e FROM columnarserde_create_shortcut DISTRIBUTE BY 1;
 
+drop table columnarserde_create_shortcut;
+
+DROP TABLE columnShortcutTable;
 CREATE table columnShortcutTable (key STRING, value STRING) STORED AS RCFILE;
 
 FROM src
@@ -22,3 +26,5 @@ ALTER TABLE columnShortcutTable ADD COLUMNS (c string);
 SELECT columnShortcutTable.* FROM columnShortcutTable;
 ALTER TABLE columnShortcutTable REPLACE COLUMNS (key int);
 SELECT columnShortcutTable.* FROM columnShortcutTable;
+
+DROP TABLE columnShortcutTable;

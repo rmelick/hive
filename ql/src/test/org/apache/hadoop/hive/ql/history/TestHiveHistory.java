@@ -39,7 +39,6 @@ import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.tools.LineageInfo;
 import org.apache.hadoop.mapred.TextInputFormat;
-import org.apache.hadoop.hive.ql.QTestUtil.QTestSetup;
 
 /**
  * TestHiveHistory.
@@ -54,7 +53,6 @@ public class TestHiveHistory extends TestCase {
   private static Path tmppath = new Path(tmpdir);
   private static Hive db;
   private static FileSystem fs;
-  private QTestSetup setup;
 
   /*
    * intialize the tables
@@ -76,9 +74,6 @@ public class TestHiveHistory extends TestCase {
               + tmpdir);
         }
       }
-
-      setup = new QTestSetup();
-      setup.preTest(conf);
 
       // copy the test files into hadoop if required.
       int i = 0;
@@ -104,26 +99,13 @@ public class TestHiveHistory extends TestCase {
         db.dropTable(MetaStoreUtils.DEFAULT_DATABASE_NAME, src, true, true);
         db.createTable(src, cols, null, TextInputFormat.class,
             IgnoreKeyTextOutputFormat.class);
-        db.loadTable(hadoopDataFile[i], src, false, null, false);
+        db.loadTable(hadoopDataFile[i], src, false, null);
         i++;
       }
 
     } catch (Throwable e) {
       e.printStackTrace();
       throw new RuntimeException("Encountered throwable");
-    }
-  }
-
-  @Override
-  protected void tearDown() {
-    try {
-      setup.tearDown();
-    }
-    catch (Exception e) {
-      System.out.println("Exception: " + e.getMessage());
-      e.printStackTrace();
-      System.out.flush();
-      fail("Unexpected exception in tearDown");
     }
   }
 
@@ -151,7 +133,7 @@ public class TestHiveHistory extends TestCase {
       SessionState.start(ss);
 
       String cmd = "select a.key from src a";
-      Driver d = new Driver(conf);
+      Driver d = new Driver();
       int ret = d.run(cmd).getResponseCode();
       if (ret != 0) {
         fail("Failed");

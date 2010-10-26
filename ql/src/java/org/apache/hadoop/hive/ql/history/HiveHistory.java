@@ -42,7 +42,6 @@ import org.apache.hadoop.hive.ql.session.SessionState.LogHelper;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.Counters.Counter;
 import org.apache.hadoop.mapred.Counters.Group;
-import org.apache.hadoop.mapred.Counters;
 
 /**
  * HiveHistory.
@@ -283,9 +282,7 @@ public class HiveHistory {
       sb.append(DELIMITER);
       String key = ent.getKey();
       String val = ent.getValue();
-      if(val != null) {
-        val = val.replace('\n', ' ');        
-      }
+      val = val.replace('\n', ' ');
       sb.append(key + "=\"" + val + "\"");
 
     }
@@ -353,19 +350,19 @@ public class HiveHistory {
    * @param taskId
    * @param rj
    */
-  public void setTaskCounters(String queryId, String taskId, Counters ctrs) {
+  public void setTaskCounters(String queryId, String taskId, RunningJob rj) {
     String id = queryId + ":" + taskId;
     QueryInfo ji = queryInfoMap.get(queryId);
     StringBuilder sb1 = new StringBuilder("");
     TaskInfo ti = taskInfoMap.get(id);
-    if ((ti == null) || (ctrs == null)) {
+    if (ti == null) {
       return;
     }
     StringBuilder sb = new StringBuilder("");
     try {
 
       boolean first = true;
-      for (Group group : ctrs) {
+      for (Group group : rj.getCounters()) {
         for (Counter counter : group) {
           if (first) {
             first = false;
@@ -392,7 +389,7 @@ public class HiveHistory {
       }
 
     } catch (Exception e) {
-      LOG.warn(org.apache.hadoop.util.StringUtils.stringifyException(e));
+      e.printStackTrace();
     }
     if (sb1.length() > 0) {
       taskInfoMap.get(id).hm.put(Keys.ROWS_INSERTED.name(), sb1.toString());

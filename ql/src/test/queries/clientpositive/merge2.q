@@ -33,3 +33,5 @@ set hive.merge.smallfiles.avgsize=16;
 explain
 insert overwrite table test1 select key from test_src;
 insert overwrite table test1 select key from test_src;
+
+drop table test1;

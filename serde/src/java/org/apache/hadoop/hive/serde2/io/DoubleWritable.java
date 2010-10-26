@@ -74,8 +74,7 @@ public class DoubleWritable implements WritableComparable {
 
   @Override
   public int hashCode() {
-    long v = Double.doubleToLongBits(value);
-    return (int) (v ^ (v >>> 32));
+    return (int) Double.doubleToLongBits(value);
   }
 
   public int compareTo(Object o) {

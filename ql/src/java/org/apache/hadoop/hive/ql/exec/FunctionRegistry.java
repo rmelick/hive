@@ -73,16 +73,25 @@ import org.apache.hadoop.hive.ql.udf.UDFLower;
 import org.apache.hadoop.hive.ql.udf.UDFLpad;
 import org.apache.hadoop.hive.ql.udf.UDFMinute;
 import org.apache.hadoop.hive.ql.udf.UDFMonth;
+import org.apache.hadoop.hive.ql.udf.UDFOPAnd;
 import org.apache.hadoop.hive.ql.udf.UDFOPBitAnd;
 import org.apache.hadoop.hive.ql.udf.UDFOPBitNot;
 import org.apache.hadoop.hive.ql.udf.UDFOPBitOr;
 import org.apache.hadoop.hive.ql.udf.UDFOPBitXor;
 import org.apache.hadoop.hive.ql.udf.UDFOPDivide;
+import org.apache.hadoop.hive.ql.udf.UDFOPEqual;
+import org.apache.hadoop.hive.ql.udf.UDFOPEqualOrGreaterThan;
+import org.apache.hadoop.hive.ql.udf.UDFOPEqualOrLessThan;
+import org.apache.hadoop.hive.ql.udf.UDFOPGreaterThan;
+import org.apache.hadoop.hive.ql.udf.UDFOPLessThan;
 import org.apache.hadoop.hive.ql.udf.UDFOPLongDivide;
 import org.apache.hadoop.hive.ql.udf.UDFOPMinus;
 import org.apache.hadoop.hive.ql.udf.UDFOPMod;
 import org.apache.hadoop.hive.ql.udf.UDFOPMultiply;
 import org.apache.hadoop.hive.ql.udf.UDFOPNegative;
+import org.apache.hadoop.hive.ql.udf.UDFOPNot;
+import org.apache.hadoop.hive.ql.udf.UDFOPNotEqual;
+import org.apache.hadoop.hive.ql.udf.UDFOPOr;
 import org.apache.hadoop.hive.ql.udf.UDFOPPlus;
 import org.apache.hadoop.hive.ql.udf.UDFOPPositive;
 import org.apache.hadoop.hive.ql.udf.UDFPI;
@@ -123,18 +132,12 @@ import org.apache.hadoop.hive.ql.udf.UDFWeekOfYear;
 import org.apache.hadoop.hive.ql.udf.UDFYear;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFAverage;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFBridge;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCollectSet;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFContextNGrams;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCorrelation;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCovariance;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCovarianceSample;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFHistogramNumeric;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFMax;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFMin;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFParameterInfo;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFPercentileApprox;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver2;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFStd;
@@ -142,7 +145,6 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFStdSample;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFSum;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFVariance;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFVarianceSample;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFnGrams;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFArray;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFArrayContains;
@@ -159,28 +161,14 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIndex;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFInstr;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFLocate;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFMap;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPAnd;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqualOrGreaterThan;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqualOrLessThan;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPGreaterThan;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPLessThan;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNot;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNotEqual;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNotNull;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNull;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPOr;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFReflect;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFSentences;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFSize;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFSplit;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStruct;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFUnion;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFWhen;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFExplode;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFJSONTuple;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFParseUrlTuple;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
 import org.apache.hadoop.hive.ql.udf.xml.GenericUDFXPath;
 import org.apache.hadoop.hive.ql.udf.xml.UDFXPathBoolean;
@@ -319,24 +307,25 @@ public final class FunctionRegistry {
     registerUDF("^", UDFOPBitXor.class, true);
     registerUDF("~", UDFOPBitNot.class, true);
 
+    registerUDF("=", UDFOPEqual.class, true);
+    registerUDF("==", UDFOPEqual.class, true, "=");
+    registerUDF("<>", UDFOPNotEqual.class, true);
+    registerUDF("!=", UDFOPNotEqual.class, true, "<>");
+    registerUDF("<", UDFOPLessThan.class, true);
+    registerUDF("<=", UDFOPEqualOrLessThan.class, true);
+    registerUDF(">", UDFOPGreaterThan.class, true);
+    registerUDF(">=", UDFOPEqualOrGreaterThan.class, true);
+
+    registerUDF("and", UDFOPAnd.class, true);
+    registerUDF("or", UDFOPOr.class, true);
+    registerUDF("not", UDFOPNot.class, true);
+    registerUDF("!", UDFOPNot.class, true, "not");
+
     registerGenericUDF("isnull", GenericUDFOPNull.class);
     registerGenericUDF("isnotnull", GenericUDFOPNotNull.class);
 
     registerGenericUDF("if", GenericUDFIf.class);
     registerGenericUDF("in", GenericUDFIn.class);
-    registerGenericUDF("and", GenericUDFOPAnd.class);
-    registerGenericUDF("or", GenericUDFOPOr.class);
-    registerGenericUDF("=", GenericUDFOPEqual.class);
-    registerGenericUDF("==", GenericUDFOPEqual.class);
-    registerGenericUDF("!=", GenericUDFOPNotEqual.class);
-    registerGenericUDF("<>", GenericUDFOPNotEqual.class);
-    registerGenericUDF("<", GenericUDFOPLessThan.class);
-    registerGenericUDF("<=", GenericUDFOPEqualOrLessThan.class);
-    registerGenericUDF(">", GenericUDFOPGreaterThan.class);
-    registerGenericUDF(">=", GenericUDFOPEqualOrGreaterThan.class);
-    registerGenericUDF("not", GenericUDFOPNot.class);
-    registerGenericUDF("!", GenericUDFOPNot.class);
-
 
     // Aliases for Java Class Names
     // These are used in getImplicitConvertUDFMethod
@@ -372,26 +361,15 @@ public final class FunctionRegistry {
     registerGenericUDAF("variance", new GenericUDAFVariance());
     registerGenericUDAF("var_pop", new GenericUDAFVariance());
     registerGenericUDAF("var_samp", new GenericUDAFVarianceSample());
-    registerGenericUDAF("covar_pop", new GenericUDAFCovariance());
-    registerGenericUDAF("covar_samp", new GenericUDAFCovarianceSample());
-    registerGenericUDAF("corr", new GenericUDAFCorrelation());
-    registerGenericUDAF("histogram_numeric", new GenericUDAFHistogramNumeric());
-    registerGenericUDAF("percentile_approx", new GenericUDAFPercentileApprox());
-    registerGenericUDAF("collect_set", new GenericUDAFCollectSet());
 
-    registerGenericUDAF("ngrams", new GenericUDAFnGrams());
-    registerGenericUDAF("context_ngrams", new GenericUDAFContextNGrams());
+    registerGenericUDAF("histogram_numeric", new GenericUDAFHistogramNumeric());
 
     registerUDAF("percentile", UDAFPercentile.class);
 
-
     // Generic UDFs
-    registerGenericUDF("reflect", GenericUDFReflect.class);
-
     registerGenericUDF("array", GenericUDFArray.class);
     registerGenericUDF("map", GenericUDFMap.class);
     registerGenericUDF("struct", GenericUDFStruct.class);
-    registerGenericUDF("create_union", GenericUDFUnion.class);
 
     registerGenericUDF("case", GenericUDFCase.class);
     registerGenericUDF("when", GenericUDFWhen.class);
@@ -403,12 +381,9 @@ public final class FunctionRegistry {
     registerGenericUDF("elt", GenericUDFElt.class);
     registerGenericUDF("concat_ws", GenericUDFConcatWS.class);
     registerGenericUDF("array_contains", GenericUDFArrayContains.class);
-    registerGenericUDF("sentences", GenericUDFSentences.class);
 
     // Generic UDTF's
     registerGenericUDTF("explode", GenericUDTFExplode.class);
-    registerGenericUDTF("json_tuple", GenericUDTFJSONTuple.class);
-    registerGenericUDTF("parse_url_tuple", GenericUDTFParseUrlTuple.class);
   }
 
   public static void registerTemporaryUDF(String functionName,
@@ -655,7 +630,6 @@ public final class FunctionRegistry {
    * @param argumentTypeInfos
    * @return The UDAF evaluator
    */
-  @SuppressWarnings("deprecation")
   public static GenericUDAFEvaluator getGenericUDAFEvaluator(String name,
       List<TypeInfo> argumentTypeInfos, boolean isDistinct,
       boolean isAllColumns) throws SemanticException {
@@ -749,9 +723,7 @@ public final class FunctionRegistry {
   }
 
   public static GenericUDAFResolver getGenericUDAFResolver(String functionName) {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Looking up GenericUDAF: " + functionName);
-    }
+    LOG.debug("Looking up GenericUDAF: " + functionName);
     FunctionInfo finfo = mFunctions.get(functionName.toLowerCase());
     if (finfo == null) {
       return null;
@@ -889,11 +861,9 @@ public final class FunctionRegistry {
           conversionCost += cost;
         }
       }
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Method " + (match ? "did" : "didn't") + " match: passed = "
-                  + argumentsPassed + " accepted = " + argumentsAccepted +
-                  " method = " + m);
-      }
+      LOG.debug("Method " + (match ? "did" : "didn't") + " match: passed = "
+          + argumentsPassed + " accepted = " + argumentsAccepted + " method = "
+          + m);
       if (match) {
         // Always choose the function with least implicit conversions.
         if (conversionCost < leastConversionCost) {
@@ -974,18 +944,6 @@ public final class FunctionRegistry {
    * Get the UDF class from an exprNodeDesc. Returns null if the exprNodeDesc
    * does not contain a UDF class.
    */
-  private static Class<? extends GenericUDF> getGenericUDFClassFromExprDesc(ExprNodeDesc desc) {
-    if (!(desc instanceof ExprNodeGenericFuncDesc)) {
-      return null;
-    }
-    ExprNodeGenericFuncDesc genericFuncDesc = (ExprNodeGenericFuncDesc) desc;
-    return genericFuncDesc.getGenericUDF().getClass();
-  }
-
-  /**
-   * Get the UDF class from an exprNodeDesc. Returns null if the exprNodeDesc
-   * does not contain a UDF class.
-   */
   private static Class<? extends UDF> getUDFClassFromExprDesc(ExprNodeDesc desc) {
     if (!(desc instanceof ExprNodeGenericFuncDesc)) {
       return null;
@@ -1023,17 +981,17 @@ public final class FunctionRegistry {
    * Returns whether the exprNodeDesc is a node of "and", "or", "not".
    */
   public static boolean isOpAndOrNot(ExprNodeDesc desc) {
-    Class<? extends GenericUDF> genericUdfClass = getGenericUDFClassFromExprDesc(desc);
-    return GenericUDFOPAnd.class == genericUdfClass
-        || GenericUDFOPOr.class == genericUdfClass
-        || GenericUDFOPNot.class == genericUdfClass;
+    Class<? extends UDF> udfClass = getUDFClassFromExprDesc(desc);
+    return UDFOPAnd.class == udfClass || UDFOPOr.class == udfClass
+        || UDFOPNot.class == udfClass;
   }
 
   /**
    * Returns whether the exprNodeDesc is a node of "and".
    */
   public static boolean isOpAnd(ExprNodeDesc desc) {
-    return GenericUDFOPAnd.class == getGenericUDFClassFromExprDesc(desc);
+    Class<? extends UDF> udfClass = getUDFClassFromExprDesc(desc);
+    return UDFOPAnd.class == udfClass;
   }
 
   /**

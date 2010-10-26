@@ -37,7 +37,6 @@ import org.apache.hadoop.hive.ql.plan.MapredLocalWork;
 import org.apache.hadoop.hive.ql.plan.MapredLocalWork.BucketMapJoinContext;
 import org.apache.hadoop.hive.ql.plan.SMBJoinDesc;
 import org.apache.hadoop.hive.ql.plan.api.OperatorType;
-import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.InspectableObject;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.io.WritableComparable;
@@ -58,14 +57,14 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
 
   private MapredLocalWork localWork = null;
   private Map<String, FetchOperator> fetchOperators;
-  transient ArrayList<Object>[] keyWritables;
-  transient ArrayList<Object>[] nextKeyWritables;
-  RowContainer<ArrayList<Object>>[] nextGroupStorage;
-  RowContainer<ArrayList<Object>>[] candidateStorage;
+  transient Map<Byte, ArrayList<Object>> keyWritables;
+  transient Map<Byte, ArrayList<Object>> nextKeyWritables;
+  HashMap<Byte, RowContainer<ArrayList<Object>>> nextGroupStorage;
+  HashMap<Byte, RowContainer<ArrayList<Object>>> candidateStorage;
 
-  transient Map<Byte, String> tagToAlias;
-  private transient boolean[] fetchOpDone;
-  private transient boolean[] foundNextKeyGroup;
+  transient HashMap<Byte, String> tagToAlias;
+  private transient HashMap<Byte, Boolean> fetchOpDone = new HashMap<Byte, Boolean>();
+  private transient HashMap<Byte, Boolean> foundNextKeyGroup = new HashMap<Byte, Boolean>();
   transient boolean firstFetchHappened = false;
   transient boolean localWorkInited = false;
 
@@ -86,40 +85,28 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
 
     this.firstFetchHappened = false;
 
-    // get the largest table alias from order
-    int maxAlias = 0;
-    for (Byte alias: order) {
-      if (alias > maxAlias) {
-        maxAlias = alias;
-      }
-    }
-    maxAlias += 1;
-
-    nextGroupStorage = new RowContainer[maxAlias];
-    candidateStorage = new RowContainer[maxAlias];
-    keyWritables = new ArrayList[maxAlias];
-    nextKeyWritables = new ArrayList[maxAlias];
-    fetchOpDone = new boolean[maxAlias];
-    foundNextKeyGroup = new boolean[maxAlias];
-
+    nextGroupStorage = new HashMap<Byte, RowContainer<ArrayList<Object>>>();
+    candidateStorage = new HashMap<Byte, RowContainer<ArrayList<Object>>>();
     int bucketSize = HiveConf.getIntVar(hconf,
         HiveConf.ConfVars.HIVEMAPJOINBUCKETCACHESIZE);
     byte storePos = (byte) 0;
     for (Byte alias : order) {
       RowContainer rc = getRowContainer(hconf, storePos, alias, bucketSize);
-      nextGroupStorage[storePos] = rc;
+      nextGroupStorage.put((byte) storePos, rc);
       RowContainer candidateRC = getRowContainer(hconf, storePos, alias,
           bucketSize);
-      candidateStorage[alias] = candidateRC;
+      candidateStorage.put(alias, candidateRC);
       storePos++;
     }
     tagToAlias = conf.getTagToAlias();
+    keyWritables = new HashMap<Byte, ArrayList<Object>>();
+    nextKeyWritables = new HashMap<Byte, ArrayList<Object>>();
 
     for (Byte alias : order) {
       if(alias != (byte) posBigTable) {
-        fetchOpDone[alias] = false;
+        fetchOpDone.put(alias, Boolean.FALSE);;
       }
-      foundNextKeyGroup[alias] = false;
+      foundNextKeyGroup.put(alias, Boolean.FALSE);
     }
   }
 
@@ -137,25 +124,11 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
     localWorkInited = true;
     this.localWork = localWork;
     fetchOperators = new HashMap<String, FetchOperator>();
-
-    Map<FetchOperator, JobConf> fetchOpJobConfMap = new HashMap<FetchOperator, JobConf>();
     // create map local operators
     for (Map.Entry<String, FetchWork> entry : localWork.getAliasToFetchWork()
         .entrySet()) {
-      JobConf jobClone = new JobConf(hconf);
-      Operator<? extends Serializable> tableScan = localWork.getAliasToWork()
-      .get(entry.getKey());
-      if(tableScan instanceof TableScanOperator) {
-        ArrayList<Integer> list = ((TableScanOperator)tableScan).getNeededColumnIDs();
-        if (list != null) {
-          ColumnProjectionUtils.appendReadColumnIDs(jobClone, list);
-        }
-      } else {
-        ColumnProjectionUtils.setFullyReadColumns(jobClone);
-      }
-      FetchOperator fetchOp = new FetchOperator(entry.getValue(),jobClone);
-      fetchOpJobConfMap.put(fetchOp, jobClone);
-      fetchOperators.put(entry.getKey(), fetchOp);
+      fetchOperators.put(entry.getKey(), new FetchOperator(entry.getValue(),
+          new JobConf(hconf)));
       if (l4j != null) {
         l4j.info("fetchoperator for " + entry.getKey() + " created");
       }
@@ -166,12 +139,8 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
           .get(entry.getKey());
       // All the operators need to be initialized before process
       forwardOp.setExecContext(this.getExecContext());
-      FetchOperator fetchOp = entry.getValue();
-      JobConf jobConf = fetchOpJobConfMap.get(fetchOp);
-      if (jobConf == null) {
-        jobConf = this.getExecContext().getJc();
-      }
-      forwardOp.initialize(jobConf, new ObjectInspector[] {fetchOp.getOutputObjectInspector()});
+      forwardOp.initialize(this.getExecContext().getJc(), new ObjectInspector[] {entry.getValue()
+          .getOutputObjectInspector()});
       l4j.info("fetchoperator for " + entry.getKey() + " initialized");
     }
   }
@@ -208,25 +177,23 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
 
     byte alias = (byte) tag;
     // compute keys and values as StandardObjects
-    ArrayList<Object> key = computeKeys(row, joinKeys.get(alias),
+    ArrayList<Object> key = computeValues(row, joinKeys.get(alias),
         joinKeysObjectInspectors.get(alias));
     ArrayList<Object> value = computeValues(row, joinValues.get(alias),
-        joinValuesObjectInspectors.get(alias), joinFilters.get(alias),
-        joinFilterObjectInspectors.get(alias), noOuterJoin);
+        joinValuesObjectInspectors.get(alias));
 
     //have we reached a new key group?
     boolean nextKeyGroup = processKey(alias, key);
     if (nextKeyGroup) {
       //assert this.nextGroupStorage.get(alias).size() == 0;
-      this.nextGroupStorage[alias].add(value);
-      foundNextKeyGroup[tag] = true;
+      this.nextGroupStorage.get(alias).add(value);
+      foundNextKeyGroup.put((byte) tag, Boolean.TRUE);
       if (tag != posBigTable) {
         return;
       }
     }
 
     reportProgress();
-    numMapRowsRead++;
 
     // the big table has reached a new key group. try to let the small tables
     // catch up with the big table.
@@ -243,7 +210,7 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
     }
 
     assert !nextKeyGroup;
-    candidateStorage[tag].add(value);
+    candidateStorage.get((byte) tag).add(value);
   }
 
   /*
@@ -252,7 +219,7 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
    * to join them.
    */
   private void joinFinalLeftData() throws HiveException {
-    RowContainer bigTblRowContainer = this.candidateStorage[this.posBigTable];
+    RowContainer bigTblRowContainer = this.candidateStorage.get((byte)this.posBigTable);
 
     boolean allFetchOpDone = allFetchOpDone();
     // if all left data in small tables are less than and equal to the left data
@@ -260,7 +227,7 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
     while (bigTblRowContainer != null && bigTblRowContainer.size() > 0
         && !allFetchOpDone) {
       joinOneGroup();
-      bigTblRowContainer = this.candidateStorage[this.posBigTable];
+      bigTblRowContainer = this.candidateStorage.get((byte)this.posBigTable);
       allFetchOpDone = allFetchOpDone();
     }
 
@@ -270,22 +237,21 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
         break;
       }
       reportProgress();
-      numMapRowsRead++;
       allFetchOpDone = allFetchOpDone();
     }
 
     boolean dataInCache = true;
     while (dataInCache) {
       for (byte t : order) {
-        if (this.foundNextKeyGroup[t]
-            && this.nextKeyWritables[t] != null) {
+        if (this.foundNextKeyGroup.get(t)
+            && this.nextKeyWritables.get(t) != null) {
           promoteNextGroupToCandidate(t);
         }
       }
       joinOneGroup();
       dataInCache = false;
       for (byte r : order) {
-        if (this.candidateStorage[r].size() > 0) {
+        if (this.candidateStorage.get(r).size() > 0) {
           dataInCache = true;
           break;
         }
@@ -299,14 +265,14 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
       if(tag == (byte) posBigTable) {
         continue;
       }
-      allFetchOpDone = allFetchOpDone && fetchOpDone[tag];
+      allFetchOpDone = allFetchOpDone && fetchOpDone.get(tag);
     }
     return allFetchOpDone;
   }
 
   private List<Byte> joinOneGroup() throws HiveException {
     int smallestPos = -1;
-    smallestPos = findSmallestKey();
+    smallestPos = findMostSmallKey();
     List<Byte> listOfNeedFetchNext = null;
     if(smallestPos >= 0) {
       listOfNeedFetchNext = joinObject(smallestPos);
@@ -325,20 +291,21 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
 
   private List<Byte> joinObject(int smallestPos) throws HiveException {
     List<Byte> needFetchList = new ArrayList<Byte>();
-    ArrayList<Object> smallKey = keyWritables[smallestPos];
+    ArrayList<Object> smallKey = keyWritables.get((byte) smallestPos);
     needFetchList.add((byte)smallestPos);
-    this.storage.put((byte) smallestPos, this.candidateStorage[smallestPos]);
+    this.storage.put((byte) smallestPos, this.candidateStorage.get((byte) smallestPos));
     for (Byte i : order) {
       if ((byte) smallestPos == i) {
         continue;
       }
-      ArrayList<Object> key = keyWritables[i];
+      ArrayList<Object> key = keyWritables.get(i);
       if (key == null) {
         putDummyOrEmpty(i);
       } else {
         int cmp = compareKeys(key, smallKey);
         if (cmp == 0) {
-          this.storage.put((byte) i, this.candidateStorage[i]);
+          this.storage.put((byte) i, this.candidateStorage
+              .get((byte) i));
           needFetchList.add(i);
           continue;
         } else {
@@ -348,24 +315,24 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
     }
     checkAndGenObject();
     for (Byte pos : needFetchList) {
-      this.candidateStorage[pos].clear();
-      this.keyWritables[pos] = null;
+      this.candidateStorage.get(pos).clear();
+      this.keyWritables.remove(pos);
     }
     return needFetchList;
   }
 
   private void fetchNextGroup(Byte t) throws HiveException {
-    if (foundNextKeyGroup[t]) {
+    if (foundNextKeyGroup.get(t)) {
       // first promote the next group to be the current group if we reached a
       // new group in the previous fetch
-      if (this.nextKeyWritables[t] != null) {
+      if (this.nextKeyWritables.get(t) != null) {
         promoteNextGroupToCandidate(t);
       } else {
-        this.keyWritables[t] = null;
-        this.candidateStorage[t] = null;
-        this.nextGroupStorage[t] = null;
+        this.keyWritables.remove(t);
+        this.candidateStorage.remove(t);
+        this.nextGroupStorage.remove(t);
       }
-      foundNextKeyGroup[t] = false;
+      foundNextKeyGroup.put(t, Boolean.FALSE);
     }
     //for the big table, we only need to promote the next group to the current group.
     if(t == (byte)posBigTable) {
@@ -373,51 +340,37 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
     }
 
     //for tables other than the big table, we need to fetch more data until reach a new group or done.
-    while (!foundNextKeyGroup[t]) {
-      if (fetchOpDone[t]) {
+    while (!foundNextKeyGroup.get(t)) {
+      if (fetchOpDone.get(t)) {
         break;
       }
       fetchOneRow(t);
     }
-    if (!foundNextKeyGroup[t] && fetchOpDone[t]) {
-      this.nextKeyWritables[t] = null;
+    if (!foundNextKeyGroup.get(t) && fetchOpDone.get(t)) {
+      this.nextKeyWritables.remove(t);
     }
   }
 
   private void promoteNextGroupToCandidate(Byte t) throws HiveException {
-    this.keyWritables[t] = this.nextKeyWritables[t];
-    this.nextKeyWritables[t] = null;
-    RowContainer<ArrayList<Object>> oldRowContainer = this.candidateStorage[t];
+    this.keyWritables.put(t, this.nextKeyWritables.get(t));
+    this.nextKeyWritables.remove(t);
+    RowContainer<ArrayList<Object>> oldRowContainer = this.candidateStorage.get(t);
     oldRowContainer.clear();
-    this.candidateStorage[t] = this.nextGroupStorage[t];
-    this.nextGroupStorage[t] = oldRowContainer;
+    this.candidateStorage.put(t, this.nextGroupStorage.get(t));
+    this.nextGroupStorage.put(t, oldRowContainer);
   }
 
   private int compareKeys (ArrayList<Object> k1, ArrayList<Object> k2) {
     int ret = 0;
-
-   // join keys have difference sizes?
-    ret = k1.size() - k2.size();
-    if (ret != 0) {
-      return ret;
-    }
-
-    for (int i = 0; i < k1.size(); i++) {
+    for (int i = 0; i < k1.size() && i < k1.size(); i++) {
       WritableComparable key_1 = (WritableComparable) k1.get(i);
       WritableComparable key_2 = (WritableComparable) k2.get(i);
-      if (key_1 == null && key_2 == null) {
-        return -1; // just return k1 is smaller than k2
-      } else if (key_1 == null) {
-        return -1;
-      } else if (key_2 == null) {
-        return 1;
-      }
       ret = WritableComparator.get(key_1.getClass()).compare(key_1, key_2);
       if(ret != 0) {
         return ret;
       }
     }
-    return ret;
+    return k1.size() - k2.size();
   }
 
   private void putDummyOrEmpty(Byte i) {
@@ -429,23 +382,23 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
     }
   }
 
-  private int findSmallestKey() {
+  private int findMostSmallKey() {
     byte index = -1;
-    ArrayList<Object> smallestOne = null;
+    ArrayList<Object> mostSmallOne = null;
 
     for (byte i : order) {
-      ArrayList<Object> key = keyWritables[i];
+      ArrayList<Object> key = keyWritables.get(i);
       if (key == null) {
         continue;
       }
-      if (smallestOne == null) {
-        smallestOne = key;
+      if (mostSmallOne == null) {
+        mostSmallOne = key;
         index = i;
         continue;
       }
-      int cmp = compareKeys(key, smallestOne);
+      int cmp = compareKeys(key, mostSmallOne);
       if (cmp < 0) {
-        smallestOne = key;
+        mostSmallOne = key;
         index = i;
         continue;
       }
@@ -455,15 +408,15 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
 
   private boolean processKey(byte alias, ArrayList<Object> key)
       throws HiveException {
-    ArrayList<Object> keyWritable = keyWritables[alias];
+    ArrayList<Object> keyWritable = keyWritables.get(alias);
     if (keyWritable == null) {
       //the first group.
-      keyWritables[alias] = key;
+      keyWritables.put(alias, key);
       return false;
     } else {
-      int cmp = compareKeys(key, keyWritable);
+      int cmp = compareKeys(key, keyWritable);;
       if (cmp != 0) {
-        nextKeyWritables[alias] = key;
+        nextKeyWritables.put(alias, key);
         return true;
       }
       return false;
@@ -499,14 +452,14 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
       try {
         InspectableObject row = fetchOp.getNextRow();
         if (row == null) {
-          this.fetchOpDone[tag] = true;
+          this.fetchOpDone.put(tag, Boolean.TRUE);
           return;
         }
         forwardOp.process(row.o, 0);
         // check if any operator had a fatal error or early exit during
         // execution
         if (forwardOp.getDone()) {
-          this.fetchOpDone[tag] = true;
+          this.fetchOpDone.put(tag, Boolean.TRUE);
         }
       } catch (Throwable e) {
         if (e instanceof OutOfMemoryError) {
@@ -549,9 +502,9 @@ public class SMBMapJoinOperator extends AbstractMapJoinOperator<SMBJoinDesc> imp
     //clean up
     for (Byte alias : order) {
       if(alias != (byte) posBigTable) {
-        fetchOpDone[alias] = false;
+        fetchOpDone.put(alias, Boolean.FALSE);;
       }
-      foundNextKeyGroup[alias] = false;
+      foundNextKeyGroup.put(alias, Boolean.FALSE);
     }
 
     localWorkInited = false;

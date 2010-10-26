@@ -1,3 +1,7 @@
+PREHOOK: query: drop TABLE triples
+PREHOOK: type: DROPTABLE
+POSTHOOK: query: drop TABLE triples
+POSTHOOK: type: DROPTABLE
 PREHOOK: query: CREATE TABLE triples (foo string, subject string, predicate string, object string, foo2 string)
 PREHOOK: type: CREATETABLE
 POSTHOOK: query: CREATE TABLE triples (foo string, subject string, predicate string, object string, foo2 string)
@@ -413,3 +417,8 @@ STAGE PLANS:
       limit: -1
 
 
+PREHOOK: query: drop TABLE triples
+PREHOOK: type: DROPTABLE
+POSTHOOK: query: drop TABLE triples
+POSTHOOK: type: DROPTABLE
+POSTHOOK: Output: default@triples

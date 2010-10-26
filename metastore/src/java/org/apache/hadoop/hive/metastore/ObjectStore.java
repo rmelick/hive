@@ -20,7 +20,6 @@ package org.apache.hadoop.hive.metastore;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,9 +36,6 @@ import javax.jdo.Query;
 import javax.jdo.Transaction;
 import javax.jdo.datastore.DataStoreCache;
 
-import org.antlr.runtime.CharStream;
-import org.antlr.runtime.CommonTokenStream;
-import org.antlr.runtime.RecognitionException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configurable;
@@ -47,7 +43,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.Index;
 import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
@@ -59,16 +54,12 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.Type;
 import org.apache.hadoop.hive.metastore.model.MDatabase;
 import org.apache.hadoop.hive.metastore.model.MFieldSchema;
-import org.apache.hadoop.hive.metastore.model.MIndex;
 import org.apache.hadoop.hive.metastore.model.MOrder;
 import org.apache.hadoop.hive.metastore.model.MPartition;
 import org.apache.hadoop.hive.metastore.model.MSerDeInfo;
 import org.apache.hadoop.hive.metastore.model.MStorageDescriptor;
 import org.apache.hadoop.hive.metastore.model.MTable;
 import org.apache.hadoop.hive.metastore.model.MType;
-import org.apache.hadoop.hive.metastore.parser.FilterLexer;
-import org.apache.hadoop.hive.metastore.parser.FilterParser;
-import org.apache.hadoop.hive.metastore.parser.ExpressionTree.ANTLRNoCaseStringStream;
 import org.apache.hadoop.util.StringUtils;
 
 /**
@@ -92,7 +83,7 @@ public class ObjectStore implements RawStore, Configurable {
   private boolean isInitialized = false;
   private PersistenceManager pm = null;
   private Configuration hiveConf;
-  int openTrasactionCalls = 0;
+  private int openTrasactionCalls = 0;
   private Transaction currentTransaction = null;
   private TXN_STATUS transactionStatus = TXN_STATUS.NO_STATE;
 
@@ -263,7 +254,7 @@ public class ObjectStore implements RawStore, Configurable {
     if (!currentTransaction.isActive()) {
       throw new RuntimeException(
           "Commit is called, but transaction is not active. Either there are"
-              + " mismatching open and close calls or rollback was called in the same trasaction");
+              + "mismatching open and close calls or rollback was called in the same trasaction");
     }
     openTrasactionCalls--;
     if ((openTrasactionCalls == 0) && currentTransaction.isActive()) {
@@ -299,6 +290,7 @@ public class ObjectStore implements RawStore, Configurable {
       currentTransaction.rollback();
     }
   }
+
 
   public void createDatabase(Database db) throws InvalidObjectException, MetaException {
     boolean commited = false;
@@ -386,7 +378,6 @@ public class ObjectStore implements RawStore, Configurable {
     }
     return success;
   }
-
 
   public List<String> getDatabases(String pattern) throws MetaException {
     boolean commited = false;
@@ -491,6 +482,7 @@ public class ObjectStore implements RawStore, Configurable {
   }
 
   public boolean dropType(String typeName) {
+
     boolean success = false;
     boolean commited = false;
     try {
@@ -514,7 +506,8 @@ public class ObjectStore implements RawStore, Configurable {
     return success;
   }
 
-  public void createTable(Table tbl) throws InvalidObjectException, MetaException {
+  public void createTable(Table tbl) throws InvalidObjectException,
+      MetaException {
     boolean commited = false;
     try {
       openTransaction();
@@ -529,6 +522,7 @@ public class ObjectStore implements RawStore, Configurable {
   }
 
   public boolean dropTable(String dbName, String tableName) throws MetaException {
+
     boolean success = false;
     try {
       openTransaction();
@@ -958,170 +952,6 @@ public class ObjectStore implements RawStore, Configurable {
     return mparts;
   }
 
-  @Override
-  public List<Partition> getPartitionsByFilter(String dbName, String tblName,
-      String filter, short maxParts) throws MetaException, NoSuchObjectException {
-    openTransaction();
-    List<Partition> parts = convertToParts(listMPartitionsByFilter(dbName,
-        tblName, filter, maxParts));
-    commitTransaction();
-    return parts;
-  }
-
-  private String makeQueryFilterString(MTable mtable, String filter,
-      Map<String, String> params)
-      throws MetaException {
-    StringBuilder queryBuilder = new StringBuilder(
-        "table.tableName == t1 && table.database.name == t2");
-
-    if( filter != null && filter.length() > 0) {
-
-      Table table = convertToTable(mtable);
-
-      CharStream cs = new ANTLRNoCaseStringStream(filter);
-      FilterLexer lexer = new FilterLexer(cs);
-
-      CommonTokenStream tokens = new CommonTokenStream();
-      tokens.setTokenSource (lexer);
-
-      FilterParser parser = new FilterParser(tokens);
-
-      try {
-        parser.filter();
-      } catch(RecognitionException re) {
-        throw new MetaException("Error parsing partition filter : " + re);
-      }
-
-      String jdoFilter = parser.tree.generateJDOFilter(table, params);
-
-      if( jdoFilter.trim().length() > 0 ) {
-        queryBuilder.append(" && ( ");
-        queryBuilder.append(jdoFilter.trim());
-        queryBuilder.append(" )");
-      }
-    }
-
-    return queryBuilder.toString();
-  }
-
-  private String makeParameterDeclarationString(Map<String, String> params) {
-    //Create the parameter declaration string
-    StringBuilder paramDecl = new StringBuilder();
-    for(String key : params.keySet() ) {
-      paramDecl.append(", java.lang.String  " + key);
-    }
-    return paramDecl.toString();
-  }
-
-  private List<MPartition> listMPartitionsByFilter(String dbName, String tableName,
-      String filter, short maxParts) throws MetaException, NoSuchObjectException{
-    boolean success = false;
-    List<MPartition> mparts = null;
-    try {
-      openTransaction();
-      LOG.debug("Executing listMPartitionsByFilter");
-      dbName = dbName.toLowerCase();
-      tableName = tableName.toLowerCase();
-
-      MTable mtable = getMTable(dbName, tableName);
-      if( mtable == null ) {
-        throw new NoSuchObjectException("Specified database/table does not exist : "
-            + dbName + "." + tableName);
-      }
-      Map<String, String> params = new HashMap<String, String>();
-      String queryFilterString =
-        makeQueryFilterString(mtable, filter, params);
-
-      Query query = pm.newQuery(MPartition.class,
-          queryFilterString);
-
-      if( maxParts >= 0 ) {
-        //User specified a row limit, set it on the Query
-        query.setRange(0, maxParts);
-      }
-
-      LOG.debug("Filter specified is " + filter + "," +
-             " JDOQL filter is " + queryFilterString);
-
-      params.put("t1", tableName.trim());
-      params.put("t2", dbName.trim());
-
-      String parameterDeclaration = makeParameterDeclarationString(params);
-      query.declareParameters(parameterDeclaration);
-      query.setOrdering("partitionName ascending");
-
-      mparts = (List<MPartition>) query.executeWithMap(params);
-
-      LOG.debug("Done executing query for listMPartitionsByFilter");
-      pm.retrieveAll(mparts);
-      success = commitTransaction();
-      LOG.debug("Done retrieving all objects for listMPartitionsByFilter");
-    } finally {
-      if (!success) {
-        rollbackTransaction();
-      }
-    }
-    return mparts;
-  }
-
-  @Override
-  public List<String> listPartitionNamesByFilter(String dbName, String tableName,
-      String filter, short maxParts) throws MetaException {
-    boolean success = false;
-    List<String> partNames = new ArrayList<String>();
-    try {
-      openTransaction();
-      LOG.debug("Executing listMPartitionsByFilter");
-      dbName = dbName.toLowerCase();
-      tableName = tableName.toLowerCase();
-
-      MTable mtable = getMTable(dbName, tableName);
-      if( mtable == null ) {
-        // To be consistent with the behavior of listPartitionNames, if the
-        // table or db does not exist, we return an empty list
-        return partNames;
-      }
-      Map<String, String> params = new HashMap<String, String>();
-      String queryFilterString =
-        makeQueryFilterString(mtable, filter, params);
-
-      Query query = pm.newQuery(
-          "select partitionName from org.apache.hadoop.hive.metastore.model.MPartition "
-          + "where " + queryFilterString);
-
-      if( maxParts >= 0 ) {
-        //User specified a row limit, set it on the Query
-        query.setRange(0, maxParts);
-      }
-
-      LOG.debug("Filter specified is " + filter + "," +
-          " JDOQL filter is " + queryFilterString);
-      LOG.debug("Parms is " + params);
-
-      params.put("t1", tableName.trim());
-      params.put("t2", dbName.trim());
-
-      String parameterDeclaration = makeParameterDeclarationString(params);
-      query.declareParameters(parameterDeclaration);
-      query.setOrdering("partitionName ascending");
-      query.setResult("partitionName");
-
-      Collection names = (Collection) query.executeWithMap(params);
-      partNames = new ArrayList<String>();
-      for (Iterator i = names.iterator(); i.hasNext();) {
-        partNames.add((String) i.next());
-      }
-
-      LOG.debug("Done executing query for listMPartitionNamesByFilter");
-      success = commitTransaction();
-      LOG.debug("Done retrieving all objects for listMPartitionNamesByFilter");
-    } finally {
-      if (!success) {
-        rollbackTransaction();
-      }
-    }
-    return partNames;
-  }
   public void alterTable(String dbname, String name, Table newTable)
       throws InvalidObjectException, MetaException {
     boolean success = false;
@@ -1199,200 +1029,5 @@ public class ObjectStore implements RawStore, Configurable {
     oldSd.getSerDeInfo().setSerializationLib(
         newSd.getSerDeInfo().getSerializationLib());
     oldSd.getSerDeInfo().setParameters(newSd.getSerDeInfo().getParameters());
-  }
-
-  @Override
-  public boolean addIndex(Index index) throws InvalidObjectException,
-      MetaException {
-    boolean commited = false;
-    try {
-      openTransaction();
-      MIndex idx = convertToMIndex(index);
-      pm.makePersistent(idx);
-      commited = commitTransaction();
-      return true;
-    } finally {
-      if (!commited) {
-        rollbackTransaction();
-        return false;
-      }
-    }
-  }
-
-  private MIndex convertToMIndex(Index index) throws InvalidObjectException,
-      MetaException {
-
-    StorageDescriptor sd = index.getSd();
-    if (sd == null) {
-      throw new InvalidObjectException("Storage descriptor is not defined for index.");
-    }
-
-    MStorageDescriptor msd = this.convertToMStorageDescriptor(sd);
-    MTable origTable = getMTable(index.getDbName(), index.getOrigTableName());
-    if (origTable == null) {
-      throw new InvalidObjectException(
-          "Original table does not exist for the given index.");
-    }
-
-    MTable indexTable = getMTable(index.getDbName(), index.getIndexTableName());
-    if (indexTable == null) {
-      throw new InvalidObjectException(
-          "Underlying index table does not exist for the given index.");
-    }
-
-    return new MIndex(index.getIndexName(), origTable, index.getCreateTime(),
-        index.getLastAccessTime(), index.getParameters(), indexTable, msd,
-        index.getIndexHandlerClass(), index.isDeferredRebuild());
-  }
-
-  @Override
-  public boolean dropIndex(String dbName, String origTableName, String indexName)
-      throws MetaException {
-    boolean success = false;
-    try {
-      openTransaction();
-      MIndex index = getMIndex(dbName, origTableName, indexName);
-      if (index != null) {
-        pm.deletePersistent(index);
-      }
-      success = commitTransaction();
-    } finally {
-      if (!success) {
-        rollbackTransaction();
-      }
-    }
-    return success;
-  }
-
-  private MIndex getMIndex(String dbName, String originalTblName, String indexName) throws MetaException {
-    MIndex midx = null;
-    boolean commited = false;
-    try {
-      openTransaction();
-      dbName = dbName.toLowerCase().trim();
-      originalTblName = originalTblName.toLowerCase().trim();
-      MTable mtbl = getMTable(dbName, originalTblName);
-      if (mtbl == null) {
-        commited = commitTransaction();
-        return null;
-      }
-
-      Query query = pm.newQuery(MIndex.class,
-        "origTable.tableName == t1 && origTable.database.name == t2 && indexName == t3");
-      query.declareParameters("java.lang.String t1, java.lang.String t2, java.lang.String t3");
-      query.setUnique(true);
-      midx = (MIndex) query.execute(originalTblName, dbName, indexName);
-      pm.retrieve(midx);
-      commited = commitTransaction();
-    } finally {
-      if (!commited) {
-        rollbackTransaction();
-      }
-    }
-    return midx;
-  }
-
-  @Override
-  public Index getIndex(String dbName, String origTableName, String indexName)
-      throws MetaException {
-    openTransaction();
-    MIndex mIndex = this.getMIndex(dbName, origTableName, indexName);
-    Index ret = convertToIndex(mIndex);
-    commitTransaction();
-    return ret;
-  }
-
-  private Index convertToIndex(MIndex mIndex) throws MetaException {
-    if(mIndex == null) {
-      return null;
-    }
-
-    return new Index(
-    mIndex.getIndexName(),
-    mIndex.getIndexHandlerClass(),
-    mIndex.getOrigTable().getDatabase().getName(),
-    mIndex.getOrigTable().getTableName(),
-    mIndex.getCreateTime(),
-    mIndex.getLastAccessTime(),
-    mIndex.getIndexTable().getTableName(),
-    this.convertToStorageDescriptor(mIndex.getSd()),
-    mIndex.getParameters(),
-    mIndex.getDeferredRebuild());
-
-  }
-
-  @Override
-  public List<Index> getIndexes(String dbName, String origTableName, int max)
-      throws MetaException {
-    boolean success = false;
-    try {
-      openTransaction();
-      List<MIndex> mIndexList = listMIndexes(dbName, origTableName, max);
-      List<Index> indexes = new ArrayList<Index>(mIndexList.size());
-      for (MIndex midx : mIndexList) {
-        indexes.add(this.convertToIndex(midx));
-      }
-      success = commitTransaction();
-      return indexes;
-    } finally {
-      if (!success) {
-        rollbackTransaction();
-      }
-    }
-  }
-
-  private List<MIndex> listMIndexes(String dbName, String origTableName,
-      int max) {
-    boolean success = false;
-    List<MIndex> mindexes = null;
-    try {
-      openTransaction();
-      LOG.debug("Executing listMIndexes");
-      dbName = dbName.toLowerCase().trim();
-      origTableName = origTableName.toLowerCase().trim();
-      Query query = pm.newQuery(MIndex.class,
-          "origTable.tableName == t1 && origTable.database.name == t2");
-      query.declareParameters("java.lang.String t1, java.lang.String t2");
-      mindexes = (List<MIndex>) query.execute(origTableName, dbName);
-      LOG.debug("Done executing query for listMIndexes");
-      pm.retrieveAll(mindexes);
-      success = commitTransaction();
-      LOG.debug("Done retrieving all objects for listMIndexes");
-    } finally {
-      if (!success) {
-        rollbackTransaction();
-      }
-    }
-    return mindexes;
-  }
-
-  @Override
-  public List<String> listIndexNames(String dbName, String origTableName,
-      short max) throws MetaException {
-    List<String> pns = new ArrayList<String>();
-    boolean success = false;
-    try {
-      openTransaction();
-      LOG.debug("Executing listIndexNames");
-      dbName = dbName.toLowerCase().trim();
-      origTableName = origTableName.toLowerCase().trim();
-      Query q = pm.newQuery(
-          "select indexName from org.apache.hadoop.hive.metastore.model.MIndex "
-          + "where origTable.database.name == t1 && origTable.tableName == t2 "
-          + "order by indexName asc");
-      q.declareParameters("java.lang.String t1, java.lang.String t2");
-      q.setResult("indexName");
-      Collection names = (Collection) q.execute(dbName, origTableName);
-      pns = new ArrayList<String>();
-      for (Iterator i = names.iterator(); i.hasNext();) {
-        pns.add((String) i.next());
-      }
-      success = commitTransaction();
-    } finally {
-      if (!success) {
-        rollbackTransaction();
-      }
-    }
-    return pns;
   }
 }

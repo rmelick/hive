@@ -26,8 +26,6 @@ import java.beans.Statement;
 import java.beans.XMLDecoder;
 import java.beans.XMLEncoder;
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.EOFException;
 import java.io.File;
@@ -39,7 +37,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -50,7 +47,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -71,12 +67,9 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Order;
-import org.apache.hadoop.hive.ql.Context;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat;
 import org.apache.hadoop.hive.ql.io.RCFile;
@@ -86,15 +79,12 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.ErrorMsg;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.DynamicPartitionCtx;
-import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.GroupByDesc;
 import org.apache.hadoop.hive.ql.plan.MapredWork;
 import org.apache.hadoop.hive.ql.plan.PartitionDesc;
 import org.apache.hadoop.hive.ql.plan.PlanUtils;
 import org.apache.hadoop.hive.ql.plan.PlanUtils.ExpressionTypes;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
-import org.apache.hadoop.hive.ql.stats.StatsFactory;
-import org.apache.hadoop.hive.ql.stats.StatsPublisher;
 import org.apache.hadoop.hive.serde.Constants;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.hive.shims.ShimLoader;
@@ -140,7 +130,7 @@ public final class Utilities {
   public static void clearMapRedWork(Configuration job) {
     try {
       Path planPath = new Path(HiveConf.getVar(job, HiveConf.ConfVars.PLAN));
-      FileSystem fs = planPath.getFileSystem(job);
+      FileSystem fs = FileSystem.get(job);
       if (fs.exists(planPath)) {
         try {
           fs.delete(planPath, true);
@@ -151,20 +141,20 @@ public final class Utilities {
     } catch (Exception e) {
     } finally {
       // where a single process works with multiple plans - we must clear
-      // the cache before working with the next plan.
+      // the cache before working with the next plan.      
       String jobID = getHiveJobID(job);
       if (jobID != null) {
         gWorkMap.remove(jobID);
-      }
+     }
     }
   }
 
   public static MapredWork getMapRedWork(Configuration job) {
     MapredWork gWork = null;
     try {
-      String jobID = getHiveJobID(job);
-      assert jobID != null;
-      gWork = gWorkMap.get(jobID);
+       String jobID = getHiveJobID(job);
+       assert jobID != null;
+       gWork = gWorkMap.get(jobID);
       if (gWork == null) {
         InputStream in = new FileInputStream("HIVE_PLAN" + jobID);
         MapredWork ret = deserializeMapRedWork(in, job);
@@ -288,7 +278,6 @@ public final class Utilities {
 
   public static void setMapRedWork(Configuration job, MapredWork w, String hiveScratchDir) {
     try {
-
       // this is the unique job ID, which is kept in JobConf as part of the plan file name
       String jobID = UUID.randomUUID().toString();
       Path planPath = new Path(hiveScratchDir, jobID);
@@ -297,9 +286,11 @@ public final class Utilities {
       // Serialize the plan to the default hdfs instance
       // Except for hadoop local mode execution where we should be
       // able to get the plan directly from the cache
+
       if(!HiveConf.getVar(job, HiveConf.ConfVars.HADOOPJT).equals("local")) {
         // use the default file system of the job
-        FileSystem fs = planPath.getFileSystem(job);
+        FileSystem fs = FileSystem.get(job);
+        
         FSDataOutputStream out = fs.create(planPath);
         serializeMapRedWork(w, out);
         
@@ -307,11 +298,6 @@ public final class Utilities {
         DistributedCache.createSymlink(job);
         String uriWithLink = planPath.toUri().toString() + "#HIVE_PLAN" + jobID;
         DistributedCache.addCacheFile(new URI(uriWithLink), job);
-
-        // set replication of the plan file to a high number. we use the same
-        // replication factor as used by the hadoop jobclient for job.xml etc.
-        short replication = (short)job.getInt("mapred.submit.replication", 10);
-        fs.setReplication(planPath, replication);
       }
 
       // Cache the plan in this process
@@ -323,47 +309,14 @@ public final class Utilities {
     }
   }
 
-  public static String getHiveJobID(Configuration job) {
+  private static String getHiveJobID(Configuration job) {
     String planPath= HiveConf.getVar(job, HiveConf.ConfVars.PLAN);
     if (planPath != null) {
       return (new Path(planPath)).getName();
-    }
-    return null;
-  }
-
-  public static String serializeExpression(ExprNodeDesc expr) {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    XMLEncoder encoder = new XMLEncoder(baos);
-    try {
-      encoder.writeObject(expr);
-    } finally {
-      encoder.close();
-    }
-    try {
-      return baos.toString("UTF-8");
-    } catch (UnsupportedEncodingException ex) {
-      throw new RuntimeException("UTF-8 support required", ex);
-    }
-  }
-
-  public static ExprNodeDesc deserializeExpression(
-    String s, Configuration conf) {
-    byte [] bytes;
-    try {
-      bytes = s.getBytes("UTF-8");
-    } catch (UnsupportedEncodingException ex) {
-      throw new RuntimeException("UTF-8 support required", ex);
-    }
-    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-    XMLDecoder decoder = new XMLDecoder(
-      bais, null, null, conf.getClassLoader());
-    try {
-      ExprNodeDesc expr = (ExprNodeDesc) decoder.readObject();
-      return expr;
-    } finally {
-      decoder.close();
-    }
-  }
+     }
+     return null;
+  }  
+ 
 
   /**
    * Serialize a single Task.
@@ -418,8 +371,8 @@ public final class Utilities {
     e.setPersistenceDelegate(Operator.ProgressCounter.class,
         new EnumDelegate());
 
-    e.setPersistenceDelegate(org.datanucleus.store.types.sco.backed.Map.class, new MapDelegate());
-    e.setPersistenceDelegate(org.datanucleus.store.types.sco.backed.List.class, new ListDelegate());
+    e.setPersistenceDelegate(org.datanucleus.sco.backed.Map.class, new MapDelegate());
+    e.setPersistenceDelegate(org.datanucleus.sco.backed.List.class, new ListDelegate());
 
     e.writeObject(plan);
     e.close();
@@ -513,16 +466,9 @@ public final class Utilities {
   public static String getTaskId(Configuration hconf) {
     String taskid = (hconf == null) ? null : hconf.get("mapred.task.id");
     if ((taskid == null) || taskid.equals("")) {
-      return ("" + Math.abs(randGen.nextInt()));
+      return ("" + randGen.nextInt());
     } else {
-       /* extract the task and attempt id from the hadoop taskid.
-          in version 17 the leading component was 'task_'. thereafter
-          the leading component is 'attempt_'. in 17 - hadoop also
-          seems to have used _map_ and _reduce_ to denote map/reduce
-          task types
-       */
-      String ret = taskid.replaceAll(".*_[mr]_", "").replaceAll(".*_(map|reduce)_", "");
-      return (ret);
+      return taskid.replaceAll("task_[0-9]+_", "");
     }
   }
 
@@ -1011,29 +957,31 @@ public final class Utilities {
 
   /**
    * The first group will contain the task id. The second group is the optional
-   * extension. The file name looks like: "0_0" or "0_0.gz". There may be a leading
-   * prefix (tmp_). Since getTaskId() can return an integer only - this should match
-   * a pure integer as well
+   * extension. The file name looks like: "24931_r_000000_0" or
+   * "24931_r_000000_0.gz"
    */
-  private static Pattern fileNameTaskIdRegex = Pattern.compile("^.*?([0-9]+)(_[0-9])?(\\..*)?$");
+  private static Pattern fileNameTaskIdRegex = Pattern.compile("^.*_([0-9]*)_[0-9](\\..*)?$");
 
   /**
-   * Get the task id from the filename.
-   * It is assumed that the filename is derived from the output of getTaskId
-   *
-   * @param filename filename to extract taskid from
+   * Local job name looks like "job_local_1_map_0000", where 1 is job ID and 0000 is task ID.
+   */
+  private static Pattern fileNameLocalTaskIdRegex = Pattern.compile(".*local.*_([0-9]*)$");
+
+  /**
+   * Get the task id from the filename. E.g., get "000000" out of
+   * "24931_r_000000_0" or "24931_r_000000_0.gz"
    */
   public static String getTaskIdFromFilename(String filename) {
     String taskId = filename;
-    int dirEnd = filename.lastIndexOf(Path.SEPARATOR);
-    if (dirEnd != -1) {
-      taskId = filename.substring(dirEnd + 1);
-    }
-
-    Matcher m = fileNameTaskIdRegex.matcher(taskId);
+    Matcher m = fileNameTaskIdRegex.matcher(filename);
     if (!m.matches()) {
-      LOG.warn("Unable to get task id from file name: " + filename
-               + ". Using last component" + taskId + " as task id.");
+      Matcher m2 = fileNameLocalTaskIdRegex.matcher(filename);
+      if (!m2.matches()) {
+        LOG.warn("Unable to get task id from file name: " + filename
+            + ". Using full filename as task id.");
+      } else {
+        taskId = m2.group(1);
+      }
     } else {
       taskId = m.group(1);
     }
@@ -1042,21 +990,17 @@ public final class Utilities {
   }
 
   /**
-   * Replace the task id from the filename.
-   * It is assumed that the filename is derived from the output of getTaskId
-   *
-   * @param filename filename to replace taskid
-   * "0_0" or "0_0.gz" by 33 to
-   * "33_0" or "33_0.gz"
+   * Replace the task id from the filename. E.g., replace "000000" out of
+   * "24931_r_000000_0" or "24931_r_000000_0.gz" by 33 to
+   * "24931_r_000033_0" or "24931_r_000033_0.gz"
    */
   public static String replaceTaskIdFromFilename(String filename, int bucketNum) {
     String taskId = getTaskIdFromFilename(filename);
     String newTaskId = replaceTaskId(taskId, bucketNum);
-    String ret =  replaceTaskIdFromFilename(filename, taskId, newTaskId);
-    return (ret);
+    return replaceTaskIdFromFilename(filename, taskId, newTaskId);
   }
 
-  private static String replaceTaskId(String taskId, int bucketNum) {
+  public static String replaceTaskId(String taskId, int bucketNum) {
     String strBucketNum = String.valueOf(bucketNum);
     int bucketNumLen = strBucketNum.length();
     int taskIdLen = taskId.length();
@@ -1075,7 +1019,7 @@ public final class Utilities {
    * @param newTaskId
    * @return
    */
-  private static String replaceTaskIdFromFilename(String filename,
+  public static String replaceTaskIdFromFilename(String filename,
       String oldTaskId, String newTaskId) {
 
     String[] spl = filename.split(oldTaskId);
@@ -1144,16 +1088,6 @@ public final class Utilities {
       for (int i = 0; i < parts.length; ++i) {
         assert parts[i].isDir(): "dynamic partition " + parts[i].getPath() + " is not a direcgtory";
         FileStatus[] items = fs.listStatus(parts[i].getPath());
-
-        // remove empty directory since DP insert should not generate empty partitions.
-        // empty directories could be generated by crashed Task/ScriptOperator
-        if (items.length == 0) {
-          if (!fs.delete(parts[i].getPath(), true)) {
-            LOG.error("Cannot delete empty directory " + parts[i].getPath());
-            throw new IOException("Cannot delete empty directory " + parts[i].getPath());
-          }
-        }
-
         taskIDToFile = removeTempOrDuplicateFiles(items, fs);
         // if the table is bucketed and enforce bucketing, we should check and generate all buckets
         if (dpCtx.getNumBuckets() > 0 && taskIDToFile != null) {
@@ -1403,171 +1337,8 @@ public final class Utilities {
     }
   }
 
-  /**
-   * Calculate the total size of input files.
-   *
-   * @param job  the hadoop job conf.
-   * @param work map reduce job plan
-   * @param filter filter to apply to the input paths before calculating size
-   * @return the summary of all the input paths.
-   * @throws IOException
-   */
-  public static ContentSummary getInputSummary
-    (Context ctx, MapredWork work, PathFilter filter) throws IOException {
-
-    long[] summary = {0, 0, 0};
-
-    // For each input path, calculate the total size.
-    for (String path : work.getPathToAliases().keySet()) {
-      try {
-        Path p = new Path(path);
-
-        if(filter != null && !filter.accept(p)) {
-          continue;
-        }
-
-        ContentSummary cs = ctx.getCS(path);
-        if (cs == null) {
-          FileSystem fs = p.getFileSystem(ctx.getConf());
-          cs = fs.getContentSummary(p);
-          ctx.addCS(path, cs);
-        }
-
-        summary[0] += cs.getLength();
-        summary[1] += cs.getFileCount();
-        summary[2] += cs.getDirectoryCount();
-
-      } catch (IOException e) {
-        LOG.info("Cannot get size of " + path + ". Safely ignored.");
-        if (path != null) {
-          ctx.addCS(path, new ContentSummary(0, 0, 0));
-        }
-      }
-    }
-    return new ContentSummary(summary[0], summary[1], summary[2]);
-  }
-
-  public static boolean isEmptyPath(JobConf job, Path dirPath) throws Exception {
-    FileSystem inpFs = dirPath.getFileSystem(job);
-
-    if (inpFs.exists(dirPath)) {
-      FileStatus[] fStats = inpFs.listStatus(dirPath);
-      if (fStats.length > 0) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  public static List<ExecDriver> getMRTasks (List<Task<? extends Serializable>> tasks) {
-    List<ExecDriver> mrTasks = new ArrayList<ExecDriver> ();
-    if(tasks !=  null) {
-      getMRTasks(tasks, mrTasks);
-    }
-    return mrTasks;
-  }
-
-  private static void getMRTasks (List<Task<? extends Serializable>> tasks,
-                                  List<ExecDriver> mrTasks) {
-    for (Task<? extends Serializable> task : tasks) {
-      if (task instanceof ExecDriver && !mrTasks.contains((ExecDriver)task)) {
-        mrTasks.add((ExecDriver)task);
-      }
-
-      if (task.getDependentTasks() != null) {
-        getMRTasks(task.getDependentTasks(), mrTasks);
-      }
-    }
-  }
-
   public static boolean supportCombineFileInputFormat() {
     return ShimLoader.getHadoopShims().getCombineFileInputFormat() != null;
   }
 
-  /**
-   * Construct a list of full partition spec from Dynamic Partition Context and
-   * the directory names corresponding to these dynamic partitions.
-   */
-  public static List<LinkedHashMap<String, String>> getFullDPSpecs(Configuration conf,
-      DynamicPartitionCtx dpCtx)
-      throws HiveException {
-
-    try {
-      Path loadPath = new Path(dpCtx.getRootPath());
-      FileSystem fs = loadPath.getFileSystem(conf);
-    	int numDPCols = dpCtx.getNumDPCols();
-    	FileStatus[] status = Utilities.getFileStatusRecurse(loadPath, numDPCols, fs);
-
-    	if (status.length == 0) {
-    	  LOG.warn("No partition is genereated by dynamic partitioning");
-    	  return null;
-    	}
-
-    	// partial partition specification
-    	Map<String, String> partSpec = dpCtx.getPartSpec();
-
-    	// list of full partition specification
-    	List<LinkedHashMap<String, String>> fullPartSpecs =
-    	  new ArrayList<LinkedHashMap<String, String>>();
-
-    	// for each dynamically created DP directory, construct a full partition spec
-    	// and load the partition based on that
-    	for (int i= 0; i < status.length; ++i) {
-    	  // get the dynamically created directory
-    	  Path partPath = status[i].getPath();
-    	  assert fs.getFileStatus(partPath).isDir():
-    	    "partitions " + partPath + " is not a directory !";
-
-    	  // generate a full partition specification
-    	  LinkedHashMap<String, String> fullPartSpec = new LinkedHashMap<String, String>(partSpec);
-      	Warehouse.makeSpecFromName(fullPartSpec, partPath);
-      	fullPartSpecs.add(fullPartSpec);
-    	}
-    	return fullPartSpecs;
-    } catch (IOException e) {
-      throw new HiveException(e);
-    }
-  }
-
-  public static StatsPublisher getStatsPublisher(JobConf jc) {
-    String statsImplementationClass = HiveConf.getVar(jc, HiveConf.ConfVars.HIVESTATSDBCLASS);
-    if (StatsFactory.setImplementation(statsImplementationClass, jc)) {
-      return StatsFactory.getStatsPublisher();
-    } else {
-      return null;
-    }
-  }
-
-  public static void setColumnNameList(JobConf jobConf, Operator op) {
-    RowSchema rowSchema = op.getSchema();
-    if (rowSchema == null) {
-      return;
-    }
-    StringBuilder columnNames = new StringBuilder();
-    for (ColumnInfo colInfo : rowSchema.getSignature()) {
-      if (columnNames.length() > 0) {
-        columnNames.append(",");
-      }
-      columnNames.append(colInfo.getInternalName());
-    }
-    String columnNamesString = columnNames.toString();
-    jobConf.set(
-      Constants.LIST_COLUMNS,
-      columnNamesString);
-  }
-
-  public static void validatePartSpec(Table tbl, Map<String, String> partSpec)
-      throws SemanticException {
-
-    List<FieldSchema> parts = tbl.getPartitionKeys();
-    Set<String> partCols = new HashSet<String>(parts.size());
-    for (FieldSchema col: parts) {
-      partCols.add(col.getName());
-    }
-    for (String col: partSpec.keySet()) {
-      if (!partCols.contains(col)) {
-        throw new SemanticException(ErrorMsg.NONEXISTPARTCOL.getMsg(col));
-      }
-    }
-  }
 }

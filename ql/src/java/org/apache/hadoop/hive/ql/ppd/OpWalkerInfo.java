@@ -25,7 +25,6 @@ import org.apache.hadoop.hive.ql.exec.Operator;
 import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.lib.NodeProcessorCtx;
 import org.apache.hadoop.hive.ql.parse.OpParseContext;
-import org.apache.hadoop.hive.ql.parse.ParseContext;
 import org.apache.hadoop.hive.ql.parse.RowResolver;
 
 /**
@@ -38,11 +37,10 @@ public class OpWalkerInfo implements NodeProcessorCtx {
    */
   private final HashMap<Operator<? extends Serializable>, ExprWalkerInfo> opToPushdownPredMap;
   private final Map<Operator<? extends Serializable>, OpParseContext> opToParseCtxMap;
-  private final ParseContext pGraphContext;
 
-  public OpWalkerInfo(ParseContext pGraphContext) {
-    this.pGraphContext = pGraphContext;
-    opToParseCtxMap = pGraphContext.getOpParseCtx();
+  public OpWalkerInfo(
+      HashMap<Operator<? extends Serializable>, OpParseContext> opToParseCtxMap) {
+    this.opToParseCtxMap = opToParseCtxMap;
     opToPushdownPredMap = new HashMap<Operator<? extends Serializable>, ExprWalkerInfo>();
   }
 
@@ -64,7 +62,4 @@ public class OpWalkerInfo implements NodeProcessorCtx {
     return opToParseCtxMap.put(key, value);
   }
 
-  public ParseContext getParseContext() {
-    return pGraphContext;
-  }
 }

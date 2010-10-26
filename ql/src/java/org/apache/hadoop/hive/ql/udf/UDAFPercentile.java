@@ -138,20 +138,13 @@ public class UDAFPercentile extends UDAF {
       }
     }
 
-    /** Note that percentile can be null in a global aggregation with
-     *  0 input rows:  "select percentile(col, 0.5) from t where false"
-     *  In that case, iterate(null, null) will be called once.
-     */
-    public boolean iterate(LongWritable o, Double percentile) {
-      if (o == null && percentile == null) {
-        return false;
-      }
+    public boolean iterate(LongWritable o, double percentile) {
       if (state.percentiles == null) {
         if (percentile < 0.0 || percentile > 1.0) {
           throw new RuntimeException("Percentile value must be wihin the range of 0 to 1.");
         }
         state.percentiles = new ArrayList<DoubleWritable>(1);
-        state.percentiles.add(new DoubleWritable(percentile.doubleValue()));
+        state.percentiles.add(new DoubleWritable(percentile));
       }
       if (o != null) {
         increment(state, o, 1);
@@ -164,16 +157,13 @@ public class UDAFPercentile extends UDAF {
     }
 
     public boolean merge(State other) {
-      if (other == null || other.counts == null || other.percentiles == null) {
-        return false;
-      }
-
       if (state.percentiles == null) {
         state.percentiles = new ArrayList<DoubleWritable>(other.percentiles);
       }
-
-      for (Map.Entry<LongWritable, LongWritable> e: other.counts.entrySet()) {
-        increment(state, e.getKey(), e.getValue().get());
+      if (other.counts != null) {
+        for (Map.Entry<LongWritable, LongWritable> e: other.counts.entrySet()) {
+          increment(state, e.getKey(), e.getValue().get());
+        }
       }
       return true;
     }
@@ -252,16 +242,13 @@ public class UDAFPercentile extends UDAF {
     }
 
     public boolean merge(State other) {
-      if (other == null || other.counts == null || other.percentiles == null) {
-        return true;
-      }
-
       if (state.percentiles == null) {
         state.percentiles = new ArrayList<DoubleWritable>(other.percentiles);
       }
-
-      for (Map.Entry<LongWritable, LongWritable> e: other.counts.entrySet()) {
-        increment(state, e.getKey(), e.getValue().get());
+      if (other.counts != null) {
+        for (Map.Entry<LongWritable, LongWritable> e: other.counts.entrySet()) {
+          increment(state, e.getKey(), e.getValue().get());
+        }
       }
       return true;
     }

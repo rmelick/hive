@@ -1,3 +1,4 @@
+drop table dest1;
 set hive.merge.mapredfiles=true;
 
 create table dest1(key int, val int);
@@ -13,6 +14,7 @@ select * from dest1;
 
 drop table dest1;
 
+
 create table test_src(key string, value string) partitioned by (ds string);
 create table dest1(key string);
 
@@ -27,3 +29,6 @@ set hive.merge.smallfiles.avgsize=16;
 explain
 insert overwrite table dest1 select key from test_src;
 insert overwrite table dest1 select key from test_src;
+
+drop table test_src;
+drop table dest1;

@@ -1,44 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?> 
-<java version="1.6.0_07" class="java.beans.XMLDecoder"> 
+<java version="1.6.0_14" class="java.beans.XMLDecoder"> 
  <object id="MapRedTask0" class="org.apache.hadoop.hive.ql.exec.MapRedTask"> 
   <void property="childTasks"> 
    <object class="java.util.ArrayList"> 
     <void method="add"> 
-     <object id="MoveTask0" class="org.apache.hadoop.hive.ql.exec.MoveTask"> 
-      <void property="childTasks"> 
-       <object class="java.util.ArrayList"> 
-        <void method="add"> 
-         <object id="StatsTask0" class="org.apache.hadoop.hive.ql.exec.StatsTask"> 
-          <void property="id"> 
-           <string>Stage-4</string> 
-          </void> 
-          <void property="parentTasks"> 
-           <object class="java.util.ArrayList"> 
-            <void method="add"> 
-             <object idref="MoveTask0"/> 
-            </void> 
-           </object> 
-          </void> 
-          <void property="work"> 
-           <object class="org.apache.hadoop.hive.ql.plan.StatsWork"> 
-            <void property="aggKey"> 
-             <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/scratchdir/hive_2010-10-18_22-07-57_524_3461616768756246111/-ext-10000/</string> 
-            </void> 
-           </object> 
-          </void> 
-         </object> 
-        </void> 
-       </object> 
-      </void> 
-      <void property="feedSubscribers"> 
-       <object class="java.util.LinkedList"> 
-        <void method="add"> 
-         <object idref="StatsTask0"/> 
-        </void> 
-       </object> 
-      </void> 
+     <object class="org.apache.hadoop.hive.ql.exec.MoveTask"> 
       <void property="id"> 
-       <string>Stage-2</string> 
+       <string>Stage-1</string> 
       </void> 
       <void property="parentTasks"> 
        <object class="java.util.ArrayList"> 
@@ -58,7 +26,7 @@
            <boolean>true</boolean> 
           </void> 
           <void property="sourceDir"> 
-           <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/scratchdir/hive_2010-10-18_22-07-57_524_3461616768756246111/-ext-10000</string> 
+           <string>file:/data/users/nzhang/work/876/apache-hive/build/ql/scratchdir/hive_2010-03-30_13-18-37_219_2053319319473965696/10000</string> 
           </void> 
           <void property="table"> 
            <object id="TableDesc0" class="org.apache.hadoop.hive.ql.plan.TableDesc"> 
@@ -111,11 +79,11 @@
               </void> 
               <void method="put"> 
                <string>location</string> 
-               <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/test/data/warehouse/dest1</string> 
+               <string>file:/data/users/nzhang/work/876/apache-hive/build/ql/test/data/warehouse/dest1</string> 
               </void> 
               <void method="put"> 
                <string>transient_lastDdlTime</string> 
-               <string>1287464877</string> 
+               <string>1269980317</string> 
               </void> 
              </object> 
             </void> 
@@ -125,7 +93,7 @@
            </object> 
           </void> 
           <void property="tmpDir"> 
-           <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/scratchdir/hive_2010-10-18_22-07-57_524_3461616768756246111/-ext-10001</string> 
+           <string>file:/data/users/nzhang/work/876/apache-hive/build/ql/scratchdir/hive_2010-03-30_13-18-37_219_2053319319473965696/10001</string> 
           </void> 
          </object> 
         </void> 
@@ -136,7 +104,7 @@
    </object> 
   </void> 
   <void property="id"> 
-   <string>Stage-3</string> 
+   <string>Stage-2</string> 
   </void> 
   <void property="work"> 
    <object class="org.apache.hadoop.hive.ql.plan.MapredWork"> 
@@ -196,11 +164,11 @@
          </void> 
          <void method="put"> 
           <string>location</string> 
-          <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/test/data/warehouse/src</string> 
+          <string>file:/data/users/nzhang/work/876/apache-hive/build/ql/test/data/warehouse/src</string> 
          </void> 
          <void method="put"> 
           <string>transient_lastDdlTime</string> 
-          <string>1287464874</string> 
+          <string>1269980316</string> 
          </void> 
         </object> 
        </void> 
@@ -509,7 +477,7 @@
                   <void property="scriptInputInfo"> 
                    <object class="org.apache.hadoop.hive.ql.plan.TableDesc"> 
                     <void property="deserializerClass"> 
-                     <class>org.apache.hadoop.hive.serde2.DelimitedJSONSerDe</class> 
+                     <class>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</class> 
                     </void> 
                     <void property="inputFileFormatClass"> 
                      <class>org.apache.hadoop.mapred.TextInputFormat</class> 
@@ -526,6 +494,10 @@
                       <void method="put"> 
                        <string>columns</string> 
                        <string>_col0,_col1</string> 
+                      </void> 
+                      <void method="put"> 
+                       <string>serialization.use.json.object</string> 
+                       <string>true</string> 
                       </void> 
                       <void method="put"> 
                        <string>serialization.format</string> 
@@ -730,9 +702,6 @@
           <void property="alias"> 
            <string>src</string> 
           </void> 
-          <void property="virtualCols"> 
-           <object class="java.util.ArrayList"/> 
-          </void> 
          </object> 
         </void> 
         <void property="counterNames"> 
@@ -788,30 +757,6 @@
               </void> 
              </object> 
             </void> 
-            <void method="add"> 
-             <object class="org.apache.hadoop.hive.ql.exec.ColumnInfo"> 
-              <void property="internalName"> 
-               <string>BLOCK__OFFSET__INSIDE__FILE</string> 
-              </void> 
-              <void property="type"> 
-               <object class="org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo"> 
-                <void property="typeName"> 
-                 <string>bigint</string> 
-                </void> 
-               </object> 
-              </void> 
-             </object> 
-            </void> 
-            <void method="add"> 
-             <object class="org.apache.hadoop.hive.ql.exec.ColumnInfo"> 
-              <void property="internalName"> 
-               <string>INPUT__FILE__NAME</string> 
-              </void> 
-              <void property="type"> 
-               <object idref="PrimitiveTypeInfo0"/> 
-              </void> 
-             </object> 
-            </void> 
            </object> 
           </void> 
          </object> 
@@ -819,9 +764,6 @@
        </object> 
       </void> 
      </object> 
-    </void> 
-    <void property="gatheringStats"> 
-     <boolean>true</boolean> 
     </void> 
     <void property="keyDesc"> 
      <object idref="TableDesc1"/> 
@@ -832,7 +774,7 @@
     <void property="pathToAliases"> 
      <object class="java.util.LinkedHashMap"> 
       <void method="put"> 
-       <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/test/data/warehouse/src</string> 
+       <string>file:/data/users/nzhang/work/876/apache-hive/build/ql/test/data/warehouse/src</string> 
        <object class="java.util.ArrayList"> 
         <void method="add"> 
          <string>tmap:src</string> 
@@ -844,7 +786,7 @@
     <void property="pathToPartitionInfo"> 
      <object class="java.util.LinkedHashMap"> 
       <void method="put"> 
-       <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/test/data/warehouse/src</string> 
+       <string>file:/data/users/nzhang/work/876/apache-hive/build/ql/test/data/warehouse/src</string> 
        <object class="org.apache.hadoop.hive.ql.plan.PartitionDesc"> 
         <void property="baseFileName"> 
          <string>src</string> 
@@ -901,11 +843,11 @@
           </void> 
           <void method="put"> 
            <string>location</string> 
-           <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/test/data/warehouse/src</string> 
+           <string>file:/data/users/nzhang/work/876/apache-hive/build/ql/test/data/warehouse/src</string> 
           </void> 
           <void method="put"> 
            <string>transient_lastDdlTime</string> 
-           <string>1287464874</string> 
+           <string>1269980316</string> 
           </void> 
          </object> 
         </void> 
@@ -955,16 +897,10 @@
                      <int>1</int> 
                     </void> 
                     <void property="dirName"> 
-                     <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/scratchdir/hive_2010-10-18_22-07-57_524_3461616768756246111/-ext-10000</string> 
-                    </void> 
-                    <void property="gatherStats"> 
-                     <boolean>true</boolean> 
+                     <string>file:/data/users/nzhang/work/876/apache-hive/build/ql/scratchdir/hive_2010-03-30_13-18-37_219_2053319319473965696/10000</string> 
                     </void> 
                     <void property="numFiles"> 
                      <int>1</int> 
-                    </void> 
-                    <void property="statsAggPrefix"> 
-                     <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/scratchdir/hive_2010-10-18_22-07-57_524_3461616768756246111/-ext-10000/</string> 
                     </void> 
                     <void property="tableInfo"> 
                      <object idref="TableDesc0"/> 
@@ -1182,7 +1118,17 @@
                </object> 
               </void> 
               <void property="genericUDF"> 
-               <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPLessThan"/> 
+               <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                <void property="operator"> 
+                 <boolean>true</boolean> 
+                </void> 
+                <void property="udfClass"> 
+                 <class>org.apache.hadoop.hive.ql.udf.UDFOPLessThan</class> 
+                </void> 
+                <void property="udfName"> 
+                 <string>&lt;</string> 
+                </void> 
+               </object> 
               </void> 
               <void property="typeInfo"> 
                <object class="org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo"> 

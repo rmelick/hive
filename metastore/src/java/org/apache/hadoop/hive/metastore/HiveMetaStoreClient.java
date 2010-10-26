@@ -34,7 +34,6 @@ import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.ConfigValSecurityException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.Index;
 import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -80,7 +79,6 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
     if (conf == null) {
       conf = new HiveConf(HiveMetaStoreClient.class);
     }
-
 
     boolean localMetaStore = conf.getBoolean("hive.metastore.local", false);
     if (localMetaStore) {
@@ -332,7 +330,6 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
     client.drop_database(name, deleteData);
   }
 
-
   /**
    * @param tbl_name
    * @param db_name
@@ -445,10 +442,11 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
    * @param type
    * @return true if the type is dropped
    * @throws MetaException
+   * @throws NoSuchObjectException
    * @throws TException
    * @see org.apache.hadoop.hive.metastore.api.ThriftHiveMetastore.Iface#drop_type(java.lang.String)
    */
-  public boolean dropType(String type) throws NoSuchObjectException, MetaException, TException {
+  public boolean dropType(String type) throws MetaException, NoSuchObjectException, TException {
     return client.drop_type(type);
   }
 
@@ -517,27 +515,6 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
   }
 
   /**
-   * Get list of partitions matching specified filter
-   * @param db_name the database name
-   * @param tbl_name the table name
-   * @param filter the filter string,
-   *    for example "part1 = \"p1_abc\" and part2 <= "\p2_test\"". Filtering can
-   *    be done only on string partition keys.
-   * @param max_parts the maximum number of partitions to return,
-   *    all partitions are returned if -1 is passed
-   * @return list of partitions
-   * @throws MetaException
-   * @throws NoSuchObjectException
-   * @throws TException
-   */
-  public List<Partition> listPartitionsByFilter(String db_name, String tbl_name,
-      String filter, short max_parts) throws MetaException,
-         NoSuchObjectException, TException {
-    return deepCopyPartitions(
-        client.get_partitions_by_filter(db_name, tbl_name, filter, max_parts));
-  }
-
-  /**
    * @param name
    * @return the database
    * @throws NoSuchObjectException
@@ -592,11 +569,11 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
    * @param name
    * @return the type
    * @throws MetaException
-   * @throws TException
    * @throws NoSuchObjectException
+   * @throws TException
    * @see org.apache.hadoop.hive.metastore.api.ThriftHiveMetastore.Iface#get_type(java.lang.String)
    */
-  public Type getType(String name) throws NoSuchObjectException, MetaException, TException {
+  public Type getType(String name) throws MetaException, NoSuchObjectException, TException {
     return deepCopy(client.get_type(name));
   }
 
@@ -670,66 +647,6 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
   }
 
   /**
-   * create an index
-   * @param index the index object
-   * @param index table which stores the index data
-   * @throws InvalidObjectException
-   * @throws MetaException
-   * @throws NoSuchObjectException
-   * @throws TException
-   * @throws AlreadyExistsException
-   */
-  public void createIndex(Index index, Table indexTable) throws AlreadyExistsException, InvalidObjectException, MetaException, NoSuchObjectException, TException {
-    client.add_index(index, indexTable);
-  }
-
-  /**
-   * @param dbName
-   * @param tblName
-   * @param indexName
-   * @return
-   * @throws MetaException
-   * @throws UnknownTableException
-   * @throws NoSuchObjectException
-   * @throws TException
-   */
-  public Index getIndex(String dbName, String tblName, String indexName)
-      throws MetaException, UnknownTableException, NoSuchObjectException,
-      TException {
-    return client.get_index_by_name(dbName, tblName, indexName);
-  }
-
-  /**
-   * list indexes of the give base table
-   * @param db_name
-   * @param tbl_name
-   * @param max
-   * @return
-   * @throws NoSuchObjectException
-   * @throws MetaException
-   * @throws TException
-   */
-  public List<String> listIndexNames(String dbName, String tblName, short max)
-      throws MetaException, TException {
-    return client.get_index_names(dbName, tblName, max);
-  }
-
-  /**
-   * list all the index names of the give base table.
-   *
-   * @param db_name
-   * @param tbl_name
-   * @param max
-   * @return
-   * @throws MetaException
-   * @throws TException
-   */
-  public List<Index> listIndexes(String dbName, String tblName, short max)
-      throws NoSuchObjectException, MetaException, TException {
-    return client.get_indexes(dbName, tblName, max);
-  }
-
-  /**
    * @param db
    * @param tableName
    * @throws UnknownTableException
@@ -779,7 +696,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
   }
 
   @Override
-  public Map<String, String> partitionNameToSpec(String name) throws MetaException, TException{
+  public Map<String, String> partitionNameToSpec(String name) throws MetaException, TException {
     return client.partition_name_to_spec(name);
   }
 
@@ -859,12 +776,4 @@ public class HiveMetaStoreClient implements IMetaStoreClient {
     }
     return copy;
   }
-
-  @Override
-  public boolean dropIndex(String dbName, String tblName, String name,
-      boolean deleteData) throws NoSuchObjectException, MetaException,
-      TException {
-    return client.drop_index_by_name(dbName, tblName, name, deleteData);
-  }
-
 }

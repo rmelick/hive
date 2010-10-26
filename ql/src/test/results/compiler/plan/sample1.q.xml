@@ -2,7 +2,7 @@
 <java version="1.6.0_07" class="java.beans.XMLDecoder"> 
  <object class="org.apache.hadoop.hive.ql.exec.MapRedTask"> 
   <void property="id"> 
-   <string>Stage-3</string> 
+   <string>Stage-2</string> 
   </void> 
   <void property="work"> 
    <object class="org.apache.hadoop.hive.ql.plan.MapredWork"> 
@@ -75,11 +75,11 @@
          </void> 
          <void method="put"> 
           <string>location</string> 
-          <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/test/data/warehouse/srcpart</string> 
+          <string>file:/data/users/athusoo/apache_workspaces/hive_trunk_ws1/.ptest_3/build/ql/test/data/warehouse/srcpart</string> 
          </void> 
          <void method="put"> 
           <string>transient_lastDdlTime</string> 
-          <string>1287465112</string> 
+          <string>1270516912</string> 
          </void> 
         </object> 
        </void> 
@@ -136,13 +136,10 @@
                             <void property="conf"> 
                              <object class="org.apache.hadoop.hive.ql.plan.FileSinkDesc"> 
                               <void property="dirName"> 
-                               <string>file:/tmp/njain/hive_2010-10-18_22-12-05_856_5083858704769095770/-ext-10001</string> 
+                               <string>file:/data/users/athusoo/apache_workspaces/hive_trunk_ws1/.ptest_3/build/ql/scratchdir/hive_2010-04-05_18-21-54_347_846051943419607679/10001</string> 
                               </void> 
                               <void property="numFiles"> 
                                <int>1</int> 
-                              </void> 
-                              <void property="statsAggPrefix"> 
-                               <string>file:/tmp/njain/hive_2010-10-18_22-12-05_856_5083858704769095770/-ext-10001/</string> 
                               </void> 
                               <void property="tableInfo"> 
                                <object class="org.apache.hadoop.hive.ql.plan.TableDesc"> 
@@ -268,9 +265,6 @@
                             <void property="column"> 
                              <string>hr</string> 
                             </void> 
-                            <void property="isPartitionColOrVirtualCol"> 
-                             <boolean>true</boolean> 
-                            </void> 
                             <void property="tabAlias"> 
                              <string>s</string> 
                             </void> 
@@ -284,9 +278,6 @@
                            <object id="ExprNodeColumnDesc1" class="org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc"> 
                             <void property="column"> 
                              <string>ds</string> 
-                            </void> 
-                            <void property="isPartitionColOrVirtualCol"> 
-                             <boolean>true</boolean> 
                             </void> 
                             <void property="tabAlias"> 
                              <string>s</string> 
@@ -470,9 +461,6 @@
                                 <void property="column"> 
                                  <string>ds</string> 
                                 </void> 
-                                <void property="isPartitionColOrVirtualCol"> 
-                                 <boolean>true</boolean> 
-                                </void> 
                                 <void property="tabAlias"> 
                                  <string>s</string> 
                                 </void> 
@@ -494,7 +482,17 @@
                              </object> 
                             </void> 
                             <void property="genericUDF"> 
-                             <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual"/> 
+                             <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                              <void property="operator"> 
+                               <boolean>true</boolean> 
+                              </void> 
+                              <void property="udfClass"> 
+                               <class>org.apache.hadoop.hive.ql.udf.UDFOPEqual</class> 
+                              </void> 
+                              <void property="udfName"> 
+                               <string>=</string> 
+                              </void> 
+                             </object> 
                             </void> 
                             <void property="typeInfo"> 
                              <object id="PrimitiveTypeInfo1" class="org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo"> 
@@ -513,9 +511,6 @@
                                <object class="org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc"> 
                                 <void property="column"> 
                                  <string>hr</string> 
-                                </void> 
-                                <void property="isPartitionColOrVirtualCol"> 
-                                 <boolean>true</boolean> 
                                 </void> 
                                 <void property="tabAlias"> 
                                  <string>s</string> 
@@ -538,7 +533,17 @@
                              </object> 
                             </void> 
                             <void property="genericUDF"> 
-                             <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual"/> 
+                             <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                              <void property="operator"> 
+                               <boolean>true</boolean> 
+                              </void> 
+                              <void property="udfClass"> 
+                               <class>org.apache.hadoop.hive.ql.udf.UDFOPEqual</class> 
+                              </void> 
+                              <void property="udfName"> 
+                               <string>=</string> 
+                              </void> 
+                             </object> 
                             </void> 
                             <void property="typeInfo"> 
                              <object idref="PrimitiveTypeInfo1"/> 
@@ -548,7 +553,17 @@
                          </object> 
                         </void> 
                         <void property="genericUDF"> 
-                         <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPAnd"/> 
+                         <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                          <void property="operator"> 
+                           <boolean>true</boolean> 
+                          </void> 
+                          <void property="udfClass"> 
+                           <class>org.apache.hadoop.hive.ql.udf.UDFOPAnd</class> 
+                          </void> 
+                          <void property="udfName"> 
+                           <string>and</string> 
+                          </void> 
+                         </object> 
                         </void> 
                         <void property="typeInfo"> 
                          <object idref="PrimitiveTypeInfo1"/> 
@@ -650,9 +665,6 @@
                             <void property="column"> 
                              <string>ds</string> 
                             </void> 
-                            <void property="isPartitionColOrVirtualCol"> 
-                             <boolean>true</boolean> 
-                            </void> 
                             <void property="tabAlias"> 
                              <string>s</string> 
                             </void> 
@@ -674,7 +686,17 @@
                          </object> 
                         </void> 
                         <void property="genericUDF"> 
-                         <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual"/> 
+                         <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                          <void property="operator"> 
+                           <boolean>true</boolean> 
+                          </void> 
+                          <void property="udfClass"> 
+                           <class>org.apache.hadoop.hive.ql.udf.UDFOPEqual</class> 
+                          </void> 
+                          <void property="udfName"> 
+                           <string>=</string> 
+                          </void> 
+                         </object> 
                         </void> 
                         <void property="typeInfo"> 
                          <object idref="PrimitiveTypeInfo1"/> 
@@ -689,9 +711,6 @@
                            <object class="org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc"> 
                             <void property="column"> 
                              <string>hr</string> 
-                            </void> 
-                            <void property="isPartitionColOrVirtualCol"> 
-                             <boolean>true</boolean> 
                             </void> 
                             <void property="tabAlias"> 
                              <string>s</string> 
@@ -714,7 +733,17 @@
                          </object> 
                         </void> 
                         <void property="genericUDF"> 
-                         <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual"/> 
+                         <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                          <void property="operator"> 
+                           <boolean>true</boolean> 
+                          </void> 
+                          <void property="udfClass"> 
+                           <class>org.apache.hadoop.hive.ql.udf.UDFOPEqual</class> 
+                          </void> 
+                          <void property="udfName"> 
+                           <string>=</string> 
+                          </void> 
+                         </object> 
                         </void> 
                         <void property="typeInfo"> 
                          <object idref="PrimitiveTypeInfo1"/> 
@@ -724,7 +753,17 @@
                      </object> 
                     </void> 
                     <void property="genericUDF"> 
-                     <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPAnd"/> 
+                     <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                      <void property="operator"> 
+                       <boolean>true</boolean> 
+                      </void> 
+                      <void property="udfClass"> 
+                       <class>org.apache.hadoop.hive.ql.udf.UDFOPAnd</class> 
+                      </void> 
+                      <void property="udfName"> 
+                       <string>and</string> 
+                      </void> 
+                     </object> 
                     </void> 
                     <void property="typeInfo"> 
                      <object idref="PrimitiveTypeInfo1"/> 
@@ -774,30 +813,6 @@
                     </void> 
                     <void method="add"> 
                      <object idref="ColumnInfo3"/> 
-                    </void> 
-                    <void method="add"> 
-                     <object class="org.apache.hadoop.hive.ql.exec.ColumnInfo"> 
-                      <void property="internalName"> 
-                       <string>BLOCK__OFFSET__INSIDE__FILE</string> 
-                      </void> 
-                      <void property="type"> 
-                       <object class="org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo"> 
-                        <void property="typeName"> 
-                         <string>bigint</string> 
-                        </void> 
-                       </object> 
-                      </void> 
-                     </object> 
-                    </void> 
-                    <void method="add"> 
-                     <object class="org.apache.hadoop.hive.ql.exec.ColumnInfo"> 
-                      <void property="internalName"> 
-                       <string>INPUT__FILE__NAME</string> 
-                      </void> 
-                      <void property="type"> 
-                       <object idref="PrimitiveTypeInfo0"/> 
-                      </void> 
-                     </object> 
                     </void> 
                    </object> 
                   </void> 
@@ -939,7 +954,17 @@
                  </object> 
                 </void> 
                 <void property="genericUDF"> 
-                 <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual"/> 
+                 <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                  <void property="operator"> 
+                   <boolean>true</boolean> 
+                  </void> 
+                  <void property="udfClass"> 
+                   <class>org.apache.hadoop.hive.ql.udf.UDFOPEqual</class> 
+                  </void> 
+                  <void property="udfName"> 
+                   <string>=</string> 
+                  </void> 
+                 </object> 
                 </void> 
                 <void property="typeInfo"> 
                  <object idref="PrimitiveTypeInfo1"/> 
@@ -1003,9 +1028,6 @@
           <void property="alias"> 
            <string>s</string> 
           </void> 
-          <void property="virtualCols"> 
-           <object class="java.util.ArrayList"/> 
-          </void> 
          </object> 
         </void> 
         <void property="counterNames"> 
@@ -1032,6 +1054,12 @@
           <void method="add"> 
            <int>1</int> 
           </void> 
+          <void method="add"> 
+           <int>2</int> 
+          </void> 
+          <void method="add"> 
+           <int>3</int> 
+          </void> 
          </object> 
         </void> 
         <void property="operatorId"> 
@@ -1051,7 +1079,7 @@
     <void property="pathToAliases"> 
      <object class="java.util.LinkedHashMap"> 
       <void method="put"> 
-       <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11</string> 
+       <string>file:/data/users/athusoo/apache_workspaces/hive_trunk_ws1/.ptest_3/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11</string> 
        <object class="java.util.ArrayList"> 
         <void method="add"> 
          <string>s</string> 
@@ -1063,7 +1091,7 @@
     <void property="pathToPartitionInfo"> 
      <object class="java.util.LinkedHashMap"> 
       <void method="put"> 
-       <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11</string> 
+       <string>file:/data/users/athusoo/apache_workspaces/hive_trunk_ws1/.ptest_3/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11</string> 
        <object class="org.apache.hadoop.hive.ql.plan.PartitionDesc"> 
         <void property="baseFileName"> 
          <string>hr=11</string> 
@@ -1133,11 +1161,11 @@
           </void> 
           <void method="put"> 
            <string>location</string> 
-           <string>pfile:/data/users/njain/hive_commit2/hive_commit2/build/ql/test/data/warehouse/srcpart</string> 
+           <string>file:/data/users/athusoo/apache_workspaces/hive_trunk_ws1/.ptest_3/build/ql/test/data/warehouse/srcpart</string> 
           </void> 
           <void method="put"> 
            <string>transient_lastDdlTime</string> 
-           <string>1287465112</string> 
+           <string>1270516912</string> 
           </void> 
          </object> 
         </void> 

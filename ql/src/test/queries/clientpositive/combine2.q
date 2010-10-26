@@ -8,6 +8,8 @@ set hive.exec.dynamic.partition.mode=nonstrict;
 set mapred.cache.shared.enabled=false;
 set hive.merge.smallfiles.avgsize=0;
 
+drop table combine2;
+
 create table combine2(key string) partitioned by (value string);
 
 insert overwrite table combine2 partition(value) 
@@ -34,3 +36,6 @@ explain
 select ds, count(1) from srcpart where ds is not null group by ds;
 
 select ds, count(1) from srcpart where ds is not null group by ds;
+
+drop table combine2;
+

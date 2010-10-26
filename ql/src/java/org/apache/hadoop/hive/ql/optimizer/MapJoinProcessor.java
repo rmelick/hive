@@ -53,7 +53,6 @@ import org.apache.hadoop.hive.ql.lib.NodeProcessor;
 import org.apache.hadoop.hive.ql.lib.NodeProcessorCtx;
 import org.apache.hadoop.hive.ql.lib.Rule;
 import org.apache.hadoop.hive.ql.lib.RuleRegExp;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
 import org.apache.hadoop.hive.ql.parse.ErrorMsg;
 import org.apache.hadoop.hive.ql.parse.GenMapRedWalker;
 import org.apache.hadoop.hive.ql.parse.OpParseContext;
@@ -61,8 +60,6 @@ import org.apache.hadoop.hive.ql.parse.ParseContext;
 import org.apache.hadoop.hive.ql.parse.QBJoinTree;
 import org.apache.hadoop.hive.ql.parse.RowResolver;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
-import org.apache.hadoop.hive.ql.parse.TypeCheckCtx;
-import org.apache.hadoop.hive.ql.parse.TypeCheckProcFactory;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.JoinDesc;
@@ -129,8 +126,6 @@ public class MapJoinProcessor implements Transform {
     ArrayList<String> outputColumnNames = new ArrayList<String>();
     Map<Byte, List<ExprNodeDesc>> keyExprMap = new HashMap<Byte, List<ExprNodeDesc>>();
     Map<Byte, List<ExprNodeDesc>> valueExprMap = new HashMap<Byte, List<ExprNodeDesc>>();
-    HashMap<Byte, List<ExprNodeDesc>> filterMap =
-      new HashMap<Byte, List<ExprNodeDesc>>();
 
     // Walk over all the sources (which are guaranteed to be reduce sink
     // operators).
@@ -185,7 +180,6 @@ public class MapJoinProcessor implements Transform {
           newParentOps.get(pos)).getRR();
 
       List<ExprNodeDesc> values = new ArrayList<ExprNodeDesc>();
-      List<ExprNodeDesc> filterDesc = new ArrayList<ExprNodeDesc>();
 
       Iterator<String> keysIter = inputRS.getTableNames().iterator();
       while (keysIter.hasNext()) {
@@ -204,29 +198,17 @@ public class MapJoinProcessor implements Transform {
             outputColumnNames.add(outputCol);
             ExprNodeDesc colDesc = new ExprNodeColumnDesc(valueInfo.getType(),
                 valueInfo.getInternalName(), valueInfo.getTabAlias(), valueInfo
-                .getIsVirtualCol());
+                .getIsPartitionCol());
             values.add(colDesc);
             outputRS.put(key, field, new ColumnInfo(outputCol, valueInfo
                 .getType(), valueInfo.getTabAlias(), valueInfo
-                .getIsVirtualCol(),valueInfo.isHiddenVirtualCol()));
+                .getIsPartitionCol()));
             colExprMap.put(outputCol, colDesc);
           }
         }
       }
 
-      TypeCheckCtx tcCtx = new TypeCheckCtx(inputRS);
-      for (ASTNode cond : joinTree.getFilters().get((byte)pos)) {
-
-        ExprNodeDesc filter =
-          (ExprNodeDesc)TypeCheckProcFactory.genExprNode(cond, tcCtx).get(cond);
-        if (filter == null) {
-          throw new SemanticException(tcCtx.getError());
-        }
-        filterDesc.add(filter);
-      }
-
       valueExprMap.put(new Byte((byte) pos), values);
-      filterMap.put(new Byte((byte) pos), filterDesc);
     }
 
     org.apache.hadoop.hive.ql.plan.JoinCondDesc[] joinCondns = op.getConf()
@@ -265,8 +247,8 @@ public class MapJoinProcessor implements Transform {
     MapJoinOperator mapJoinOp = (MapJoinOperator) putOpInsertMap(
         OperatorFactory.getAndMakeChild(new MapJoinDesc(keyExprMap,
         keyTableDesc, valueExprMap, valueTableDescs, outputColumnNames,
-        mapJoinPos, joinCondns, filterMap, op.getConf().getNoOuterJoin()),
-        new RowSchema(outputRS.getColumnInfos()), newPar), outputRS);
+        mapJoinPos, joinCondns), new RowSchema(outputRS.getColumnInfos()),
+        newPar), outputRS);
 
     mapJoinOp.getConf().setReversedExprs(op.getConf().getReversedExprs());
     mapJoinOp.setColumnExprMap(colExprMap);
@@ -327,11 +309,11 @@ public class MapJoinProcessor implements Transform {
       String[] nm = inputRR.reverseLookup(internalName);
       ColumnInfo valueInfo = inputRR.get(nm[0], nm[1]);
       ExprNodeDesc colDesc = new ExprNodeColumnDesc(valueInfo.getType(),
-          valueInfo.getInternalName(), nm[0], valueInfo.getIsVirtualCol());
+          valueInfo.getInternalName(), nm[0], valueInfo.getIsPartitionCol());
       exprs.add(colDesc);
       outputs.add(internalName);
       outputRS.put(nm[0], nm[1], new ColumnInfo(internalName, valueInfo
-          .getType(), nm[0], valueInfo.getIsVirtualCol(), valueInfo.isHiddenVirtualCol()));
+          .getType(), nm[0], valueInfo.getIsPartitionCol()));
       colExprMap.put(internalName, colDesc);
     }
 

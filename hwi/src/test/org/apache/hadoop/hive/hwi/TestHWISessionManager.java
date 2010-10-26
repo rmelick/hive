@@ -86,10 +86,6 @@ public class TestHWISessionManager extends TestCase {
     assertEquals(hsm.findAllSessionsForUser(user2).size(), 1);
     assertEquals(hsm.findAllSessionItems().size(), 3);
 
-    user1_item1.addQuery("set hive.support.concurrency = false");
-    user1_item2.addQuery("set hive.support.concurrency = false");
-    user2_item1.addQuery("set hive.support.concurrency = false");
-
     HWISessionItem searchItem = hsm.findSessionItemByName(user1, "session1");
     assertEquals(searchItem, user1_item1);
 
@@ -109,9 +105,7 @@ public class TestHWISessionManager extends TestCase {
     zero.add(0);
     zero.add(0);
     zero.add(0);
-    zero.add(0);
     ArrayList<Integer> zero3 = new ArrayList<Integer>();
-    zero3.add(0);
     zero3.add(0);
     zero3.add(0);
     zero3.add(0);
@@ -200,7 +194,6 @@ public class TestHWISessionManager extends TestCase {
 
     // cleanup
     HWISessionItem cleanup = hsm.createSession(user1, "cleanup");
-    cleanup.addQuery("set hive.support.concurrency = false");
     cleanup.addQuery("drop table " + tableName);
     cleanup.clientStart();
 

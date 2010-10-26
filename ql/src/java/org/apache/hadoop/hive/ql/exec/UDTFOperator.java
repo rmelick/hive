@@ -76,8 +76,7 @@ public class UDTFOperator extends Operator<UDTFDesc> implements Serializable {
     // for a while
     if (HiveConf.getBoolVar(hconf, HiveConf.ConfVars.HIVEUDTFAUTOPROGRESS)) {
       autoProgressor = new AutoProgressor(this.getClass().getName(), reporter,
-          Utilities.getDefaultNotificationInterval(hconf),
-          HiveConf.getIntVar(hconf, HiveConf.ConfVars.HIVES_AUTO_PROGRESS_TIMEOUT) * 1000);
+          Utilities.getDefaultNotificationInterval(hconf));
       autoProgressor.go();
     }
 

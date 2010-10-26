@@ -30,7 +30,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.JoinDesc;
 import org.apache.hadoop.hive.ql.plan.api.OperatorType;
-import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.LongWritable;
@@ -69,7 +68,6 @@ public class JoinOperator extends CommonJoinOperator<JoinDesc> implements
   @Override
   public void processOp(Object row, int tag) throws HiveException {
     try {
-      reportProgress();
 
       // get alias
       alias = (byte) tag;
@@ -79,8 +77,7 @@ public class JoinOperator extends CommonJoinOperator<JoinDesc> implements
       }
 
       ArrayList<Object> nr = computeValues(row, joinValues.get(alias),
-          joinValuesObjectInspectors.get(alias), joinFilters.get(alias),
-          joinFilterObjectInspectors.get(alias), noOuterJoin);
+          joinValuesObjectInspectors.get(alias));
 
       if (handleSkewJoin) {
         skewJoinKeyContext.handleSkew(tag);
@@ -88,10 +85,6 @@ public class JoinOperator extends CommonJoinOperator<JoinDesc> implements
 
       // number of rows for the key in the given table
       int sz = storage.get(alias).size();
-      StructObjectInspector soi = (StructObjectInspector) inputObjInspectors[tag];
-      StructField sf = soi.getStructFieldRef(Utilities.ReduceField.KEY
-          .toString());
-      Object keyObject = soi.getStructFieldData(row, sf);
 
       // Are we consuming too much memory
       if (alias == numAliases - 1 && !(handleSkewJoin && skewJoinKeyContext.currBigKeyTag >= 0)) {
@@ -111,6 +104,10 @@ public class JoinOperator extends CommonJoinOperator<JoinDesc> implements
           // operand
           // We won't output a warning for the last join operand since the size
           // will never goes to joinEmitInterval.
+          StructObjectInspector soi = (StructObjectInspector) inputObjInspectors[tag];
+          StructField sf = soi.getStructFieldRef(Utilities.ReduceField.KEY
+              .toString());
+          Object keyObject = soi.getStructFieldData(row, sf);
           LOG.warn("table " + alias + " has " + sz + " rows for join key "
               + keyObject);
           nextSz = getNextSize(nextSz);
@@ -119,11 +116,7 @@ public class JoinOperator extends CommonJoinOperator<JoinDesc> implements
 
       // Add the value to the vector
       storage.get(alias).add(nr);
-      // if join-key is null, process each row in different group.
-      if (SerDeUtils.hasAnyNullObject(keyObject, sf.getFieldObjectInspector())) {
-        endGroup();
-        startGroup();
-      }
+
     } catch (Exception e) {
       e.printStackTrace();
       throw new HiveException(e);

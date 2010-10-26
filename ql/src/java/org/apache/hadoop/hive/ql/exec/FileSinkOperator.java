@@ -32,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
+import org.apache.hadoop.hive.ql.exec.JobCloseFeedBack.FeedBackType;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat;
 import org.apache.hadoop.hive.ql.io.HiveKey;
@@ -44,8 +45,6 @@ import org.apache.hadoop.hive.ql.plan.FileSinkDesc;
 import org.apache.hadoop.hive.ql.plan.PlanUtils;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
 import org.apache.hadoop.hive.ql.plan.api.OperatorType;
-import org.apache.hadoop.hive.ql.stats.StatsPublisher;
-import org.apache.hadoop.hive.ql.stats.StatsSetupConst;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.Serializer;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -60,6 +59,7 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.ReflectionUtils;
+
 /**
  * File Sink operator implementation.
  **/
@@ -100,7 +100,7 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
     Path[] outPaths;
     Path[] finalPaths;
     RecordWriter[] outWriters;
-    Stat stat;
+    int timeOut; // JT timeout in msec.
 
     public FSPaths() {
     }
@@ -110,7 +110,10 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
       outPaths   = new Path[numFiles];
       finalPaths = new Path[numFiles];
       outWriters = new RecordWriter[numFiles];
-      stat = new Stat();
+      // Timeout is chosen to make sure that even if one iteration takes more than
+      // half of the script.timeout but less than script.timeout, we will still
+      // be able to report progress.
+      timeOut = hconf.getInt("mapred.healthChecker.script.timeout", 600000)/2;
     }
 
     /**
@@ -161,27 +164,49 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
       return outWriters;
     }
 
+    /**
+     * Report status to JT so that JT won't kill this task if closing takes too long
+     * due to too many files to close and the NN is overloaded.
+     * @param lastUpdateTime the time (msec) that progress update happened.
+     * @return true if a new progress update is reported, false otherwise.
+     */
+    private boolean updateProgress(long lastUpdateTime) {
+      if (reporter != null &&
+          (System.currentTimeMillis() - lastUpdateTime) > timeOut) {
+        reporter.progress();
+        return true;
+      } else {
+        return false;
+      }
+    }
+
     public void closeWriters(boolean abort) throws HiveException {
+      long lastProgressReport = System.currentTimeMillis();
       for (int idx = 0; idx < outWriters.length; idx++) {
         if (outWriters[idx] != null) {
           try {
             outWriters[idx].close(abort);
-            updateProgress();
+            if (updateProgress(lastProgressReport)) {
+              lastProgressReport = System.currentTimeMillis();
+            }
           } catch (IOException e) {
             throw new HiveException(e);
           }
         }
-      }
+     }
     }
 
     private void commit(FileSystem fs) throws HiveException {
+      long lastProgressReport = System.currentTimeMillis();
       for (int idx = 0; idx < outPaths.length; ++idx) {
         try {
           if (!fs.rename(outPaths[idx], finalPaths[idx])) {
             throw new HiveException("Unable to rename output to: "
                 + finalPaths[idx]);
           }
-          updateProgress();
+          if (updateProgress(lastProgressReport)) {
+            lastProgressReport = System.currentTimeMillis();
+          }
         } catch (IOException e) {
           throw new HiveException(e + "Unable to rename output to: "
               + finalPaths[idx]);
@@ -190,14 +215,17 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
     }
 
     public void abortWriters(FileSystem fs, boolean abort, boolean delete) throws HiveException {
+      long lastProgressReport = System.currentTimeMillis();
       for (int idx = 0; idx < outWriters.length; idx++) {
         if (outWriters[idx] != null) {
           try {
             outWriters[idx].close(abort);
-            if (delete) {
-              fs.delete(outPaths[idx], true);
-            }
-            updateProgress();
+          	if (delete) {
+          	  fs.delete(outPaths[idx], true);
+          	}
+          	if (updateProgress(lastProgressReport)) {
+          	  lastProgressReport = System.currentTimeMillis();
+          	}
           } catch (IOException e) {
             throw new HiveException(e);
           }
@@ -232,8 +260,6 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
   private transient FSPaths fsp;
   private transient boolean bDynParts;
   private transient SubStructObjectInspector subSetOI;
-  private transient int timeOut; // JT timeout in msec.
-  private transient long lastProgressReport = System.currentTimeMillis();
 
   /**
    * TableIdEnum.
@@ -260,10 +286,14 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
   protected transient boolean autoDelete = false;
   protected transient JobConf jc;
   Class<? extends Writable> outputClass;
+  /*
+  String specPath;
+  Path tmpPath;
+  */
   String taskId;
 
   private boolean filesCreated = false;
-  @Override
+ @Override
   protected void initializeOp(Configuration hconf) throws HiveException {
     try {
       this.hconf       = hconf;
@@ -283,11 +313,6 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
       serializer       = (Serializer) conf.getTableInfo().getDeserializerClass().newInstance();
       serializer.initialize(null, conf.getTableInfo().getProperties());
       outputClass = serializer.getSerializedClass();
-
-      // Timeout is chosen to make sure that even if one iteration takes more than
-      // half of the script.timeout but less than script.timeout, we will still
-      // be able to report progress.
-      timeOut = hconf.getInt("mapred.healthChecker.script.timeout", 600000)/2;
 
       if (hconf instanceof JobConf) {
         jc = (JobConf) hconf;
@@ -322,11 +347,12 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
       if (!bDynParts) {
         fsp = new FSPaths(specPath);
 
-        // Create all the files - this is required because empty files need to be created for
-        // empty buckets
-        // createBucketFiles(fsp);
-        valToPaths.put("", fsp); // special entry for non-DP case
+      	// Create all the files - this is required because empty files need to be created for
+      	// empty buckets
+      	// createBucketFiles(fsp);
+      	valToPaths.put("", fsp); // special entry for non-DP case
       }
+
       initializeChildren(hconf);
     } catch (HiveException e) {
       throw e;
@@ -425,9 +451,9 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
         }
         try {
           // The reason to keep these instead of using
-          // OutputFormat.getRecordWriter() is that
-          // getRecordWriter does not give us enough control over the file name that
-          // we create.
+        	// OutputFormat.getRecordWriter() is that
+        	// getRecordWriter does not give us enough control over the file name that
+        	// we create.
           if (!bDynParts) {
             fsp.finalPaths[filesIdx] = HiveFileFormatUtils.getOutputFormatFinalPath(
                 parent, taskId, jc, hiveOutputFormat, isCompressed, fsp.finalPaths[filesIdx]);
@@ -445,25 +471,21 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
         }
         LOG.info("New Final Path: FS " + fsp.finalPaths[filesIdx]);
 
-        if (isNativeTable) {
-          try {
-            // in recent hadoop versions, use deleteOnExit to clean tmp files.
-            autoDelete = ShimLoader.getHadoopShims().fileSystemDeleteOnExit(
-                fs, fsp.outPaths[filesIdx]);
-          } catch (IOException e) {
-            throw new HiveException(e);
-          }
-        }
+      	if (isNativeTable) {
+      	  try {
+      	    // in recent hadoop versions, use deleteOnExit to clean tmp files.
+      	    autoDelete = ShimLoader.getHadoopShims().fileSystemDeleteOnExit(
+      	        fs, fsp.outPaths[filesIdx]);
+      	  } catch (IOException e) {
+      	    throw new HiveException(e);
+      	  }
+      	}
 
         Utilities.copyTableJobPropertiesToConf(conf.getTableInfo(), jc);
         // only create bucket files only if no dynamic partitions,
         // buckets of dynamic partitions will be created for each newly created partition
         fsp.outWriters[filesIdx] = HiveFileFormatUtils.getHiveRecordWriter(
-            jc, conf.getTableInfo(), outputClass, conf, fsp.outPaths[filesIdx]);
-        // increment the CREATED_FILES counter
-        if (reporter != null) {
-          reporter.incrCounter(ProgressCounter.CREATED_FILES, 1);
-        }
+              jc, conf.getTableInfo(), outputClass, conf, fsp.outPaths[filesIdx]);
         filesIdx++;
       }
       assert filesIdx == numFiles;
@@ -480,23 +502,6 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
     }
 
     filesCreated = true;
-  }
-
-  /**
-   * Report status to JT so that JT won't kill this task if closing takes too long
-   * due to too many files to close and the NN is overloaded.
-   * @param lastUpdateTime the time (msec) that progress update happened.
-   * @return true if a new progress update is reported, false otherwise.
-   */
-  private boolean updateProgress() {
-    if (reporter != null &&
-        (System.currentTimeMillis() - lastProgressReport) > timeOut) {
-      reporter.progress();
-      lastProgressReport = System.currentTimeMillis();
-      return true;
-    } else {
-      return false;
-    }
   }
 
   Writable recordValue;
@@ -518,7 +523,9 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
     }
 
     try {
-      updateProgress();
+      if (reporter != null) {
+        reporter.progress();
+      }
 
       // if DP is enabled, get the final output writers and prepare the real output row
       assert inputObjInspectors[0].getCategory() == ObjectInspector.Category.STRUCT:
@@ -544,11 +551,6 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
         recordValue = serializer.serialize(row, subSetOI);
       } else {
         rowOutWriters = fsp.outWriters;
-
-        if (conf.isGatherStats()) {
-          fsp.stat.increaseNumRows(1);
-        }
-
         // use SerDe to serialize r, and write it out
         recordValue = serializer.serialize(row, inputObjInspectors[0]);
       }
@@ -588,7 +590,6 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
 
     if (dpDir != null) {
       FSPaths fsp2 = valToPaths.get(dpDir);
-
       if (fsp2 == null) {
         // check # of dp
         if (valToPaths.size() > maxPartitions) {
@@ -602,9 +603,6 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
         createBucketFiles(fsp2);
         valToPaths.put(dpDir, fsp2);
       }
-      if (conf.isGatherStats()) {
-        fsp2.stat.increaseNumRows(1);
-      }
       rw = fsp2.outWriters;
     } else {
       rw = fsp.outWriters;
@@ -614,7 +612,6 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
 
   // given the current input row, the mapping for input col info to dp columns, and # of dp cols,
   // return the relative path corresponding to the row.
-  // e.g., ds=2008-04-08/hr=11
   private String getDynPartDirectory(List<String> row, List<String> dpColNames, int numDynParts) {
     assert row.size() == numDynParts && numDynParts == dpColNames.size():
       "data length is different from num of DP columns";
@@ -626,27 +623,21 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
     errMsg.append("Operator ").append(getOperatorId()).append(" (id=").append(id).append("): ");
     errMsg.append(counterCode > FATAL_ERR_MSG.length - 1 ?
         "fatal error":
-          FATAL_ERR_MSG[(int) counterCode]);
+        FATAL_ERR_MSG[(int) counterCode]);
   }
 
   @Override
   public void closeOp(boolean abort) throws HiveException {
-
     if (!bDynParts && !filesCreated) {
       createBucketFiles(fsp);
     }
 
-    lastProgressReport = System.currentTimeMillis();
     if (!abort) {
       for (FSPaths fsp: valToPaths.values()) {
         fsp.closeWriters(abort);
         if (isNativeTable) {
           fsp.commit(fs);
         }
-      }
-      // Only publish stats if this operator's flag was set to gather stats
-      if (conf.isGatherStats()) {
-        publishStats();
       }
     } else {
       // Will come here if an Exception was thrown in map() or reduce().
@@ -674,6 +665,8 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
         String specPath = conf.getDirName();
         DynamicPartitionCtx dpCtx = conf.getDynPartCtx();
         mvFileToFinalPath(specPath, hconf, success, LOG, dpCtx);
+        // send back the root path of corresponding to the DP columns
+        feedBack.add(FeedBackType.DYNAMIC_PARTITIONS, specPath);
       }
     } catch (IOException e) {
       throw new HiveException(e);
@@ -738,9 +731,9 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
     TableDesc tableInfo = conf.getTableInfo();
     try {
       Serializer serializer = (Serializer) tableInfo.getDeserializerClass().newInstance();
-      serializer.initialize(null, tableInfo.getProperties());
-      outputClass = serializer.getSerializedClass();
-      hiveOutputFormat = conf.getTableInfo().getOutputFileFormatClass().newInstance();
+    	serializer.initialize(null, tableInfo.getProperties());
+    	outputClass = serializer.getSerializedClass();
+    	hiveOutputFormat = conf.getTableInfo().getOutputFileFormatClass().newInstance();
     } catch (SerDeException e) {
       throw new HiveException(e);
     } catch (InstantiationException e) {
@@ -766,38 +759,6 @@ public class FileSinkOperator extends TerminalOperator<FileSinkDesc> implements
   @Override
   public void augmentPlan() {
     PlanUtils.configureTableJobPropertiesForStorageHandler(
-        getConf().getTableInfo());
-  }
-
-  private void publishStats() {
-    // Initializing a stats publisher
-    StatsPublisher statsPublisher = Utilities.getStatsPublisher(jc);
-
-    if (statsPublisher == null || !statsPublisher.connect(hconf)) {
-      // just return, stats gathering should not block the main query
-      LOG.error("StatsPublishing error: cannot connect to database");
-      return;
-    }
-
-    String taskID = Utilities.getTaskIdFromFilename(Utilities.getTaskId(hconf));
-    String spSpec = conf.getStaticSpec() != null ? conf.getStaticSpec() : "";
-
-    for (String fspKey : valToPaths.keySet()) {
-      FSPaths fspValue = valToPaths.get(fspKey);
-      String key;
-
-      // construct the key(fileID) to insert into the intermediate stats table
-      if (fspKey == "") {
-        // for non-partitioned/static partitioned table, the key for temp storage is
-        // common key prefix + static partition spec +  taskID
-        key = conf.getStatsAggPrefix() + spSpec + taskID ;
-      } else {
-        // for partitioned table, the key is
-        // common key prefix + static partition spec + DynamicPartSpec + taskID
-        key = conf.getStatsAggPrefix() + spSpec + fspKey + Path.SEPARATOR + taskID;
-      }
-      statsPublisher.publishStat(key, StatsSetupConst.ROW_COUNT, Long.toString(fspValue.stat.getNumRows()));
-    }
-    statsPublisher.closeConnection();
+      getConf().getTableInfo());
   }
 }

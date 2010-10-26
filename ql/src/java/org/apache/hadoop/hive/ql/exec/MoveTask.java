@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.fs.FileStatus;
@@ -33,8 +32,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.Context;
-import org.apache.hadoop.hive.ql.DriverContext;
 import org.apache.hadoop.hive.ql.hooks.LineageInfo.DataContainer;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
@@ -47,6 +44,7 @@ import org.apache.hadoop.hive.ql.plan.LoadTableDesc;
 import org.apache.hadoop.hive.ql.plan.MoveWork;
 import org.apache.hadoop.hive.ql.plan.api.StageType;
 import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.hive.ql.DriverContext;
 import org.apache.hadoop.util.StringUtils;
 
 /**
@@ -132,7 +130,8 @@ public class MoveTask extends Task<MoveWork> implements Serializable {
         }
         String mesg_detail = " from " + tbd.getSourceDir();
         console.printInfo(mesg.toString(), mesg_detail);
-        Table table = db.getTable(tbd.getTable().getTableName());
+        Table table = db.getTable(db.getCurrentDatabase(), tbd
+            .getTable().getTableName());
 
         if (work.getCheckFileFormat()) {
           // Get all files from the src directory
@@ -171,8 +170,7 @@ public class MoveTask extends Task<MoveWork> implements Serializable {
         if (tbd.getPartitionSpec().size() == 0) {
           dc = new DataContainer(table.getTTable());
           db.loadTable(new Path(tbd.getSourceDir()), tbd.getTable()
-              .getTableName(), tbd.getReplace(), new Path(tbd.getTmpDir()),
-              tbd.getHoldDDLTime());
+              .getTableName(), tbd.getReplace(), new Path(tbd.getTmpDir()));
           if (work.getOutputs() != null) {
             work.getOutputs().add(new WriteEntity(table));
           }
@@ -181,19 +179,7 @@ public class MoveTask extends Task<MoveWork> implements Serializable {
           // deal with dynamic partitions
           DynamicPartitionCtx dpCtx = tbd.getDPCtx();
           if (dpCtx != null && dpCtx.getNumDPCols() > 0) { // dynamic partitions
-
-            List<LinkedHashMap<String, String>> dps = Utilities.getFullDPSpecs(conf, dpCtx);
-
-            // publish DP columns to its subscribers
-            pushFeed(FeedType.DYNAMIC_PARTITIONS, dps);
-
             // load the list of DP partitions and return the list of partition specs
-            // TODO: In a follow-up to HIVE-1361, we should refactor loadDynamicPartitions
-            // to use Utilities.getFullDPSpecs() to get the list of full partSpecs.
-            // After that check the number of DPs created to not exceed the limit and
-            // iterate over it and call loadPartition() here.
-            // The reason we don't do inside HIVE-1361 is the latter is large and we
-            // want to isolate any potential issue it may introduce.
             ArrayList<LinkedHashMap<String, String>> dp =
               db.loadDynamicPartitions(
                   new Path(tbd.getSourceDir()),
@@ -201,10 +187,7 @@ public class MoveTask extends Task<MoveWork> implements Serializable {
                 	tbd.getPartitionSpec(),
                 	tbd.getReplace(),
                 	new Path(tbd.getTmpDir()),
-                	dpCtx.getNumDPCols(),
-                	tbd.getHoldDDLTime());
-
-
+                	dpCtx.getNumDPCols());
             // for each partition spec, get the partition
             // and put it to WriteEntity for post-exec hook
             for (LinkedHashMap<String, String> partSpec: dp) {
@@ -237,8 +220,7 @@ public class MoveTask extends Task<MoveWork> implements Serializable {
             dc = null; // reset data container to prevent it being added again.
           } else { // static partitions
             db.loadPartition(new Path(tbd.getSourceDir()), tbd.getTable().getTableName(),
-                tbd.getPartitionSpec(), tbd.getReplace(), new Path(tbd.getTmpDir()),
-                tbd.getHoldDDLTime());
+                tbd.getPartitionSpec(), tbd.getReplace(), new Path(tbd.getTmpDir()));
           	Partition partn = db.getPartition(table, tbd.getPartitionSpec(), false);
           	dc = new DataContainer(table.getTTable(), partn.getTPartition());
           	// add this partition to post-execution hook
@@ -290,11 +272,5 @@ public class MoveTask extends Task<MoveWork> implements Serializable {
   @Override
   public String getName() {
     return "MOVE";
-  }
-
-
-  @Override
-  protected void localizeMRTmpFilesImpl(Context ctx) {
-    // no-op
   }
 }

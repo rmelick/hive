@@ -1,3 +1,4 @@
+drop table alter2;
 create table alter2(a int, b int) partitioned by (insertdate string);
 describe extended alter2;
 show partitions alter2;
@@ -18,6 +19,7 @@ show partitions alter2;
 alter table alter2 add partition (insertdate='2008-01-02') location '2008/01/02';
 describe extended alter2;
 show partitions alter2;
+drop table alter2;
 
 -- Cleanup
 DROP TABLE alter2;

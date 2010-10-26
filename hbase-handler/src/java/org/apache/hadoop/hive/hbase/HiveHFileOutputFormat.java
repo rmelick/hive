@@ -18,21 +18,24 @@
 
 package org.apache.hadoop.hive.hbase;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
-import java.util.Properties;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.Properties;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.apache.hadoop.hbase.mapreduce.HFileOutputFormat;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.io.Text;
@@ -42,6 +45,9 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.hbase.mapreduce.HFileOutputFormat;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.util.Progressable;
 
 /**
@@ -55,13 +61,13 @@ public class HiveHFileOutputFormat extends
 
   private static final String HFILE_FAMILY_PATH = "hfile.family.path";
 
-  static final Log LOG = LogFactory.getLog(
+  private static final Log LOG = LogFactory.getLog(
     HiveHFileOutputFormat.class.getName());
 
-  private
-  org.apache.hadoop.mapreduce.RecordWriter<ImmutableBytesWritable, KeyValue>
-  getFileWriter(org.apache.hadoop.mapreduce.TaskAttemptContext tac)
-  throws IOException {
+  private org.apache.hadoop.mapreduce.RecordWriter<
+    ImmutableBytesWritable, KeyValue> getFileWriter(
+      org.apache.hadoop.mapreduce.TaskAttemptContext tac) throws IOException
+  {
     try {
       return super.getRecordWriter(tac);
     } catch (InterruptedException ex) {
@@ -71,10 +77,8 @@ public class HiveHFileOutputFormat extends
 
   @Override
   public RecordWriter getHiveRecordWriter(
-    final JobConf jc,
-    final Path finalOutPath,
-    Class<? extends Writable> valueClass,
-    boolean isCompressed,
+    final JobConf jc, final Path finalOutPath,
+    Class<? extends Writable> valueClass, boolean isCompressed,
     Properties tableProperties,
     final Progressable progressable) throws IOException {
 
@@ -205,4 +209,5 @@ public class HiveHFileOutputFormat extends
       }
     };
   }
+
 }

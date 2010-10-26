@@ -25,12 +25,11 @@ import java.util.Enumeration;
 import java.util.Properties;
 
 import org.apache.hadoop.hive.ql.exec.Utilities;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.mapred.InputFormat;
-import org.apache.hadoop.fs.Path;
 
 /**
  * PartitionDesc.
@@ -250,11 +249,12 @@ public class PartitionDesc implements Serializable, Cloneable {
       return;
     }
     try {
-      Path p = new Path(path);
-      baseFileName = p.getName();
+      URI uri = new URI(path);
+      File file = new File(uri);
+      baseFileName = file.getName();
     } catch (Exception ex) {
-      // don't really care about the exception. the goal is to capture the
-      // the last component at the minimum - so set to the complete path
+      // This could be due to either URI syntax error or File constructor
+      // illegal arg; we don't really care which one it is.
       baseFileName = path;
     }
   }

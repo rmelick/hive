@@ -29,7 +29,6 @@ import java.util.Map.Entry;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.FilterOperator;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
 import org.apache.hadoop.hive.ql.exec.JoinOperator;
@@ -37,14 +36,9 @@ import org.apache.hadoop.hive.ql.exec.Operator;
 import org.apache.hadoop.hive.ql.exec.OperatorFactory;
 import org.apache.hadoop.hive.ql.exec.RowSchema;
 import org.apache.hadoop.hive.ql.exec.TableScanOperator;
-import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.lib.NodeProcessor;
 import org.apache.hadoop.hive.ql.lib.NodeProcessorCtx;
-import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
-import org.apache.hadoop.hive.ql.metadata.HiveStoragePredicateHandler;
-import org.apache.hadoop.hive.ql.metadata.HiveUtils;
-import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.OpParseContext;
 import org.apache.hadoop.hive.ql.parse.RowResolver;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
@@ -53,10 +47,7 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.plan.FilterDesc;
 import org.apache.hadoop.hive.ql.plan.JoinCondDesc;
 import org.apache.hadoop.hive.ql.plan.JoinDesc;
-import org.apache.hadoop.hive.ql.plan.TableScanDesc;
-import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
-import org.apache.hadoop.mapred.JobConf;
 
 /**
  * Operator factory for predicate pushdown processing of operator graph Each
@@ -71,9 +62,6 @@ import org.apache.hadoop.mapred.JobConf;
  * predicates are evaluated twice.
  */
 public final class OpProcFactory {
-
-  protected static final Log LOG = LogFactory.getLog(OpProcFactory.class
-    .getName());
 
   /**
    * Processor for Script Operator Prevents any predicates being pushed.
@@ -102,6 +90,10 @@ public final class OpProcFactory {
           + ((Operator) nd).getIdentifier() + ")");
       OpWalkerInfo owi = (OpWalkerInfo) procCtx;
 
+      // The lateral view forward operator has 2 children, a SELECT(*) and
+      // a SELECT(cols) (for the UDTF operator) The child at index 0 is the
+      // SELECT(*) because that's the way that the DAG was constructed. We
+      // only want to get the predicates from the SELECT(*).
       ExprWalkerInfo childPreds = owi
       .getPrunedPreds((Operator<? extends Serializable>) nd.getChildren()
       .get(0));
@@ -278,6 +270,9 @@ public final class OpProcFactory {
    */
   public static class DefaultPPD implements NodeProcessor {
 
+    protected static final Log LOG = LogFactory.getLog(OpProcFactory.class
+        .getName());
+
     @Override
     public Object process(Node nd, Stack<Node> stack, NodeProcessorCtx procCtx,
         Object... nodeOutputs) throws SemanticException {
@@ -386,24 +381,6 @@ public final class OpProcFactory {
     if (condn == null) {
       return null;
     }
-    
-    if (op instanceof TableScanOperator) {
-      boolean pushFilterToStorage;
-      HiveConf hiveConf = owi.getParseContext().getConf();
-      pushFilterToStorage =
-        hiveConf.getBoolVar(HiveConf.ConfVars.HIVEOPTPPD_STORAGE);
-      if (pushFilterToStorage) {
-        condn = pushFilterToStorageHandler(
-          (TableScanOperator) op,
-          condn,
-          owi,
-          hiveConf);
-        if (condn == null) {
-          // we pushed the whole thing down
-          return null;
-        }
-      }
-    }
 
     // add new filter op
     List<Operator<? extends Serializable>> originalChilren = op
@@ -426,81 +403,6 @@ public final class OpProcFactory {
     return output;
   }
 
-  /**
-   * Attempts to push a predicate down into a storage handler.  For
-   * native tables, this is a no-op.
-   *
-   * @param tableScanOp table scan against which predicate applies
-   *
-   * @param originalPredicate predicate to be pushed down
-   *
-   * @param owi object walk info
-   *
-   * @param hiveConf Hive configuration
-   *
-   * @return portion of predicate which needs to be evaluated
-   * by Hive as a post-filter, or null if it was possible
-   * to push down the entire predicate
-   */
-  private static ExprNodeDesc pushFilterToStorageHandler(
-    TableScanOperator tableScanOp,
-    ExprNodeDesc originalPredicate,
-    OpWalkerInfo owi,
-    HiveConf hiveConf) {
-
-    TableScanDesc tableScanDesc = tableScanOp.getConf();
-    Table tbl = owi.getParseContext().getTopToTable().get(tableScanOp);
-    if (!tbl.isNonNative()) {
-      return originalPredicate;
-    }
-    HiveStorageHandler storageHandler = tbl.getStorageHandler();
-    if (!(storageHandler instanceof HiveStoragePredicateHandler)) {
-      // The storage handler does not provide predicate decomposition
-      // support, so we'll implement the entire filter in Hive.  However,
-      // we still provide the full predicate to the storage handler in
-      // case it wants to do any of its own prefiltering.
-      tableScanDesc.setFilterExpr(originalPredicate);
-      return originalPredicate;
-    }
-    HiveStoragePredicateHandler predicateHandler =
-      (HiveStoragePredicateHandler) storageHandler;
-    JobConf jobConf = new JobConf(owi.getParseContext().getConf());
-    Utilities.setColumnNameList(jobConf, tableScanOp);
-    Utilities.copyTableJobPropertiesToConf(
-      Utilities.getTableDesc(tbl),
-      jobConf);
-    Deserializer deserializer = tbl.getDeserializer();
-    HiveStoragePredicateHandler.DecomposedPredicate decomposed =
-      predicateHandler.decomposePredicate(
-        jobConf,
-        deserializer,
-        originalPredicate);
-    if (decomposed == null) {
-      // not able to push anything down
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("No pushdown possible for predicate:  "
-          + originalPredicate.getExprString());
-      }
-      return originalPredicate;
-    }
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Original predicate:  "
-        + originalPredicate.getExprString());
-      if (decomposed.pushedPredicate != null) {
-        LOG.debug(
-          "Pushed predicate:  "
-          + decomposed.pushedPredicate.getExprString());
-      }
-      if (decomposed.residualPredicate != null) {
-        LOG.debug(
-          "Residual predicate:  "
-          + decomposed.residualPredicate.getExprString());
-      }
-    }
-    tableScanDesc.setFilterExpr(decomposed.pushedPredicate);
-    return decomposed.residualPredicate;
-  }
-  
   public static NodeProcessor getFilterProc() {
     return new FilterPPD();
   }

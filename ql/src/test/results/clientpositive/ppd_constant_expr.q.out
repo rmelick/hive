@@ -16,11 +16,10 @@ ABSTRACT SYNTAX TREE:
 
 STAGE DEPENDENCIES:
   Stage-1 is a root stage
-  Stage-5 depends on stages: Stage-1 , consists of Stage-4, Stage-3
-  Stage-4
-  Stage-0 depends on stages: Stage-4, Stage-3
-  Stage-2 depends on stages: Stage-0
+  Stage-4 depends on stages: Stage-1 , consists of Stage-3, Stage-2
   Stage-3
+  Stage-0 depends on stages: Stage-3, Stage-2
+  Stage-2
 
 STAGE PLANS:
   Stage: Stage-1
@@ -56,14 +55,14 @@ STAGE PLANS:
                       serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                       name: ppd_constant_expr
 
-  Stage: Stage-5
+  Stage: Stage-4
     Conditional Operator
 
-  Stage: Stage-4
+  Stage: Stage-3
     Move Operator
       files:
           hdfs directory: true
-          destination: pfile:/data/users/nzhang/work/784/apache-hive/build/ql/scratchdir/hive_2010-09-14_17-16-55_565_7273157164106376396/-ext-10000
+          destination: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_14-10-21_055_1783777079129990268/10000
 
   Stage: Stage-0
     Move Operator
@@ -76,12 +75,9 @@ STAGE PLANS:
               name: ppd_constant_expr
 
   Stage: Stage-2
-    Stats-Aggr Operator
-
-  Stage: Stage-3
     Map Reduce
       Alias -> Map Operator Tree:
-        pfile:/data/users/nzhang/work/784/apache-hive/build/ql/scratchdir/hive_2010-09-14_17-16-55_565_7273157164106376396/-ext-10002 
+        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_14-10-21_055_1783777079129990268/10002 
             File Output Operator
               compressed: false
               GlobalTableId: 0
@@ -108,11 +104,11 @@ POSTHOOK: Lineage: ppd_constant_expr.c3 EXPRESSION []
 PREHOOK: query: SELECT ppd_constant_expr.* FROM ppd_constant_expr
 PREHOOK: type: QUERY
 PREHOOK: Input: default@ppd_constant_expr
-PREHOOK: Output: file:/tmp/nzhang/hive_2010-09-14_17-17-01_828_7275648177476387111/-mr-10000
+PREHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_14-10-25_250_4568960009939458125/10000
 POSTHOOK: query: SELECT ppd_constant_expr.* FROM ppd_constant_expr
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@ppd_constant_expr
-POSTHOOK: Output: file:/tmp/nzhang/hive_2010-09-14_17-17-01_828_7275648177476387111/-mr-10000
+POSTHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_14-10-25_250_4568960009939458125/10000
 POSTHOOK: Lineage: ppd_constant_expr.c1 EXPRESSION []
 POSTHOOK: Lineage: ppd_constant_expr.c2 EXPRESSION [(src1)src1.FieldSchema(name:key, type:string, comment:default), ]
 POSTHOOK: Lineage: ppd_constant_expr.c3 EXPRESSION []
@@ -141,3 +137,11 @@ NULL	NULL	NULL
 NULL	NULL	NULL
 NULL	NULL	NULL
 NULL	NULL	NULL
+PREHOOK: query: DROP TABLE ppd_constant_expr
+PREHOOK: type: DROPTABLE
+POSTHOOK: query: DROP TABLE ppd_constant_expr
+POSTHOOK: type: DROPTABLE
+POSTHOOK: Output: default@ppd_constant_expr
+POSTHOOK: Lineage: ppd_constant_expr.c1 EXPRESSION []
+POSTHOOK: Lineage: ppd_constant_expr.c2 EXPRESSION [(src1)src1.FieldSchema(name:key, type:string, comment:default), ]
+POSTHOOK: Lineage: ppd_constant_expr.c3 EXPRESSION []

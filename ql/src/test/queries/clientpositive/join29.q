@@ -1,3 +1,5 @@
+drop TABLE dest_j1;
+
 CREATE TABLE dest_j1(key STRING, cnt1 INT, cnt2 INT);
 
 EXPLAIN 
@@ -12,3 +14,5 @@ FROM (select x.key, count(1) as cnt from src1 x group by x.key) subq1 JOIN
      (select y.key, count(1) as cnt from src y group by y.key) subq2 ON (subq1.key = subq2.key);
 
 select * from dest_j1 x order by x.key;
+
+drop TABLE dest_j1;

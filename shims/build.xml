@@ -26,12 +26,9 @@ to call at top-level: ant deploy-contrib compile-core-test
   <import file="../build-common.xml"/>
 
   <path id="classpath">
-    <pathelement location="${hadoop.oldstyle-name.jar}"/>
-    <pathelement location="${hadoop.oldstyle-name.tools.jar}"/>
-    <pathelement location="${hadoop.oldstyle-name.test.jar}"/>
-    <pathelement location="${hadoop.newstyle-name.jar}"/>
-    <pathelement location="${hadoop.newstyle-name.test.jar}"/>
-    <pathelement location="${hadoop.newstyle-name.tools.jar}"/>
+    <pathelement location="${hadoop.jar}"/>
+    <pathelement location="${hadoop.tools.jar}"/>
+    <pathelement location="${hadoop.test.jar}"/>
     <fileset dir="${hadoop.root}/lib">
       <include name="**/*.jar" />
       <exclude name="**/excluded/" />
@@ -45,7 +42,6 @@ to call at top-level: ant deploy-contrib compile-core-test
     <javac
      encoding="${build.encoding}"
      includes="**/*.java"
-     excludes="**/Proxy*.java"
      destdir="${build.classes}"
      debug="${javac.debug}"
      deprecation="${javac.deprecation}">
@@ -58,23 +54,17 @@ to call at top-level: ant deploy-contrib compile-core-test
 
   <target name="compile" depends="init">
     <antcall target="build_shims" inheritRefs="false" inheritAll="false">
-      <param name="hadoop.version.ant-internal" value="0.20.0" />
+      <param name="hadoop.version.ant-internal" value="0.17.2.1" />
     </antcall>
     <antcall target="build_shims" inheritRefs="false" inheritAll="false">
-      <param name="hadoop.version.ant-internal" value="${hadoop.security.version}" />
-      <param name="hadoop.version.ant-internal.prefix" value="0.20S" />
+      <param name="hadoop.version.ant-internal" value="0.18.3" />
     </antcall>
-    <getversionpref property="hadoop.version.ant-internal.prefix" input="${hadoop.version}" />
-    <javac
-     encoding="${build.encoding}"
-     includes="**/Proxy*.java"
-     destdir="${build.classes}"
-     debug="${javac.debug}"
-     deprecation="${javac.deprecation}">
-      <compilerarg line="${javac.args} ${javac.args.warnings}" />
-      <classpath refid="classpath"/>
-      <src path="${basedir}/src/${hadoop.version.ant-internal.prefix}/java" />
-    </javac>
+    <antcall target="build_shims" inheritRefs="false" inheritAll="false">
+      <param name="hadoop.version.ant-internal" value="0.19.0" />
+    </antcall>
+    <antcall target="build_shims" inheritRefs="false" inheritAll="false">
+      <param name="hadoop.version.ant-internal" value="0.20.0" />
+    </antcall>
   </target>
 
 
