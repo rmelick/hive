@@ -65,6 +65,9 @@ public class MapredWork implements Serializable {
 
   private MapredLocalWork mapLocalWork;
   private String inputformat;
+  private boolean gatheringStats;
+
+  private String tmpHDFSFileURI;
 
   public MapredWork() {
     aliasToPartnInfo = new LinkedHashMap<String, PartitionDesc>();
@@ -322,4 +325,19 @@ public class MapredWork implements Serializable {
     this.inputformat = inputformat;
   }
 
+  public void setGatheringStats(boolean gatherStats) {
+    this.gatheringStats = gatherStats;
+  }
+
+  public boolean isGatheringStats() {
+    return this.gatheringStats;
+  }
+
+  public String getTmpHDFSFileURI() {
+    return tmpHDFSFileURI;
+  }
+
+  public void setTmpHDFSFileURI(String tmpHDFSFileURI) {
+    this.tmpHDFSFileURI = tmpHDFSFileURI;
+  }
 }

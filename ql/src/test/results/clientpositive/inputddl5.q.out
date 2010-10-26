@@ -20,23 +20,18 @@ name	string
 PREHOOK: query: SELECT INPUTDDL5.name from INPUTDDL5
 PREHOOK: type: QUERY
 PREHOOK: Input: default@inputddl5
-PREHOOK: Output: file:/data/users/njain/hive5/hive5/build/ql/tmp/1156409019/10000
+PREHOOK: Output: file:/tmp/thiruvel/hive_2010-10-11_05-10-24_142_4717365799469321057/-mr-10000
 POSTHOOK: query: SELECT INPUTDDL5.name from INPUTDDL5
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@inputddl5
-POSTHOOK: Output: file:/data/users/njain/hive5/hive5/build/ql/tmp/1156409019/10000
+POSTHOOK: Output: file:/tmp/thiruvel/hive_2010-10-11_05-10-24_142_4717365799469321057/-mr-10000
 邵铮
 PREHOOK: query: SELECT count(1) FROM INPUTDDL5 WHERE INPUTDDL5.name = _UTF-8 0xE982B5E993AE
 PREHOOK: type: QUERY
 PREHOOK: Input: default@inputddl5
-PREHOOK: Output: file:/data/users/njain/hive5/hive5/build/ql/tmp/609959614/10000
+PREHOOK: Output: file:/tmp/thiruvel/hive_2010-10-11_05-10-26_576_1899173500377396904/-mr-10000
 POSTHOOK: query: SELECT count(1) FROM INPUTDDL5 WHERE INPUTDDL5.name = _UTF-8 0xE982B5E993AE
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@inputddl5
-POSTHOOK: Output: file:/data/users/njain/hive5/hive5/build/ql/tmp/609959614/10000
+POSTHOOK: Output: file:/tmp/thiruvel/hive_2010-10-11_05-10-26_576_1899173500377396904/-mr-10000
 1
-PREHOOK: query: DROP TABLE INPUTDDL5
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: DROP TABLE INPUTDDL5
-POSTHOOK: type: DROPTABLE
-POSTHOOK: Output: default@inputddl5

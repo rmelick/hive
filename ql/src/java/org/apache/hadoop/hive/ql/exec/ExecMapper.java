@@ -24,15 +24,13 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.net.URLClassLoader;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hive.ql.plan.FetchWork;
 import org.apache.hadoop.hive.ql.plan.MapredLocalWork;
 import org.apache.hadoop.hive.ql.plan.MapredWork;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.MapReduceBase;
@@ -40,7 +38,6 @@ import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.util.StringUtils;
-
 /**
  * ExecMapper.
  *
@@ -51,7 +48,7 @@ public class ExecMapper extends MapReduceBase implements Mapper {
   private Map<String, FetchOperator> fetchOperators;
   private OutputCollector oc;
   private JobConf jc;
-  private static boolean abort = false;
+  private boolean abort = false;
   private Reporter rp;
   public static final Log l4j = LogFactory.getLog("ExecMapper");
   private static boolean done;
@@ -61,6 +58,7 @@ public class ExecMapper extends MapReduceBase implements Mapper {
   private long numRows = 0;
   private long nextCntr = 1;
   private MapredLocalWork localWork = null;
+  private boolean isLogInfoEnabled = false;
 
   private final ExecMapperContext execContext = new ExecMapperContext();
 
@@ -69,6 +67,8 @@ public class ExecMapper extends MapReduceBase implements Mapper {
     // Allocate the bean at the beginning -
     memoryMXBean = ManagementFactory.getMemoryMXBean();
     l4j.info("maximum memory = " + memoryMXBean.getHeapMemoryUsage().getMax());
+
+    isLogInfoEnabled = l4j.isInfoEnabled();
 
     try {
       l4j.info("conf classpath = "
@@ -89,37 +89,28 @@ public class ExecMapper extends MapReduceBase implements Mapper {
       // initialize map operator
       mo.setChildren(job);
       l4j.info(mo.dump(0));
+   // initialize map local work
+      localWork = mrwork.getMapLocalWork();
+      execContext.setLocalWork(localWork);
+
       mo.setExecContext(execContext);
       mo.initializeLocalWork(jc);
       mo.initialize(jc, null);
 
-      // initialize map local work
-      localWork = mrwork.getMapLocalWork();
       if (localWork == null) {
         return;
       }
-      fetchOperators = new HashMap<String, FetchOperator>();
-      // create map local operators
-      for (Map.Entry<String, FetchWork> entry : localWork.getAliasToFetchWork()
-          .entrySet()) {
-        fetchOperators.put(entry.getKey(), new FetchOperator(entry.getValue(),
-            job));
-        l4j.info("fetchoperator for " + entry.getKey() + " created");
+
+      //The following code is for mapjoin
+      //initialize all the dummy ops
+      l4j.info("Initializing dummy operator");
+      List<Operator<? extends Serializable>> dummyOps = localWork.getDummyParentOp();
+      for(Operator<? extends Serializable> dummyOp : dummyOps){
+        dummyOp.setExecContext(execContext);
+        dummyOp.initialize(jc,null);
       }
-      // initialize map local operators
-      for (Map.Entry<String, FetchOperator> entry : fetchOperators.entrySet()) {
-        Operator<? extends Serializable> forwardOp = localWork.getAliasToWork()
-            .get(entry.getKey());
-        forwardOp.setExecContext(execContext);
-        // All the operators need to be initialized before process
-        forwardOp.initialize(jc, new ObjectInspector[] {entry.getValue()
-            .getOutputObjectInspector()});
-        l4j.info("fetchoperator for " + entry.getKey() + " initialized");
-      }
-      this.execContext.setLocalWork(localWork);
-      this.execContext.setFetchOperators(fetchOperators);
-      // defer processing of map local operators to first row if in case there
-      // is no input (??)
+
+
     } catch (Throwable e) {
       abort = true;
       if (e instanceof OutOfMemoryError) {
@@ -130,7 +121,6 @@ public class ExecMapper extends MapReduceBase implements Mapper {
         throw new RuntimeException("Map operator initialization failed", e);
       }
     }
-
   }
 
   public void map(Object key, Object value, OutputCollector output,
@@ -150,8 +140,8 @@ public class ExecMapper extends MapReduceBase implements Mapper {
       } else {
         // Since there is no concept of a group, we don't invoke
         // startGroup/endGroup for a mapper
-        mo.process((Writable) value);
-        if (l4j.isInfoEnabled()) {
+        mo.process((Writable)value);
+        if (isLogInfoEnabled) {
           numRows++;
           if (numRows == nextCntr) {
             long used_memory = memoryMXBean.getHeapMemoryUsage().getUsed();
@@ -192,10 +182,25 @@ public class ExecMapper extends MapReduceBase implements Mapper {
       l4j.trace("Close called. no row processed by map.");
     }
 
+    // check if there are IOExceptions
+    if (!abort) {
+      abort = execContext.getIoCxt().getIOExceptions();
+    }
+
     // detecting failed executions by exceptions thrown by the operator tree
     // ideally hadoop should let us know whether map execution failed or not
     try {
       mo.close(abort);
+
+      //for close the local work
+      if(localWork != null){
+        List<Operator<? extends Serializable>> dummyOps = localWork.getDummyParentOp();
+
+        for(Operator<? extends Serializable> dummyOp : dummyOps){
+          dummyOp.close(abort);
+        }
+      }
+
       if (fetchOperators != null) {
         MapredLocalWork localWork = mo.getConf().getMapLocalWork();
         for (Map.Entry<String, FetchOperator> entry : fetchOperators.entrySet()) {
@@ -205,7 +210,7 @@ public class ExecMapper extends MapReduceBase implements Mapper {
         }
       }
 
-      if (l4j.isInfoEnabled()) {
+      if (isLogInfoEnabled) {
         long used_memory = memoryMXBean.getHeapMemoryUsage().getUsed();
         l4j.info("ExecMapper: processed " + numRows + " rows: used memory = "
             + used_memory);
@@ -213,9 +218,6 @@ public class ExecMapper extends MapReduceBase implements Mapper {
 
       reportStats rps = new reportStats(rp);
       mo.preorderMap(rps);
-
-      // reset abort flag so that ExecMapper instance can be potentially reused
-      setAbort(false);
       return;
     } catch (Exception e) {
       if (!abort) {
@@ -234,8 +236,8 @@ public class ExecMapper extends MapReduceBase implements Mapper {
     return abort;
   }
 
-  public static void setAbort(boolean abrt) {
-    abort = abrt;
+  public void setAbort(boolean abort) {
+    this.abort = abort;
   }
 
   public static void setDone(boolean done) {

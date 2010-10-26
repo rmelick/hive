@@ -1,5 +1,437 @@
 Hive Change Log
 
+Trunk -  Unreleased
+
+  INCOMPATIBLE CHANGES
+
+  NEW FEATURES
+
+    HIVE-1304. Add function row_sequence in contrib (John Sichi via namit)
+
+    HIVE-1405. Add ability to run an initialization script by 'hive -i <fileName>' (John Sichi via namit)
+
+    HIVE-1387. Add PERCENTILE_APPROX which works with double data type
+    (Mayank Lahiri via jvs)
+
+    HIVE-1438. SENTENCES() UDF for natural language tokenization
+    (Mayank Lahiri via jvs)
+
+    HIVE-1481. ngrams() UDAF for estimating top-k n-gram frequencies
+    (Mayank Lahiri via jvs)
+
+    HIVE-1408. add option to let hive automatically run in local mode based on
+    tunable heuristics
+    (Joydeep Sen Sarma via Ning Zhang)
+
+    HIVE-1126. Missiong some Jdbc functionality like getTables
+    getColumns and HiveResultSet.get* methods based on column name.
+    (Bennie Schut via jvs)
+
+    HIVE-417. Implement Indexing in Hive
+    (He Yongqiang via jvs)
+
+    HIVE-1414. Automatically invoke .hiverc init script
+    (Edward Capriolo via jvs)
+
+    HIVE-1413. Ability to take a table offline
+    (Siying Dong via namit)
+
+    HIVE-1514. API to change fileformat and location of a partition
+    (He Yongqiang via namit)
+
+    HIVE-1528. JSON UDTF function
+    (Ning Zhang via jvs)
+
+    HIVE-1529. Add ANSI SQL covariance aggregate functions: covar_pop
+    and covar_samp
+    (Pierre Huyn via jvs)
+
+    HIVE-1518. context_ngrams() UDAF for estimating top-k contextual
+    n-grams
+    (Mayank Lahiri via jvs)
+
+    HIVE-1549. Add ANSI SQL correlation function CORR(X,Y).
+    (Pierre Huyn via jvs)
+
+    HIVE-1307. More generic and efficient merge
+    (Ning Zhang via namit)
+
+    HIVE-1578. Add conf. variable for displaying link to task
+    with most failures (Paul Yang via namit)
+
+    HIVE-1293. Concurrency Model for Hive
+    (Namit Jain via jvs)
+
+    HIVE-675. Add database/schema support for Hive
+    (Carl Steinbach via namit)
+
+    HIVE-471. Add a UDF for simple reflection
+    (Edward Capriolo via namit)
+
+    HIVE-1598. Create an option to specify an option for the format of
+    intermediate results (Ning Zhang via namit)
+
+    HIVE-1616. Add ProtocolsBufferStructObjectInspector
+    (Johan Oskarsson via namit)
+
+    HIVE-1609. Support partition filtering in metastore
+    (Ajay Kidave via jvs)
+
+    HIVE-1661. Default values for parameters
+    (Siying Dong via He Yongqiang)
+
+    HIVE-1659. parse_url_tuple: a UDTF version of parse_url
+    (Xing Jin via Ning Zhang)
+
+    HIVE-1361. table/partition level statistics
+    (Ning Zhang, Ahmed M Aly via He Yongqiang)
+
+    HIVE-1624. Patch to allows scripts in S3 location
+    (Vaibhav Aggarwal via He Yongqiang)
+
+    HIVE-1427. Add metastore schema migration scripts (0.5 -> 0.6)
+    (Carl Steinback via namit)
+
+    HIVE-1546. Ability to plug custom Semantic Analyzers for Hive Grammar
+    (Ashutosh Chauhan via namit)
+
+    HIVE-537. Hive TypeInfo/ObjectInspector to support union
+    (Amareshwari Sriramadasu via namit)
+
+    HIVE-1709. Add Postgres metastore schema migration scripts (0.5 -> 0.6)
+    (Yuanjun Li via namit)
+
+  IMPROVEMENTS
+
+    HIVE-1394. Do not update transient_lastDdlTime if the partition is modified by a housekeeping
+    operation (Ning Zhang via namit)
+
+    HIVE-1430. Dont run serialize plan by default (Ning Zhang via namit)
+
+    HIVE-1443. Add an API to turn off bucketing (Paul Yang via namit)
+
+    HIVE-1447. Speed up reflection method calls (Zheng via He Yongqiang)
+
+    HIVE-1462. Report progress in FileSinkOperator works in multiple directory
+    case
+    (Siying Dong via Ning Zhang)
+
+    HIVE-1469. replace isArray() calls and remove LOG.isInfoEnabled() in
+    Operator.forward()
+    (Yongqiang He via Ning Zhang)
+
+    HIVE-1463. Hive output file names are unnecessarily large
+    (Joydeep Sen Sarma via Ning Zhang)
+
+    HIVE-1229. Replace dependencies on HBase deprecated API.
+    (Basab Maulik via jvs)
+
+    HIVE-1513. hive starter scripts should load admin/user supplied script for
+    configurability
+    (Joydeep Sen Sarma via Ning Zhang)
+
+    HIVE-1495. supply correct information to hooks and lineage for
+    index rebuild
+    (He Yongqiang via jvs)
+
+    HIVE-1512. Need to get hive_hbase-handler to work with hbase
+    versions 0.20.4 0.20.5 and cloudera CDH3 version
+    (Basab Maulik via jvs)
+
+    HIVE-1581. CompactIndexInputFormat should create split only for files in the index output file
+    (He Yongqiang via namit)
+
+    HIVE-1441. Extend ivy offline mode to cover metastore downloads
+    (John Sichi via Ning Zhang)
+
+    HIVE-1523. Enable some tests in miniMR mode
+    (Joydeep Sen Sarma via namit)
+
+    HIVE-1536. Add support for JDBC PreparedStatements
+    (Sean Flatley via jvs)
+
+    HIVE-1580. Cleanup ExecDriver.progress
+    (Joydeep Sen Sarma via namit)
+
+    HIVE-1614. UDTF json_tuple should return null row when input is not a valid
+    JSON string (Ning Zhang via namit)
+
+    HIVE-1645. ability to specify parent directory for zookeeper lock manager
+    (namit via He Yongqiang)
+
+    HIVE-1617. ScriptOperator's AutoProgressor can lead to an infinite loop
+    (Paul Yang via namit)
+
+    HIVE-1226. support filter pushdown against non-native tables
+    (jvs via He Yongqiang)
+
+    HIVE-558. Make describe output better
+    (Thiruvel Thirumoolan via namit)
+
+    HIVE-1628. Fix Base64TextInputFormat to be compatible with commons
+    codec 1.4
+    (Todd Lipcon via jvs)
+
+    HIVE-1378. Return value for map, array, and struct needs to return a string
+    (Steven Wong via Ning Zhang)
+
+    HIVE-1364 Increase the maximum length of various metastore fields, and
+    remove TYPE_NAME from COLUMNS primary key (Carl Steinbach via namit)
+
+    HIVE-1693 Make the compile target depend on thrift.home
+    (Eli Collins via namit)
+
+    HIVE-1697. Migration scripts should increase size of PARAM_VALUE in
+    PARTITION_PARAMS (Paul Yang via namit)
+
+    HIVE-1264. Make Hive work with Hadoop security
+    (Todd Lipcon via jvs)
+
+    HIVE-1701. drop support for pre-0.20 Hadoop versions
+    (jvs via Ning Zhang)
+
+    HIVE-1704. remove Hadoop 0.17 specific test reference logs
+    (jvs via Ning Zhang)
+
+    HIVE-1638. convert commonly used udfs to generic udfs
+    (Siying Dong via namit)
+
+    HIVE-1660. Change get_partitions_ps to pass partition filter to
+    database (Paul Yang via namit)
+
+    HIVE-1738. Optimize key comparison in groupby
+    (Siying Dong via namit)
+
+    HIVE-1749. ExecMapper and ExecReducer reduce function calls to l4j.isInfoEnabled()
+    (Siying Dong via namit)
+
+    HIVE-1641. add map joined table to distributed cache
+    (Liyin Tang via He Yongqiang)
+
+  OPTIMIZATIONS
+
+  BUG FIXES
+
+    HIVE-1524. Parallel Execution fails if mapred.job.name is set
+    (Ning Zhang via jssarma)
+
+    HIVE-1509. Hive should kill query if too many files are created by it
+    (Ning Zhang via jssarma)
+
+    HIVE-1471. CTAS should unescape column names in select-clause
+    (Ning Zhang via jssarma)
+
+    HIVE-1440. Bug in RCFiles with local work (map-join or sort-merge join)
+    (He Yongqiang via namit)
+
+    HIVE-1454. insert overwrite and CTAS fail in hive local mode
+    (Joydeep Sen Sarma via He Yongqiang )
+
+    HIVE-1305. add progress in join and groupby
+    (Siying Dong via He Yongqiang)
+
+    HIVE-1453. Make Eclipse launch tempaltes auto-adjust to Hive
+    version number changes.
+    (Arvind Prabhakar via jvs)
+
+    HIVE-1056. Predicate push down does not work with UDTF's
+    (Paul Yang via He Yongqiang)
+
+    HIVE-1385. UDF field() doesn't work
+    (Siying Dong via He Yongqiang)
+
+    HIVE-1455. lateral view does not work with column pruning
+    (Paul Yang via He Yongqiang)
+
+    HIVE-1470. percentile_approx() fails with more than 1 reducer
+    (Mayank Lahiri via jvs)
+
+    HIVE-1425. hive.task.progress should be added to conf/hive-default.xml
+    (John Sichi via Ning Zhang)
+
+    HIVE-1492. FileSinkOperator should remove duplicated files from the same task based on file sizes
+    (Ning Zhang via He Yongqiang)
+
+    HIVE-1491. fix or disable loadpart_err.q
+    (John Sichi via He Yongqiang)
+
+    HIVE-1411. DataNucleus throws NucleusException if core-3.1.1 JAR
+    appears more than once on CLASSPATH
+    (Carl Steinbach via jvs)
+
+    HIVE-1494. Index followup:  remove sort by clause and fix a bug in
+    collect_set udaf
+    (He Yongqiang via jvs)
+
+    HIVE-1422 (2nd trial). skip counter update when RunningJob.getCounters()
+    returns null
+    (Joydeep Sen Sarma via Ning Zhang)
+
+    HIVE-1535 Dont change table metadata while changing partition metadata
+    (He Yongqiang via namit)
+
+    HIVE-1532 Replace globStatus with listStatus inside Hive.java's replaceFiles
+    (He Yongqiang via namit)
+
+    HIVE-1543 Abort in ExecMapper when record reader's next gets a exception
+    (Ning Zhang via namit)
+
+    HIVE-1547 Unarchiving operation throws NPE
+    (Paul Yang via namit)
+
+    HIVE-1548 populate inputs and outputs for all statement
+    (namit via He Yongqiang)
+
+    HIVE-1556. tests broken
+    (namit via Ning Zhang)
+
+    HIVE-1563. tests broken
+    (John Sichi via namit)
+
+    HIVE-1564. bucketizedhiveinputformat does not work in minimr mode
+    (He Yongqiang via namit)
+
+    HIVE-1561. test bug: smb_mapjoin*.q should use bucketizedhiveinputformat
+    (He Yongqiang via namit)
+
+    HIVE-1510. HiveCombineInputFormat should not use prefix matching to find
+    the partitionDesc for a given path
+    (He Yongqiang via Ning Zhang)
+
+    HIVE-1584. wrong log files in contrib client positive
+    (namit via He Yongqiang)
+
+    HIVE-1589. Add HBase/ZK JARs to Eclipse classpath
+    (Carl Steinbach via jvs)
+
+    HIVE-741. NULL is not handled correctly in join
+    (Amareshwari Sriramadasu via Ning Zhang)
+
+    HIVE-1593. Add test file udtf_explode
+    (Carl Steinbach via namit)
+
+    HIVE-1594. Typo of hive.merge.size.smallfiles.avgsize prevents
+    change of value. (Yun Huang Yong via namit)
+
+    HIVE-1600. Making test outputs deterministic by sorting inputs and outputs in hooks
+    (John Sichi via namit)
+
+    HIVE-1605. Regression and improvements in handling NULLs in joins
+    (Ning Zhang via namit)
+
+    HIVE-1607. Reinstate and deprecate IMetaStoreClient methods removed
+    in HIVE-675
+    (Carl Steinbach via Ning Zhang)
+
+    HIVE-1622. Use map-only task to merge if available
+    (Ning Zhang via namit)
+
+    HIVE-1630. Bug in NO_DROP
+    (Siying Dong via namit)
+
+    HIVE-1629. Patch to fix hashCode method in DoubleWritable class
+    (Vaibhav Aggarwal via Ning Zhang)
+
+    HIVE-1622. Bug in updating log file for hadoop 17
+    (Ning Zhang via namit)
+
+    HIVE-1639 ExecDriver.addInputPaths() error if partition name contains a comma
+    (Ning Zhang via namit)
+
+    HIVE-1650. TestContribNegativeCliDriver fails
+    (namit via He Yongqiang)
+
+    HIVE-1656. All TestJdbcDriver test cases fail in Eclipse unless a
+    property is added in run config
+    (Steven Wong via jvs)
+
+    HIVE-1534. Join filters do not work correctly with outer joins
+    (Amareshwari Sriramadasu via namit)
+
+    HIVE-1655.  Adding consistency check at jobClose() when committing dynamic
+    partitions (Ning Zhang via namit)
+
+    HIVE-1664. Eclipse build broken
+    (Steven Wong via jvs)
+
+    HIVE-1671 multithreading on Context.pathToCS
+    (Bennie Schut via namit)
+
+    HIVE-1670 MapJoin throws an error if no column from the mapjoined table is selected
+    (Ning Zhang via namit)
+
+    HIVE-1673 Create table bug causes the row format property lost when serde is specified
+    (He Yongqiang via namit)
+
+    HIVE-1678 Bug in mapjoin followed by another mapjoin
+    (Amareshwari Sriramadasu via namit)
+
+    HIVE-1691 Validate partition spec in analyze
+    (Ning Zhang via namit)
+
+    HIVE-1674 count(*) returns wrong result when a mapper returns empty results
+    (Ning Zhang via He Yongqiang)
+
+    HIVE-1376 Simple UDAFs with more than 1 parameter crash on empty row query
+    (Ning Zhang via He Yongqiang)
+
+    HIVE-1699 Incorrect partition pruning ANALYZE TABLE
+    (Ning Zhang via namit)
+
+    HIVE-1713 Duplicated MapRedTask in Multi-table inserts mixed with FileSinkOperator
+    and ReduceSinkOperator (Ning Zhang via namit)
+
+    HIVE-307 "LOAD DATA LOCAL INPATH" fails when the table already contains a file of
+    the same name (Kirk True via namit)
+
+    HIVE-1681. ObjectStore.commitTransaction() does not properly handle transactions
+    that have already been rolled back
+    (Carl Steinbach via Ning Zhang)
+
+    HIVE-1717. ant clean should delete stats database
+    (Ning Zhang via namit)
+
+    HIVE-1707. Bug when different partitions are present in different dfs
+    (Yongqiang He via namit)
+
+    HIVE-1720. hbase_stats.q is failing
+    (Ning Zhang via jvs)
+
+    HIVE-1711. CREATE TABLE LIKE should not set stats in the new table
+    (Ning Zhang via namit)
+
+    HIVE-1633. CombineHiveInputFormat fails with "cannot find dir for emptyFile"
+    (Sreekanth Ramakrishnan via He Yongqiang)
+
+    HIVE-1737. Bug in computing row size for map side hash table in group by
+    (Siying Dong via Namit Jain)
+
+    HIVE-1742. Fix Eclipse templates (and use Ivy metadata to generate
+    Eclipse library dependencies)
+    (Carl Steinbach via jvs)
+
+    HIVE-1748 Statistics broken for tables with size in excess of Integer.MAX_VALUE
+    (Paul Butler via namit)
+
+  TESTS
+
+    HIVE-1464. improve  test query performance
+    (Joydeep Sen Sarma via Ning Zhang)
+
+    HIVE-1475. .gitignore files being placed in test warehouse directories
+    causing build failure
+    (Joydeep Sen Sarma via Ning Zhang)
+
+    HIVE-1489. TestCliDriver -Doverwrite=true does not put the file in
+    the correct directory
+    (Ning Zhang via jvs)
+
+    HIVE-1601. Hadoop 0.17 ant test broken by HIVE-1523
+    (Joydeep Sen Sarma via jvs)
+
+    HIVE-1658. Fix describe [extended] column formatting
+    (Thiruvel Thirumoolan via Ning Zhang)
+
 Release 0.6.0 - 2010-10-19
 
   INCOMPATIBLE CHANGES
@@ -101,18 +533,6 @@ Release 0.6.0 - 2010-10-19
 
     HIVE-287. Support count(*) and count distinct on multiple columns
     (Arvind Prabhakar via jvs)
-
-    HIVE-1307. More efficient merge
-    (Ning Zhang via namit)
-
-    HIVE-675. add database/schema support Hive QL
-    (Carl Steinbach via namit)
-
-    HIVE-1427. Add metastore schema migration scripts (0.5 -> 0.6)
-    (Carl Steinback via namit)
-
-    HIVE-1709. Add Postgres database migration scripts (0.5 -> 0.6)
-    (Yuanjun Li via namit)
 
   IMPROVEMENTS
     HIVE-983. Function from_unixtime takes long.
@@ -248,20 +668,11 @@ Release 0.6.0 - 2010-10-19
     HIVE-1135. Use Anakia for version controlled documentation
     (Edward Capriolo via jvs)
 
-    HIVE-1401. Web interface can only browse default
+    HIVE-1401. Web Interface can only browse default
     (Edward Capriolo via jvs)
 
     HIVE-1531. Make Hive build work with Ivy versions < 2.1.0
     (Carl Steinbach via jvs)
-
-    HIVE-1364 Increase the maximum length of various metastore fields,
-    and remove TYPE_NAME from COLUMNS primary key (Carl Steinbach via namit)
-
-    HIVE-1693 Make the compile target depend on thrift.home
-    (Eli Collins via namit)
-
-    HIVE-1697 Migration scripts should increase size of PARAM_VALUE in
-    PARTITION_PARAMS (Paul Yang via namit)
 
     HIVE-1725. Include metastore upgrade scripts in release tarball
     (Carl Steinbach via jvs)
@@ -586,6 +997,8 @@ Release 0.6.0 - 2010-10-19
     HIVE-1417. Archived partitions throw error with queries calling
     getContentSummary (Paul Yang via namit)
 
+    HIVE-1422. Bug in updating progres counters (John Sichi via namit)
+
     HIVE-1271. Make matching of type information case insensitive.
     (Arvind Prabhakar via Ashish Thusoo)
 
@@ -595,18 +1008,6 @@ Release 0.6.0 - 2010-10-19
 
     HIVE-1435. Upgraded naming scheme causes JDO exceptions
     (Paul Yang via jvs)
-
-    HIVE-1454. insert overwrite and CTAS fail in hive local mode
-    (Joydeep Sen Sarma via He Yongqiang )
-
-    HIVE-1056. Predicate push down does not work with UDTF's
-    (Paul Yang and Carl Steinbach via He Yongqiang)
-
-    HIVE-1455. lateral view does not work with column pruning.
-    (Paul Yang via He Yongqiang)
-
-    HIVE-1492. FileSinkOperator should remove duplicated files from the same task based on file sizes.
-    (Ning Zhang via He Yongqiang)
 
     HIVE-1411. DataNucleus throws NucleusException if core-3.1.1 JAR
     appears more than once on CLASSPATH
@@ -620,12 +1021,6 @@ Release 0.6.0 - 2010-10-19
     metastore
     (Pradeep Kamath via jvs)
 
-    HIVE-1543. Abort if record reader's next throws an exception
-    (Ning Zhang via namit)
-
-    HIVE-1594. Typo of hive.merge.size.smallfiles.avgsize prevents
-    change of value. (Yun Huang Yong via namit)
-
     HIVE-1613. hive --service jar looks for hadoop version but was not
     defined
     (Edward Capriolo via jvs)
@@ -634,12 +1029,8 @@ Release 0.6.0 - 2010-10-19
     metastore methods
     (Edward Capriolo via jvs)
 
-    HIVE-1524. parallel execution failed if mapred.job.name is set
-    (Yuanjun Li via Ning Zhang)
-
-    HIVE-1681. ObjectStore.commitTransaction() does not properly handle transactions
-    that have already been rolled back
-    (Carl Steinbach via Ning Zhang)
+    HIVE-1570 referencing an added file by it's name in a transform script does
+    not work in hive local mode (Joydeep Sen Sarma via namit)
 
 Release 0.5.0 - 2010-02-22
 

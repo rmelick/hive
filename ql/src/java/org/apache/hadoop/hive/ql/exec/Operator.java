@@ -29,7 +29,6 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.ql.exec.ExecMapperContext;
 import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.Explain;
@@ -191,6 +190,7 @@ public abstract class Operator<T extends Serializable> implements Serializable,
   protected transient HashMap<Enum<?>, LongWritable> statsMap = new HashMap<Enum<?>, LongWritable>();
   protected transient OutputCollector out;
   protected transient Log LOG = LogFactory.getLog(this.getClass().getName());
+  protected transient boolean isLogInfoEnabled = LOG.isInfoEnabled();
   protected transient String alias;
   protected transient Reporter reporter;
   protected transient String id;
@@ -281,6 +281,10 @@ public abstract class Operator<T extends Serializable> implements Serializable,
       return true;
     }
     for (Operator<? extends Serializable> parent : parentOperators) {
+      if (parent == null) {
+        //return true;
+        continue;
+      }
       if (parent.state != State.INIT) {
         return false;
       }
@@ -427,6 +431,14 @@ public abstract class Operator<T extends Serializable> implements Serializable,
     initialize(hconf, null);
   }
 
+  public ObjectInspector[] getInputObjInspectors() {
+    return inputObjInspectors;
+  }
+
+  public void setInputObjInspectors(ObjectInspector[] inputObjInspectors) {
+    this.inputObjInspectors = inputObjInspectors;
+  }
+
   /**
    * Process the row.
    *
@@ -501,6 +513,9 @@ public abstract class Operator<T extends Serializable> implements Serializable,
   protected boolean allInitializedParentsAreClosed() {
     if (parentOperators != null) {
       for (Operator<? extends Serializable> parent : parentOperators) {
+        if(parent==null){
+          continue;
+        }
         if (!(parent.state == State.CLOSE || parent.state == State.UNINIT)) {
           return false;
         }
@@ -665,7 +680,7 @@ public abstract class Operator<T extends Serializable> implements Serializable,
       }
     }
 
-    if (LOG.isInfoEnabled()) {
+    if (isLogInfoEnabled) {
       cntr++;
       if (cntr == nextCntr) {
         LOG.info(id + " forwarding " + cntr + " rows");
@@ -708,6 +723,16 @@ public abstract class Operator<T extends Serializable> implements Serializable,
     for (Enum<?> e : statsMap.keySet()) {
       statsMap.get(e).set(0L);
     }
+  }
+
+  public void reset(){
+    this.state=State.INIT;
+    if (childOperators != null) {
+      for (Operator<? extends Serializable> o : childOperators) {
+        o.reset();
+      }
+    }
+
   }
 
   /**
@@ -844,6 +869,7 @@ public abstract class Operator<T extends Serializable> implements Serializable,
    * TODO This is a hack for hadoop 0.17 which only supports enum counters.
    */
   public static enum ProgressCounter {
+    CREATED_FILES,
     C1, C2, C3, C4, C5, C6, C7, C8, C9, C10,
     C11, C12, C13, C14, C15, C16, C17, C18, C19, C20,
     C21, C22, C23, C24, C25, C26, C27, C28, C29, C30,
@@ -1128,15 +1154,12 @@ public abstract class Operator<T extends Serializable> implements Serializable,
   }
 
   /**
-   * Should be overridden to return the type of the specific operator among the
+   * Return the type of the specific operator among the
    * types in OperatorType.
    *
-   * @return OperatorType.* or -1 if not overridden
+   * @return OperatorType.*
    */
-  public int getType() {
-    assert false;
-    return -1;
-  }
+  abstract public int getType();
 
   public void setGroupKeyObject(Object keyObject) {
     this.groupKeyObject = keyObject;

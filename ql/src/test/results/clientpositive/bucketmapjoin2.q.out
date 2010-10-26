@@ -1,27 +1,3 @@
-PREHOOK: query: drop table bucketmapjoin_hash_result_2
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table bucketmapjoin_hash_result_2
-POSTHOOK: type: DROPTABLE
-PREHOOK: query: drop table bucketmapjoin_hash_result_1
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table bucketmapjoin_hash_result_1
-POSTHOOK: type: DROPTABLE
-PREHOOK: query: drop table bucketmapjoin_tmp_result
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table bucketmapjoin_tmp_result
-POSTHOOK: type: DROPTABLE
-PREHOOK: query: drop table srcbucket_mapjoin
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table srcbucket_mapjoin
-POSTHOOK: type: DROPTABLE
-PREHOOK: query: drop table srcbucket_mapjoin_part
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table srcbucket_mapjoin_part
-POSTHOOK: type: DROPTABLE
-PREHOOK: query: drop table srcbucket_mapjoin_part_2
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table srcbucket_mapjoin_part_2
-POSTHOOK: type: DROPTABLE
 PREHOOK: query: CREATE TABLE srcbucket_mapjoin(key int, value string) CLUSTERED BY (key) INTO 2 BUCKETS STORED AS TEXTFILE
 PREHOOK: type: CREATETABLE
 POSTHOOK: query: CREATE TABLE srcbucket_mapjoin(key int, value string) CLUSTERED BY (key) INTO 2 BUCKETS STORED AS TEXTFILE
@@ -108,19 +84,64 @@ ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_JOIN (TOK_TABREF srcbucket_mapjoin a) (TOK_TABREF srcbucket_mapjoin_part_2 b) (and (= (. (TOK_TABLE_OR_COL a) key) (. (TOK_TABLE_OR_COL b) key)) (= (. (TOK_TABLE_OR_COL b) ds) "2008-04-08")))) (TOK_INSERT (TOK_DESTINATION (TOK_TAB bucketmapjoin_tmp_result)) (TOK_SELECT (TOK_HINTLIST (TOK_HINT TOK_MAPJOIN (TOK_HINTARGLIST b))) (TOK_SELEXPR (. (TOK_TABLE_OR_COL a) key)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL a) value)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL b) value)))))
 
 STAGE DEPENDENCIES:
-  Stage-1 is a root stage
-  Stage-4 depends on stages: Stage-1 , consists of Stage-3, Stage-2
+  Stage-7 is a root stage
+  Stage-1 depends on stages: Stage-7
+  Stage-5 depends on stages: Stage-1 , consists of Stage-4, Stage-3
+  Stage-4
+  Stage-0 depends on stages: Stage-4, Stage-3
+  Stage-2 depends on stages: Stage-0
   Stage-3
-  Stage-0 depends on stages: Stage-3, Stage-2
-  Stage-2
 
 STAGE PLANS:
+  Stage: Stage-7
+    Map Reduce Local Work
+      Alias -> Map Local Tables:
+        b 
+          Fetch Operator
+            limit: -1
+      Alias -> Map Local Operator Tree:
+        b 
+          TableScan
+            alias: b
+            GatherStats: false
+            Filter Operator
+              isSamplingPred: false
+              predicate:
+                  expr: (ds = '2008-04-08')
+                  type: boolean
+              Filter Operator
+                isSamplingPred: false
+                predicate:
+                    expr: (ds = '2008-04-08')
+                    type: boolean
+                Common Join Operator
+                  condition map:
+                       Inner Join 0 to 1
+                  condition expressions:
+                    0 {key} {value}
+                    1 {value}
+                  handleSkewJoin: false
+                  keys:
+                    0 [Column[key]]
+                    1 [Column[key]]
+                  outputColumnNames: _col0, _col1, _col5
+                  Position of Big Table: 0
+      Bucket Mapjoin Context:
+          Alias Bucket Base File Name Mapping:
+            b {srcbucket20.txt=[srcbucket22.txt], srcbucket21.txt=[srcbucket23.txt]}
+          Alias Bucket File Name Mapping:
+            b {pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket20.txt=[pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket22.txt], pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket21.txt=[pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket23.txt]}
+          Alias Bucket Output File Name Mapping:
+            pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket20.txt 0
+            pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket21.txt 1
+
   Stage: Stage-1
     Map Reduce
       Alias -> Map Operator Tree:
         a 
           TableScan
             alias: a
+            GatherStats: false
             Common Join Operator
               condition map:
                    Inner Join 0 to 1
@@ -131,7 +152,7 @@ STAGE PLANS:
               keys:
                 0 [Column[key]]
                 1 [Column[key]]
-              outputColumnNames: _col0, _col1, _col3
+              outputColumnNames: _col0, _col1, _col5
               Position of Big Table: 0
               Select Operator
                 expressions:
@@ -139,23 +160,24 @@ STAGE PLANS:
                       type: int
                       expr: _col1
                       type: string
-                      expr: _col3
+                      expr: _col5
                       type: string
-                outputColumnNames: _col0, _col1, _col3
+                outputColumnNames: _col0, _col1, _col5
                 Select Operator
                   expressions:
                         expr: _col0
                         type: int
                         expr: _col1
                         type: string
-                        expr: _col3
+                        expr: _col5
                         type: string
                   outputColumnNames: _col0, _col1, _col2
                   File Output Operator
                     compressed: false
                     GlobalTableId: 1
-                    directory: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10002
+                    directory: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10002
                     NumFilesPerFileSink: 1
+                    Stats Publishing Key Prefix: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10000/
                     table:
                         input format: org.apache.hadoop.mapred.TextInputFormat
                         output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -165,103 +187,24 @@ STAGE PLANS:
                           columns.types string:string:string
                           file.inputformat org.apache.hadoop.mapred.TextInputFormat
                           file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                          location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
+                          location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
                           name bucketmapjoin_tmp_result
                           serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
                           serialization.format 1
                           serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                          transient_lastDdlTime 1282508200
+                          transient_lastDdlTime 1287175622
                         serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                         name: bucketmapjoin_tmp_result
                     TotalFiles: 1
+                    GatherStats: true
                     MultiFileSpray: false
       Local Work:
         Map Reduce Local Work
-          Alias -> Map Local Tables:
-            b 
-              Fetch Operator
-                limit: -1
-          Alias -> Map Local Operator Tree:
-            b 
-              TableScan
-                alias: b
-                Filter Operator
-                  isSamplingPred: false
-                  predicate:
-                      expr: (ds = '2008-04-08')
-                      type: boolean
-                  Filter Operator
-                    isSamplingPred: false
-                    predicate:
-                        expr: (ds = '2008-04-08')
-                        type: boolean
-                    Common Join Operator
-                      condition map:
-                           Inner Join 0 to 1
-                      condition expressions:
-                        0 {key} {value}
-                        1 {value}
-                      handleSkewJoin: false
-                      keys:
-                        0 [Column[key]]
-                        1 [Column[key]]
-                      outputColumnNames: _col0, _col1, _col3
-                      Position of Big Table: 0
-                      Select Operator
-                        expressions:
-                              expr: _col0
-                              type: int
-                              expr: _col1
-                              type: string
-                              expr: _col3
-                              type: string
-                        outputColumnNames: _col0, _col1, _col3
-                        Select Operator
-                          expressions:
-                                expr: _col0
-                                type: int
-                                expr: _col1
-                                type: string
-                                expr: _col3
-                                type: string
-                          outputColumnNames: _col0, _col1, _col2
-                          File Output Operator
-                            compressed: false
-                            GlobalTableId: 1
-                            directory: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10002
-                            NumFilesPerFileSink: 1
-                            table:
-                                input format: org.apache.hadoop.mapred.TextInputFormat
-                                output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                                properties:
-                                  bucket_count -1
-                                  columns key,value1,value2
-                                  columns.types string:string:string
-                                  file.inputformat org.apache.hadoop.mapred.TextInputFormat
-                                  file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                                  location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
-                                  name bucketmapjoin_tmp_result
-                                  serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
-                                  serialization.format 1
-                                  serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                                  transient_lastDdlTime 1282508200
-                                serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                                name: bucketmapjoin_tmp_result
-                            TotalFiles: 1
-                            MultiFileSpray: false
-          Bucket Mapjoin Context:
-              Alias Bucket Base File Name Mapping:
-                b {srcbucket20.txt=[srcbucket22.txt], srcbucket21.txt=[srcbucket23.txt]}
-              Alias Bucket File Name Mapping:
-                b {file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket20.txt=[file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket22.txt], file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket21.txt=[file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket23.txt]}
-              Alias Bucket Output File Name Mapping:
-                file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket20.txt 0
-                file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket21.txt 1
       Needs Tagging: false
       Path -> Alias:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin [a]
+        pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin [a]
       Path -> Partition:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin 
+        pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin 
           Partition
             base file name: srcbucket_mapjoin
             input format: org.apache.hadoop.mapred.TextInputFormat
@@ -273,12 +216,12 @@ STAGE PLANS:
               columns.types int:string
               file.inputformat org.apache.hadoop.mapred.TextInputFormat
               file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-              location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin
+              location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin
               name srcbucket_mapjoin
               serialization.ddl struct srcbucket_mapjoin { i32 key, string value}
               serialization.format 1
               serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-              transient_lastDdlTime 1282508199
+              transient_lastDdlTime 1287175615
             serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
@@ -290,31 +233,31 @@ STAGE PLANS:
                 columns.types int:string
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin
+                location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin
                 name srcbucket_mapjoin
                 serialization.ddl struct srcbucket_mapjoin { i32 key, string value}
                 serialization.format 1
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                transient_lastDdlTime 1282508199
+                transient_lastDdlTime 1287175615
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: srcbucket_mapjoin
             name: srcbucket_mapjoin
 
-  Stage: Stage-4
+  Stage: Stage-5
     Conditional Operator
 
-  Stage: Stage-3
+  Stage: Stage-4
     Move Operator
       files:
           hdfs directory: true
-          source: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10002
-          destination: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10000
+          source: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10002
+          destination: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10000
 
   Stage: Stage-0
     Move Operator
       tables:
           replace: true
-          source: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10000
+          source: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10000
           table:
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -324,24 +267,28 @@ STAGE PLANS:
                 columns.types string:string:string
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
+                location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
                 name bucketmapjoin_tmp_result
                 serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
                 serialization.format 1
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                transient_lastDdlTime 1282508200
+                transient_lastDdlTime 1287175622
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: bucketmapjoin_tmp_result
-          tmp directory: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10001
+          tmp directory: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10001
 
   Stage: Stage-2
+    Stats-Aggr Operator
+      Stats Aggregation Key Prefix: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10000/
+
+  Stage: Stage-3
     Map Reduce
       Alias -> Map Operator Tree:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10002 
+        pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10002 
             File Output Operator
               compressed: false
               GlobalTableId: 0
-              directory: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10000
+              directory: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10000
               NumFilesPerFileSink: 1
               table:
                   input format: org.apache.hadoop.mapred.TextInputFormat
@@ -352,23 +299,24 @@ STAGE PLANS:
                     columns.types string:string:string
                     file.inputformat org.apache.hadoop.mapred.TextInputFormat
                     file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                    location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
+                    location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
                     name bucketmapjoin_tmp_result
                     serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
                     serialization.format 1
                     serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                    transient_lastDdlTime 1282508200
+                    transient_lastDdlTime 1287175622
                   serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                   name: bucketmapjoin_tmp_result
               TotalFiles: 1
+              GatherStats: false
               MultiFileSpray: false
       Needs Tagging: false
       Path -> Alias:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10002 [file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10002]
+        pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10002 [pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10002]
       Path -> Partition:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-16-40_590_5324808876037027284/10002 
+        pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-02_796_1030871139150126578/-ext-10002 
           Partition
-            base file name: 10002
+            base file name: -ext-10002
             input format: org.apache.hadoop.mapred.TextInputFormat
             output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
             properties:
@@ -377,12 +325,12 @@ STAGE PLANS:
               columns.types string:string:string
               file.inputformat org.apache.hadoop.mapred.TextInputFormat
               file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-              location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
+              location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
               name bucketmapjoin_tmp_result
               serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
               serialization.format 1
               serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-              transient_lastDdlTime 1282508200
+              transient_lastDdlTime 1287175622
             serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
@@ -393,12 +341,12 @@ STAGE PLANS:
                 columns.types string:string:string
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
+                location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
                 name bucketmapjoin_tmp_result
                 serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
                 serialization.format 1
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                transient_lastDdlTime 1282508200
+                transient_lastDdlTime 1287175622
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: bucketmapjoin_tmp_result
             name: bucketmapjoin_tmp_result
@@ -409,31 +357,31 @@ select /*+mapjoin(b)*/ a.key, a.value, b.value
 from srcbucket_mapjoin a join srcbucket_mapjoin_part_2 b 
 on a.key=b.key and b.ds="2008-04-08"
 PREHOOK: type: QUERY
-PREHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 PREHOOK: Input: default@srcbucket_mapjoin
+PREHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 PREHOOK: Output: default@bucketmapjoin_tmp_result
 POSTHOOK: query: insert overwrite table bucketmapjoin_tmp_result 
 select /*+mapjoin(b)*/ a.key, a.value, b.value 
 from srcbucket_mapjoin a join srcbucket_mapjoin_part_2 b 
 on a.key=b.key and b.ds="2008-04-08"
 POSTHOOK: type: QUERY
-POSTHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 POSTHOOK: Input: default@srcbucket_mapjoin
+POSTHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 POSTHOOK: Output: default@bucketmapjoin_tmp_result
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 PREHOOK: query: select count(1) from bucketmapjoin_tmp_result
 PREHOOK: type: QUERY
 PREHOOK: Input: default@bucketmapjoin_tmp_result
-PREHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-16-47_572_1823169349173210567/10000
+PREHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-47-15_438_6198360107600383327/-mr-10000
 POSTHOOK: query: select count(1) from bucketmapjoin_tmp_result
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@bucketmapjoin_tmp_result
-POSTHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-16-47_572_1823169349173210567/10000
+POSTHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-47-15_438_6198360107600383327/-mr-10000
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 0
 PREHOOK: query: insert overwrite table bucketmapjoin_hash_result_1
 select sum(hash(key)), sum(hash(value1)), sum(hash(value2)) from bucketmapjoin_tmp_result
@@ -450,22 +398,22 @@ POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 PREHOOK: query: insert overwrite table bucketmapjoin_tmp_result 
 select /*+mapjoin(b)*/ a.key, a.value, b.value 
 from srcbucket_mapjoin a join srcbucket_mapjoin_part_2 b 
 on a.key=b.key and b.ds="2008-04-08"
 PREHOOK: type: QUERY
-PREHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 PREHOOK: Input: default@srcbucket_mapjoin
+PREHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 PREHOOK: Output: default@bucketmapjoin_tmp_result
 POSTHOOK: query: insert overwrite table bucketmapjoin_tmp_result 
 select /*+mapjoin(b)*/ a.key, a.value, b.value 
 from srcbucket_mapjoin a join srcbucket_mapjoin_part_2 b 
 on a.key=b.key and b.ds="2008-04-08"
 POSTHOOK: type: QUERY
-POSTHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 POSTHOOK: Input: default@srcbucket_mapjoin
+POSTHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 POSTHOOK: Output: default@bucketmapjoin_tmp_result
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
@@ -474,16 +422,16 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.Fie
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 PREHOOK: query: select count(1) from bucketmapjoin_tmp_result
 PREHOOK: type: QUERY
 PREHOOK: Input: default@bucketmapjoin_tmp_result
-PREHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-17-01_487_3137945789054198005/10000
+PREHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-47-36_353_7045805169561363831/-mr-10000
 POSTHOOK: query: select count(1) from bucketmapjoin_tmp_result
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@bucketmapjoin_tmp_result
-POSTHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-17-01_487_3137945789054198005/10000
+POSTHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-47-36_353_7045805169561363831/-mr-10000
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
@@ -491,8 +439,8 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.Fie
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 0
 PREHOOK: query: insert overwrite table bucketmapjoin_hash_result_2
 select sum(hash(key)), sum(hash(value1)), sum(hash(value2)) from bucketmapjoin_tmp_result
@@ -514,22 +462,22 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.Fie
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 PREHOOK: query: select a.key-b.key, a.value1-b.value1, a.value2-b.value2
 from bucketmapjoin_hash_result_1 a left outer join bucketmapjoin_hash_result_2 b
 on a.key = b.key
 PREHOOK: type: QUERY
-PREHOOK: Input: default@bucketmapjoin_hash_result_2
 PREHOOK: Input: default@bucketmapjoin_hash_result_1
-PREHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-17-08_016_4312763097713088946/10000
+PREHOOK: Input: default@bucketmapjoin_hash_result_2
+PREHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-47-45_796_3892887570223971170/-mr-10000
 POSTHOOK: query: select a.key-b.key, a.value1-b.value1, a.value2-b.value2
 from bucketmapjoin_hash_result_1 a left outer join bucketmapjoin_hash_result_2 b
 on a.key = b.key
 POSTHOOK: type: QUERY
-POSTHOOK: Input: default@bucketmapjoin_hash_result_2
 POSTHOOK: Input: default@bucketmapjoin_hash_result_1
-POSTHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-17-08_016_4312763097713088946/10000
+POSTHOOK: Input: default@bucketmapjoin_hash_result_2
+POSTHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-47-45_796_3892887570223971170/-mr-10000
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
@@ -540,8 +488,8 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.Fie
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 NULL	NULL	NULL
 PREHOOK: query: explain extended
 insert overwrite table bucketmapjoin_tmp_result 
@@ -565,25 +513,60 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.Fie
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_JOIN (TOK_TABREF srcbucket_mapjoin a) (TOK_TABREF srcbucket_mapjoin_part_2 b) (and (= (. (TOK_TABLE_OR_COL a) key) (. (TOK_TABLE_OR_COL b) key)) (= (. (TOK_TABLE_OR_COL b) ds) "2008-04-08")))) (TOK_INSERT (TOK_DESTINATION (TOK_TAB bucketmapjoin_tmp_result)) (TOK_SELECT (TOK_HINTLIST (TOK_HINT TOK_MAPJOIN (TOK_HINTARGLIST a))) (TOK_SELEXPR (. (TOK_TABLE_OR_COL a) key)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL a) value)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL b) value)))))
 
 STAGE DEPENDENCIES:
-  Stage-1 is a root stage
-  Stage-4 depends on stages: Stage-1 , consists of Stage-3, Stage-2
+  Stage-7 is a root stage
+  Stage-1 depends on stages: Stage-7
+  Stage-5 depends on stages: Stage-1 , consists of Stage-4, Stage-3
+  Stage-4
+  Stage-0 depends on stages: Stage-4, Stage-3
+  Stage-2 depends on stages: Stage-0
   Stage-3
-  Stage-0 depends on stages: Stage-3, Stage-2
-  Stage-2
 
 STAGE PLANS:
+  Stage: Stage-7
+    Map Reduce Local Work
+      Alias -> Map Local Tables:
+        a 
+          Fetch Operator
+            limit: -1
+      Alias -> Map Local Operator Tree:
+        a 
+          TableScan
+            alias: a
+            GatherStats: false
+            Common Join Operator
+              condition map:
+                   Inner Join 0 to 1
+              condition expressions:
+                0 {key} {value}
+                1 {value}
+              handleSkewJoin: false
+              keys:
+                0 [Column[key]]
+                1 [Column[key]]
+              outputColumnNames: _col0, _col1, _col5
+              Position of Big Table: 1
+      Bucket Mapjoin Context:
+          Alias Bucket Base File Name Mapping:
+            a {srcbucket22.txt=[srcbucket20.txt], srcbucket23.txt=[srcbucket21.txt]}
+          Alias Bucket File Name Mapping:
+            a {pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket22.txt=[pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket20.txt], pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket23.txt=[pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket21.txt]}
+          Alias Bucket Output File Name Mapping:
+            pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket22.txt 0
+            pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket23.txt 1
+
   Stage: Stage-1
     Map Reduce
       Alias -> Map Operator Tree:
         b 
           TableScan
             alias: b
+            GatherStats: false
             Filter Operator
               isSamplingPred: false
               predicate:
@@ -604,7 +587,7 @@ STAGE PLANS:
                   keys:
                     0 [Column[key]]
                     1 [Column[key]]
-                  outputColumnNames: _col0, _col1, _col3
+                  outputColumnNames: _col0, _col1, _col5
                   Position of Big Table: 1
                   Select Operator
                     expressions:
@@ -612,23 +595,24 @@ STAGE PLANS:
                           type: int
                           expr: _col1
                           type: string
-                          expr: _col3
+                          expr: _col5
                           type: string
-                    outputColumnNames: _col0, _col1, _col3
+                    outputColumnNames: _col0, _col1, _col5
                     Select Operator
                       expressions:
                             expr: _col0
                             type: int
                             expr: _col1
                             type: string
-                            expr: _col3
+                            expr: _col5
                             type: string
                       outputColumnNames: _col0, _col1, _col2
                       File Output Operator
                         compressed: false
                         GlobalTableId: 1
-                        directory: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10002
+                        directory: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10002
                         NumFilesPerFileSink: 1
+                        Stats Publishing Key Prefix: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10000/
                         table:
                             input format: org.apache.hadoop.mapred.TextInputFormat
                             output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -638,93 +622,28 @@ STAGE PLANS:
                               columns.types string:string:string
                               file.inputformat org.apache.hadoop.mapred.TextInputFormat
                               file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                              location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
+                              location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
                               name bucketmapjoin_tmp_result
+                              numFiles 1
+                              numPartitions 0
+                              numRows 0
                               serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
                               serialization.format 1
                               serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                              transient_lastDdlTime 1282508200
+                              totalSize 0
+                              transient_lastDdlTime 1287175656
                             serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                             name: bucketmapjoin_tmp_result
                         TotalFiles: 1
+                        GatherStats: true
                         MultiFileSpray: false
       Local Work:
         Map Reduce Local Work
-          Alias -> Map Local Tables:
-            a 
-              Fetch Operator
-                limit: -1
-          Alias -> Map Local Operator Tree:
-            a 
-              TableScan
-                alias: a
-                Common Join Operator
-                  condition map:
-                       Inner Join 0 to 1
-                  condition expressions:
-                    0 {key} {value}
-                    1 {value}
-                  handleSkewJoin: false
-                  keys:
-                    0 [Column[key]]
-                    1 [Column[key]]
-                  outputColumnNames: _col0, _col1, _col3
-                  Position of Big Table: 1
-                  Select Operator
-                    expressions:
-                          expr: _col0
-                          type: int
-                          expr: _col1
-                          type: string
-                          expr: _col3
-                          type: string
-                    outputColumnNames: _col0, _col1, _col3
-                    Select Operator
-                      expressions:
-                            expr: _col0
-                            type: int
-                            expr: _col1
-                            type: string
-                            expr: _col3
-                            type: string
-                      outputColumnNames: _col0, _col1, _col2
-                      File Output Operator
-                        compressed: false
-                        GlobalTableId: 1
-                        directory: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10002
-                        NumFilesPerFileSink: 1
-                        table:
-                            input format: org.apache.hadoop.mapred.TextInputFormat
-                            output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                            properties:
-                              bucket_count -1
-                              columns key,value1,value2
-                              columns.types string:string:string
-                              file.inputformat org.apache.hadoop.mapred.TextInputFormat
-                              file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                              location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
-                              name bucketmapjoin_tmp_result
-                              serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
-                              serialization.format 1
-                              serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                              transient_lastDdlTime 1282508200
-                            serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                            name: bucketmapjoin_tmp_result
-                        TotalFiles: 1
-                        MultiFileSpray: false
-          Bucket Mapjoin Context:
-              Alias Bucket Base File Name Mapping:
-                a {srcbucket22.txt=[srcbucket20.txt], srcbucket23.txt=[srcbucket21.txt]}
-              Alias Bucket File Name Mapping:
-                a {file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket22.txt=[file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket20.txt], file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket23.txt=[file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin/srcbucket21.txt]}
-              Alias Bucket Output File Name Mapping:
-                file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket22.txt 0
-                file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08/srcbucket23.txt 1
       Needs Tagging: false
       Path -> Alias:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08 [b]
+        pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08 [b]
       Path -> Partition:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08 
+        pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2/ds=2008-04-08 
           Partition
             base file name: ds=2008-04-08
             input format: org.apache.hadoop.mapred.TextInputFormat
@@ -738,13 +657,13 @@ STAGE PLANS:
               columns.types int:string
               file.inputformat org.apache.hadoop.mapred.TextInputFormat
               file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-              location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2
+              location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2
               name srcbucket_mapjoin_part_2
               partition_columns ds
               serialization.ddl struct srcbucket_mapjoin_part_2 { i32 key, string value}
               serialization.format 1
               serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-              transient_lastDdlTime 1282508200
+              transient_lastDdlTime 1287175620
             serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
@@ -756,32 +675,32 @@ STAGE PLANS:
                 columns.types int:string
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2
+                location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/srcbucket_mapjoin_part_2
                 name srcbucket_mapjoin_part_2
                 partition_columns ds
                 serialization.ddl struct srcbucket_mapjoin_part_2 { i32 key, string value}
                 serialization.format 1
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                transient_lastDdlTime 1282508200
+                transient_lastDdlTime 1287175620
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: srcbucket_mapjoin_part_2
             name: srcbucket_mapjoin_part_2
 
-  Stage: Stage-4
+  Stage: Stage-5
     Conditional Operator
 
-  Stage: Stage-3
+  Stage: Stage-4
     Move Operator
       files:
           hdfs directory: true
-          source: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10002
-          destination: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10000
+          source: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10002
+          destination: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10000
 
   Stage: Stage-0
     Move Operator
       tables:
           replace: true
-          source: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10000
+          source: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10000
           table:
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -791,24 +710,32 @@ STAGE PLANS:
                 columns.types string:string:string
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
+                location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
                 name bucketmapjoin_tmp_result
+                numFiles 1
+                numPartitions 0
+                numRows 0
                 serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
                 serialization.format 1
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                transient_lastDdlTime 1282508200
+                totalSize 0
+                transient_lastDdlTime 1287175656
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: bucketmapjoin_tmp_result
-          tmp directory: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10001
+          tmp directory: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10001
 
   Stage: Stage-2
+    Stats-Aggr Operator
+      Stats Aggregation Key Prefix: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10000/
+
+  Stage: Stage-3
     Map Reduce
       Alias -> Map Operator Tree:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10002 
+        pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10002 
             File Output Operator
               compressed: false
               GlobalTableId: 0
-              directory: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10000
+              directory: pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10000
               NumFilesPerFileSink: 1
               table:
                   input format: org.apache.hadoop.mapred.TextInputFormat
@@ -819,23 +746,28 @@ STAGE PLANS:
                     columns.types string:string:string
                     file.inputformat org.apache.hadoop.mapred.TextInputFormat
                     file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                    location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
+                    location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
                     name bucketmapjoin_tmp_result
+                    numFiles 1
+                    numPartitions 0
+                    numRows 0
                     serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
                     serialization.format 1
                     serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                    transient_lastDdlTime 1282508200
+                    totalSize 0
+                    transient_lastDdlTime 1287175656
                   serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                   name: bucketmapjoin_tmp_result
               TotalFiles: 1
+              GatherStats: false
               MultiFileSpray: false
       Needs Tagging: false
       Path -> Alias:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10002 [file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10002]
+        pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10002 [pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10002]
       Path -> Partition:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_13-17-11_366_4304541617906758658/10002 
+        pfile:/data/users/liyintang/trunk_os/build/ql/scratchdir/hive_2010-10-15_13-47-49_830_6797075297816313305/-ext-10002 
           Partition
-            base file name: 10002
+            base file name: -ext-10002
             input format: org.apache.hadoop.mapred.TextInputFormat
             output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
             properties:
@@ -844,12 +776,16 @@ STAGE PLANS:
               columns.types string:string:string
               file.inputformat org.apache.hadoop.mapred.TextInputFormat
               file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-              location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
+              location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
               name bucketmapjoin_tmp_result
+              numFiles 1
+              numPartitions 0
+              numRows 0
               serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
               serialization.format 1
               serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-              transient_lastDdlTime 1282508200
+              totalSize 0
+              transient_lastDdlTime 1287175656
             serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
@@ -860,12 +796,16 @@ STAGE PLANS:
                 columns.types string:string:string
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
+                location pfile:/data/users/liyintang/trunk_os/build/ql/test/data/warehouse/bucketmapjoin_tmp_result
                 name bucketmapjoin_tmp_result
+                numFiles 1
+                numPartitions 0
+                numRows 0
                 serialization.ddl struct bucketmapjoin_tmp_result { string key, string value1, string value2}
                 serialization.format 1
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
-                transient_lastDdlTime 1282508200
+                totalSize 0
+                transient_lastDdlTime 1287175656
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: bucketmapjoin_tmp_result
             name: bucketmapjoin_tmp_result
@@ -876,16 +816,16 @@ select /*+mapjoin(a)*/ a.key, a.value, b.value
 from srcbucket_mapjoin a join srcbucket_mapjoin_part_2 b 
 on a.key=b.key and b.ds="2008-04-08"
 PREHOOK: type: QUERY
-PREHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 PREHOOK: Input: default@srcbucket_mapjoin
+PREHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 PREHOOK: Output: default@bucketmapjoin_tmp_result
 POSTHOOK: query: insert overwrite table bucketmapjoin_tmp_result 
 select /*+mapjoin(a)*/ a.key, a.value, b.value 
 from srcbucket_mapjoin a join srcbucket_mapjoin_part_2 b 
 on a.key=b.key and b.ds="2008-04-08"
 POSTHOOK: type: QUERY
-POSTHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 POSTHOOK: Input: default@srcbucket_mapjoin
+POSTHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 POSTHOOK: Output: default@bucketmapjoin_tmp_result
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
@@ -899,17 +839,17 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.Fie
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 PREHOOK: query: select count(1) from bucketmapjoin_tmp_result
 PREHOOK: type: QUERY
 PREHOOK: Input: default@bucketmapjoin_tmp_result
-PREHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-17-17_980_900570098885481581/10000
+PREHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-48-02_385_5364647147417692835/-mr-10000
 POSTHOOK: query: select count(1) from bucketmapjoin_tmp_result
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@bucketmapjoin_tmp_result
-POSTHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-17-17_980_900570098885481581/10000
+POSTHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-48-02_385_5364647147417692835/-mr-10000
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
@@ -922,9 +862,9 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.Fie
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 0
 PREHOOK: query: insert overwrite table bucketmapjoin_hash_result_1
 select sum(hash(key)), sum(hash(value1)), sum(hash(value2)) from bucketmapjoin_tmp_result
@@ -951,24 +891,24 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.Fie
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 PREHOOK: query: insert overwrite table bucketmapjoin_tmp_result 
 select /*+mapjoin(a)*/ a.key, a.value, b.value 
 from srcbucket_mapjoin a join srcbucket_mapjoin_part_2 b 
 on a.key=b.key and b.ds="2008-04-08"
 PREHOOK: type: QUERY
-PREHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 PREHOOK: Input: default@srcbucket_mapjoin
+PREHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 PREHOOK: Output: default@bucketmapjoin_tmp_result
 POSTHOOK: query: insert overwrite table bucketmapjoin_tmp_result 
 select /*+mapjoin(a)*/ a.key, a.value, b.value 
 from srcbucket_mapjoin a join srcbucket_mapjoin_part_2 b 
 on a.key=b.key and b.ds="2008-04-08"
 POSTHOOK: type: QUERY
-POSTHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 POSTHOOK: Input: default@srcbucket_mapjoin
+POSTHOOK: Input: default@srcbucket_mapjoin_part_2@ds=2008-04-08
 POSTHOOK: Output: default@bucketmapjoin_tmp_result
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
@@ -987,18 +927,18 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 PREHOOK: query: select count(1) from bucketmapjoin_tmp_result
 PREHOOK: type: QUERY
 PREHOOK: Input: default@bucketmapjoin_tmp_result
-PREHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-17-30_866_3414186330640059476/10000
+PREHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-48-23_250_699466185742016272/-mr-10000
 POSTHOOK: query: select count(1) from bucketmapjoin_tmp_result
 POSTHOOK: type: QUERY
 POSTHOOK: Input: default@bucketmapjoin_tmp_result
-POSTHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-17-30_866_3414186330640059476/10000
+POSTHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-48-23_250_699466185742016272/-mr-10000
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
@@ -1016,10 +956,10 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 0
 PREHOOK: query: insert overwrite table bucketmapjoin_hash_result_2
 select sum(hash(key)), sum(hash(value1)), sum(hash(value2)) from bucketmapjoin_tmp_result
@@ -1051,24 +991,24 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 PREHOOK: query: select a.key-b.key, a.value1-b.value1, a.value2-b.value2
 from bucketmapjoin_hash_result_1 a left outer join bucketmapjoin_hash_result_2 b
 on a.key = b.key
 PREHOOK: type: QUERY
-PREHOOK: Input: default@bucketmapjoin_hash_result_2
 PREHOOK: Input: default@bucketmapjoin_hash_result_1
-PREHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-17-37_710_2689582330894705220/10000
+PREHOOK: Input: default@bucketmapjoin_hash_result_2
+PREHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-48-32_595_7129319940362934902/-mr-10000
 POSTHOOK: query: select a.key-b.key, a.value1-b.value1, a.value2-b.value2
 from bucketmapjoin_hash_result_1 a left outer join bucketmapjoin_hash_result_2 b
 on a.key = b.key
 POSTHOOK: type: QUERY
-POSTHOOK: Input: default@bucketmapjoin_hash_result_2
 POSTHOOK: Input: default@bucketmapjoin_hash_result_1
-POSTHOOK: Output: file:/tmp/nzhang/hive_2010-08-22_13-17-37_710_2689582330894705220/10000
+POSTHOOK: Input: default@bucketmapjoin_hash_result_2
+POSTHOOK: Output: file:/tmp/liyintang/hive_2010-10-15_13-48-32_595_7129319940362934902/-mr-10000
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
@@ -1089,182 +1029,8 @@ POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
 POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
+POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:value, type:string, comment:null), ]
 NULL	NULL	NULL
-PREHOOK: query: drop table bucketmapjoin_hash_result_2
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table bucketmapjoin_hash_result_2
-POSTHOOK: type: DROPTABLE
-POSTHOOK: Output: default@bucketmapjoin_hash_result_2
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-PREHOOK: query: drop table bucketmapjoin_hash_result_1
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table bucketmapjoin_hash_result_1
-POSTHOOK: type: DROPTABLE
-POSTHOOK: Output: default@bucketmapjoin_hash_result_1
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-PREHOOK: query: drop table bucketmapjoin_tmp_result
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table bucketmapjoin_tmp_result
-POSTHOOK: type: DROPTABLE
-POSTHOOK: Output: default@bucketmapjoin_tmp_result
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-PREHOOK: query: drop table srcbucket_mapjoin
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table srcbucket_mapjoin
-POSTHOOK: type: DROPTABLE
-POSTHOOK: Output: default@srcbucket_mapjoin
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-PREHOOK: query: drop table srcbucket_mapjoin_part
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table srcbucket_mapjoin_part
-POSTHOOK: type: DROPTABLE
-POSTHOOK: Output: default@srcbucket_mapjoin_part
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-PREHOOK: query: drop table srcbucket_mapjoin_part_2
-PREHOOK: type: DROPTABLE
-POSTHOOK: query: drop table srcbucket_mapjoin_part_2
-POSTHOOK: type: DROPTABLE
-POSTHOOK: Output: default@srcbucket_mapjoin_part_2
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_1.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.key EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:key, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value1 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value1, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_hash_result_2.value2 EXPRESSION [(bucketmapjoin_tmp_result)bucketmapjoin_tmp_result.FieldSchema(name:value2, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.key SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value1 SIMPLE [(srcbucket_mapjoin)a.FieldSchema(name:value, type:string, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]
-POSTHOOK: Lineage: bucketmapjoin_tmp_result.value2 SIMPLE [(srcbucket_mapjoin_part_2)b.FieldSchema(name:key, type:int, comment:null), ]

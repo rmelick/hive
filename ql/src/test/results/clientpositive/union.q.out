@@ -104,7 +104,7 @@ STAGE PLANS:
     Move Operator
       files:
           hdfs directory: true
-          destination: file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_14-59-30_280_1908096242064517366/10000
+          destination: file:/data/users/nzhang/work/870/apache-hive/build/ql/scratchdir/hive_2010-08-19_12-11-52_101_4589180152440576115/-ext-10000
 
   Stage: Stage-0
     Move Operator
@@ -115,7 +115,7 @@ STAGE PLANS:
   Stage: Stage-2
     Map Reduce
       Alias -> Map Operator Tree:
-        file:/data/users/nzhang/reviews/0.6/branch-0.6/build/ql/scratchdir/hive_2010-08-22_14-59-30_280_1908096242064517366/10001 
+        file:/data/users/nzhang/work/870/apache-hive/build/ql/scratchdir/hive_2010-08-19_12-11-52_101_4589180152440576115/-ext-10001 
             File Output Operator
               compressed: false
               GlobalTableId: 0

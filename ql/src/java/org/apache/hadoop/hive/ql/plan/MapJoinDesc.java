@@ -25,14 +25,14 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
+import java.util.Map.Entry;
 
 /**
  * Map Join operator Descriptor implementation.
  *
  */
-@Explain(displayName = "Common Join Operator")
+@Explain(displayName = "Map Join Operator")
 public class MapJoinDesc extends JoinDesc implements Serializable {
   private static final long serialVersionUID = 1L;
 
@@ -68,8 +68,9 @@ public class MapJoinDesc extends JoinDesc implements Serializable {
   public MapJoinDesc(final Map<Byte, List<ExprNodeDesc>> keys,
       final TableDesc keyTblDesc, final Map<Byte, List<ExprNodeDesc>> values,
       final List<TableDesc> valueTblDescs, List<String> outputColumnNames,
-      final int posBigTable, final JoinCondDesc[] conds) {
-    super(values, outputColumnNames, conds);
+      final int posBigTable, final JoinCondDesc[] conds,
+      final Map<Byte, List<ExprNodeDesc>> filters, boolean noOuterJoin) {
+    super(values, outputColumnNames, noOuterJoin, conds, filters);
     this.keys = keys;
     this.keyTblDesc = keyTblDesc;
     this.valueTblDescs = valueTblDescs;

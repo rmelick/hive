@@ -40,12 +40,15 @@ import org.apache.hadoop.hive.ql.plan.GroupByDesc;
 import org.apache.hadoop.hive.ql.plan.api.OperatorType;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator.AggregationBuffer;
+import org.apache.hadoop.hive.serde2.objectinspector.ListObjectsEqualComparer;
+import org.apache.hadoop.hive.serde2.lazy.LazyPrimitive;
+import org.apache.hadoop.hive.serde2.lazy.objectinspector.primitive.LazyStringObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils;
-import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.Text;
@@ -115,6 +118,8 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
   // new Key ObjectInspectors are objectInspectors from the parent
   transient StructObjectInspector newKeyObjectInspector;
   transient StructObjectInspector currentKeyObjectInspector;
+  transient ListObjectsEqualComparer currentStructEqualComparer;
+  transient ListObjectsEqualComparer newKeyStructEqualComparer;
 
   /**
    * This is used to store the position and field names for variable length
@@ -151,12 +156,18 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
   transient int totalVariableSize;
   transient int numEntriesVarSize;
   transient int numEntriesHashTable;
+  transient int countAfterReport;
+  transient int heartbeatInterval;
 
   @Override
   protected void initializeOp(Configuration hconf) throws HiveException {
     totalMemory = Runtime.getRuntime().totalMemory();
     numRowsInput = 0;
     numRowsHashTbl = 0;
+
+    heartbeatInterval = HiveConf.getIntVar(hconf,
+        HiveConf.ConfVars.HIVESENDHEARTBEAT);
+    countAfterReport = 0;
 
     assert (inputObjInspectors.length == 1);
     ObjectInspector rowInspector = inputObjInspectors[0];
@@ -237,7 +248,7 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
       aggregations = newAggregations();
       hashAggr = false;
     } else {
-      hashAggregations = new HashMap<KeyWrapper, AggregationBuffer[]>();
+      hashAggregations = new HashMap<KeyWrapper, AggregationBuffer[]>(256);
       aggregations = newAggregations();
       hashAggr = true;
       keyPositionsSize = new ArrayList<Integer>();
@@ -272,6 +283,8 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
     currentKeyObjectInspector = ObjectInspectorFactory
         .getStandardStructObjectInspector(keyNames, Arrays
         .asList(currentKeyObjectInspectors));
+    currentStructEqualComparer = new ListObjectsEqualComparer(currentKeyObjectInspectors, currentKeyObjectInspectors);
+    newKeyStructEqualComparer = new ListObjectsEqualComparer(currentKeyObjectInspectors, keyObjectInspectors);
 
     outputObjInspector = ObjectInspectorFactory
         .getStandardStructObjectInspector(fieldNames, objectInspectors);
@@ -291,7 +304,7 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
    * the total amount of memory to be used by the map-side hash. By default, all
    * available memory is used. The size of each row is estimated, rather
    * crudely, and the number of entries are figure out based on that.
-   * 
+   *
    * @return number of entries that can fit in hash table - useful for map-side
    *         aggregation only
    **/
@@ -311,7 +324,7 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
    * datatype is of variable length, STRING, a list of such key positions is
    * maintained, and the size for such positions is then actually calculated at
    * runtime.
-   * 
+   *
    * @param pos
    *          the position of the key
    * @param c
@@ -342,7 +355,7 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
    * field is of variable length, STRING, a list of such field names for the
    * field position is maintained, and the size for such positions is then
    * actually calculated at runtime.
-   * 
+   *
    * @param pos
    *          the position of the key
    * @param c
@@ -454,15 +467,15 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
    * whether it has changed. As a cleanup, the lastInvoke logic can be pushed in
    * the caller, and this function can be independent of that. The client should
    * always notify whether it is a different row or not.
-   * 
+   *
    * @param aggs the aggregations to be evaluated
-   * 
+   *
    * @param row the row being processed
-   * 
+   *
    * @param rowInspector the inspector for the row
-   * 
+   *
    * @param hashAggr whether hash aggregation is being performed or not
-   * 
+   *
    * @param newEntryForHashAggr only valid if it is a hash aggregation, whether
    * it is a new entry or not
    */
@@ -545,6 +558,8 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
     }
 
     try {
+      countAfterReport++;
+
       // Compute the keys
       newKeys.clear();
       for (int i = 0; i < keyFields.length; i++) {
@@ -562,6 +577,12 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
       }
 
       firstRowInGroup = false;
+
+      if (countAfterReport != 0 && (countAfterReport % heartbeatInterval) == 0
+          && (reporter != null)) {
+        reporter.progress();
+        countAfterReport = 0;
+      }
     } catch (HiveException e) {
       throw e;
     } catch (Exception e) {
@@ -618,14 +639,14 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
     public boolean equals(Object obj) {
       ArrayList<Object> copied_in_hashmap = ((KeyWrapper) obj).keys;
       if (!copy) {
-        return ObjectInspectorUtils.compare(copied_in_hashmap,
-            currentKeyObjectInspector, keys, newKeyObjectInspector) == 0;
+        return newKeyStructEqualComparer.areEqual(copied_in_hashmap, keys);
       } else {
-        return ObjectInspectorUtils.compare(copied_in_hashmap,
-            currentKeyObjectInspector, keys, currentKeyObjectInspector) == 0;
+        return currentStructEqualComparer.areEqual(copied_in_hashmap, keys);
       }
     }
   }
+
+
 
   KeyWrapper keyProber = new KeyWrapper();
 
@@ -689,12 +710,14 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
     // Prepare aggs for updating
     AggregationBuffer[] aggs = null;
     Object[][] lastInvoke = null;
-    boolean keysAreEqual = ObjectInspectorUtils.compare(newKeys,
-        newKeyObjectInspector, currentKeys, currentKeyObjectInspector) == 0;
+    boolean keysAreEqual = (currentKeys != null && newKeys != null)?
+      newKeyStructEqualComparer.areEqual(currentKeys, newKeys) : false;
+
 
     // Forward the current keys if needed for sort-based aggregation
     if (currentKeys != null && !keysAreEqual) {
       forward(currentKeys, aggregations);
+      countAfterReport = 0;
     }
 
     // Need to update the keys?
@@ -724,7 +747,7 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
 
   /**
    * Based on user-parameters, should the hash table be flushed.
-   * 
+   *
    * @param newKeys
    *          keys for the row under consideration
    **/
@@ -738,7 +761,11 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
         Object key = newKeys.get(pos.intValue());
         // Ignore nulls
         if (key != null) {
-          if (key instanceof String) {
+          if (key instanceof LazyPrimitive) {
+              totalVariableSize +=
+                  ((LazyPrimitive<LazyStringObjectInspector, Text>) key).
+                      getWritableObject().getLength();
+          } else if (key instanceof String) {
             totalVariableSize += ((String) key).length();
           } else if (key instanceof Text) {
             totalVariableSize += ((Text) key).getLength();
@@ -748,7 +775,9 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
 
       AggregationBuffer[] aggs = null;
       if (aggrPositions.size() > 0) {
-        aggs = hashAggregations.get(newKeys);
+	KeyWrapper newKeyProber = new KeyWrapper(
+	    newKeys.hashCode(), newKeys);
+        aggs = hashAggregations.get(newKeyProber);
       }
 
       for (varLenFields v : aggrPositions) {
@@ -782,6 +811,8 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
   }
 
   private void flush(boolean complete) throws HiveException {
+
+    countAfterReport = 0;
 
     // Currently, the algorithm flushes 10% of the entries - this can be
     // changed in the future
@@ -820,7 +851,7 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
 
   /**
    * Forward a record of keys and aggregation results.
-   * 
+   *
    * @param keys
    *          The keys in the record
    * @throws HiveException
@@ -843,7 +874,7 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
 
   /**
    * We need to forward all the aggregations to children.
-   * 
+   *
    */
   @Override
   public void closeOp(boolean abort) throws HiveException {
@@ -857,8 +888,16 @@ public class GroupByOperator extends Operator<GroupByDesc> implements
           // This is based on the assumption that a null row is ignored by
           // aggregation functions
           for (int ai = 0; ai < aggregations.length; ai++) {
+
+            // o is set to NULL in order to distinguish no rows at all
+            Object[] o;
+            if (aggregationParameterFields[ai].length > 0) {
+              o = new Object[aggregationParameterFields[ai].length];
+            } else {
+              o = null;
+            }
+
             // Calculate the parameters
-            Object[] o = new Object[aggregationParameterFields[ai].length];
             for (int pi = 0; pi < aggregationParameterFields[ai].length; pi++) {
               o[pi] = null;
             }

@@ -30,7 +30,8 @@ import org.apache.hadoop.hive.ql.hooks.WriteEntity;
  */
 public class DDLWork implements Serializable {
   private static final long serialVersionUID = 1L;
-
+  private CreateIndexDesc createIndexDesc;
+  private DropIndexDesc dropIdxDesc;
   private CreateDatabaseDesc createDatabaseDesc;
   private SwitchDatabaseDesc switchDatabaseDesc;
   private DropDatabaseDesc dropDatabaseDesc;
@@ -41,7 +42,10 @@ public class DDLWork implements Serializable {
   private AlterTableDesc alterTblDesc;
   private ShowDatabasesDesc showDatabasesDesc;
   private ShowTablesDesc showTblsDesc;
+  private LockTableDesc lockTblDesc;
+  private UnlockTableDesc unlockTblDesc;
   private ShowFunctionsDesc showFuncsDesc;
+  private ShowLocksDesc showLocksDesc;
   private DescFunctionDesc descFunctionDesc;
   private ShowPartitionsDesc showPartsDesc;
   private DescTableDesc descTblDesc;
@@ -67,6 +71,10 @@ public class DDLWork implements Serializable {
     this.outputs = outputs;
   }
 
+  public DDLWork(CreateIndexDesc createIndex) {
+    this.createIndexDesc = createIndex;
+  }
+  
   /**
    * @param createDatabaseDesc
    *          Create Database descriptor
@@ -182,6 +190,26 @@ public class DDLWork implements Serializable {
   }
 
   /**
+   * @param lockTblDesc
+   */
+  public DDLWork(HashSet<ReadEntity> inputs, HashSet<WriteEntity> outputs,
+      LockTableDesc lockTblDesc) {
+    this(inputs, outputs);
+
+    this.lockTblDesc = lockTblDesc;
+  }
+
+  /**
+   * @param unlockTblDesc
+   */
+  public DDLWork(HashSet<ReadEntity> inputs, HashSet<WriteEntity> outputs,
+      UnlockTableDesc unlockTblDesc) {
+    this(inputs, outputs);
+
+    this.unlockTblDesc = unlockTblDesc;
+  }
+
+  /**
    * @param showFuncsDesc
    */
   public DDLWork(HashSet<ReadEntity> inputs, HashSet<WriteEntity> outputs,
@@ -189,6 +217,16 @@ public class DDLWork implements Serializable {
     this(inputs, outputs);
 
     this.showFuncsDesc = showFuncsDesc;
+  }
+
+  /**
+   * @param showLocksDesc
+   */
+  public DDLWork(HashSet<ReadEntity> inputs, HashSet<WriteEntity> outputs,
+      ShowLocksDesc showLocksDesc) {
+    this(inputs, outputs);
+
+    this.showLocksDesc = showLocksDesc;
   }
 
   /**
@@ -251,6 +289,12 @@ public class DDLWork implements Serializable {
     this.showTblStatusDesc = showTblStatusDesc;
   }
 
+  public DDLWork(HashSet<ReadEntity> inputs, HashSet<WriteEntity> outputs,
+      DropIndexDesc dropIndexDesc) {
+    this(inputs, outputs);
+    this.dropIdxDesc = dropIndexDesc;
+  }
+
   /**
    * @return Create Database descriptor
    */
@@ -310,6 +354,14 @@ public class DDLWork implements Serializable {
    */
   public void setCreateTblDesc(CreateTableDesc createTblDesc) {
     this.createTblDesc = createTblDesc;
+  }
+  
+  public CreateIndexDesc getCreateIndexDesc() {
+    return createIndexDesc;
+  }
+
+  public void setCreateIndexDesc(CreateIndexDesc createIndexDesc) {
+    this.createIndexDesc = createIndexDesc;
   }
 
   /**
@@ -417,6 +469,30 @@ public class DDLWork implements Serializable {
   }
 
   /**
+   * @return the showLocksDesc
+   */
+  @Explain(displayName = "Show Lock Operator")
+  public ShowLocksDesc getShowLocksDesc() {
+    return showLocksDesc;
+  }
+
+  /**
+   * @return the lockTblDesc
+   */
+  @Explain(displayName = "Lock Table Operator")
+  public LockTableDesc getLockTblDesc() {
+    return lockTblDesc;
+  }
+
+  /**
+   * @return the unlockTblDesc
+   */
+  @Explain(displayName = "Unlock Table Operator")
+  public UnlockTableDesc getUnlockTblDesc() {
+    return unlockTblDesc;
+  }
+
+  /**
    * @return the descFuncDesc
    */
   @Explain(displayName = "Show Function Operator")
@@ -430,6 +506,30 @@ public class DDLWork implements Serializable {
    */
   public void setShowFuncsDesc(ShowFunctionsDesc showFuncsDesc) {
     this.showFuncsDesc = showFuncsDesc;
+  }
+
+  /**
+   * @param showLocksDesc
+   *          the showLocksDesc to set
+   */
+  public void setShowLocksDesc(ShowLocksDesc showLocksDesc) {
+    this.showLocksDesc = showLocksDesc;
+  }
+
+  /**
+   * @param lockTblDesc
+   *          the lockTblDesc to set
+   */
+  public void setLockTblDesc(LockTableDesc lockTblDesc) {
+    this.lockTblDesc = lockTblDesc;
+  }
+
+  /**
+   * @param unlockTblDesc
+   *          the unlockTblDesc to set
+   */
+  public void setUnlockTblDesc(UnlockTableDesc unlockTblDesc) {
+    this.unlockTblDesc = unlockTblDesc;
   }
 
   /**
@@ -558,6 +658,14 @@ public class DDLWork implements Serializable {
 
   public void setOutputs(HashSet<WriteEntity> outputs) {
     this.outputs = outputs;
+  }
+  
+  public DropIndexDesc getDropIdxDesc() {
+    return dropIdxDesc;
+  }
+
+  public void setDropIdxDesc(DropIndexDesc dropIdxDesc) {
+    this.dropIdxDesc = dropIdxDesc;
   }
 
 }

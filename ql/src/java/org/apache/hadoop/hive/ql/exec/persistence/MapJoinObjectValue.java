@@ -24,16 +24,17 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.ArrayList;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.exec.MapJoinOperator;
-import org.apache.hadoop.hive.ql.exec.MapJoinOperator.MapJoinObjectCtx;
+import org.apache.hadoop.hive.ql.exec.MapJoinMetaData;
+import org.apache.hadoop.hive.ql.exec.JDBMSinkOperator.JDBMSinkObjectCtx;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption;
 import org.apache.hadoop.io.Writable;
-
 /**
  * Map Join Object used for both key and value.
  */
@@ -43,6 +44,7 @@ public class MapJoinObjectValue implements Externalizable {
   protected transient RowContainer obj;
   protected transient Configuration conf;
   protected int bucketSize; // bucket size for RowContainer
+  protected Log LOG = LogFactory.getLog(this.getClass().getName());
 
   public MapJoinObjectValue() {
     bucketSize = 100; // default bucket size
@@ -71,7 +73,6 @@ public class MapJoinObjectValue implements Externalizable {
         }
       }
     }
-
     return false;
   }
 
@@ -84,25 +85,37 @@ public class MapJoinObjectValue implements Externalizable {
   public void readExternal(ObjectInput in) throws IOException,
       ClassNotFoundException {
     try {
+
       metadataTag = in.readInt();
 
       // get the tableDesc from the map stored in the mapjoin operator
-      MapJoinObjectCtx ctx = MapJoinOperator.getMapMetadata().get(
+      JDBMSinkObjectCtx ctx = MapJoinMetaData.get(
           Integer.valueOf(metadataTag));
       int sz = in.readInt();
+
       RowContainer res = new RowContainer(bucketSize, ctx.getConf());
       res.setSerDe(ctx.getSerDe(), ctx.getStandardOI());
       res.setTableDesc(ctx.getTblDesc());
-      for (int pos = 0; pos < sz; pos++) {
-        Writable val = ctx.getSerDe().getSerializedClass().newInstance();
-        val.readFields(in);
+      if (sz > 0) {
+        int numCols = in.readInt();
+        if (numCols > 0) {
+          for (int pos = 0; pos < sz; pos++) {
+            Writable val = ctx.getSerDe().getSerializedClass().newInstance();
+            val.readFields(in);
 
-        ArrayList<Object> memObj = (ArrayList<Object>) ObjectInspectorUtils
-            .copyToStandardObject(ctx.getSerDe().deserialize(val), ctx
-            .getSerDe().getObjectInspector(),
-            ObjectInspectorCopyOption.WRITABLE);
+            ArrayList<Object> memObj = (ArrayList<Object>) ObjectInspectorUtils
+              .copyToStandardObject(ctx.getSerDe().deserialize(val), ctx
+              .getSerDe().getObjectInspector(),
+               ObjectInspectorCopyOption.WRITABLE);
 
-        res.add(memObj);
+            res.add(memObj);
+          }
+        }
+        else{
+          for(int i = 0 ; i <sz; i++){
+            res.add(new ArrayList<Object>(0));
+          }
+        }
       }
       obj = res;
     } catch (Exception e) {
@@ -117,16 +130,22 @@ public class MapJoinObjectValue implements Externalizable {
       out.writeInt(metadataTag);
 
       // get the tableDesc from the map stored in the mapjoin operator
-      MapJoinObjectCtx ctx = MapJoinOperator.getMapMetadata().get(
+      JDBMSinkObjectCtx ctx = MapJoinMetaData.get(
           Integer.valueOf(metadataTag));
 
       // Different processing for key and value
       RowContainer<ArrayList<Object>> v = obj;
       out.writeInt(v.size());
+      if (v.size() > 0) {
+        ArrayList<Object> row = v.first();
+        out.writeInt(row.size());
 
-      for (ArrayList<Object> row = v.first(); row != null; row = v.next()) {
-        Writable outVal = ctx.getSerDe().serialize(row, ctx.getStandardOI());
-        outVal.write(out);
+        if (row.size() > 0) {
+          for (; row != null; row = v.next()) {
+            Writable outVal = ctx.getSerDe().serialize(row, ctx.getStandardOI());
+            outVal.write(out);
+          }
+        }
       }
     } catch (SerDeException e) {
       throw new IOException(e);

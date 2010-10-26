@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -32,22 +31,18 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.persistence.RowContainer;
-import org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
-import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.JoinCondDesc;
 import org.apache.hadoop.hive.ql.plan.JoinDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
-import org.apache.hadoop.hive.serde2.SerDe;
-import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.ql.util.JoinUtil;
 import org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
-import org.apache.hadoop.mapred.SequenceFileInputFormat;
-import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
+import org.apache.hadoop.io.BooleanWritable;
 
 /**
  * Join operator implementation.
@@ -94,22 +89,39 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
 
   protected transient int numAliases; // number of aliases
   /**
-   * The expressions for join outputs.
+   * The expressions for join inputs.
    */
   protected transient Map<Byte, List<ExprNodeEvaluator>> joinValues;
+
+  /**
+   * The filters for join
+   */
+  protected transient Map<Byte, List<ExprNodeEvaluator>> joinFilters;
+
   /**
    * The ObjectInspectors for the join inputs.
    */
   protected transient Map<Byte, List<ObjectInspector>> joinValuesObjectInspectors;
+
+  /**
+   * The ObjectInspectors for join filters.
+   */
+  protected transient
+    Map<Byte, List<ObjectInspector>> joinFilterObjectInspectors;
   /**
    * The standard ObjectInspectors for the join inputs.
    */
   protected transient Map<Byte, List<ObjectInspector>> joinValuesStandardObjectInspectors;
+  /**
+   * The standard ObjectInspectors for the row container.
+   */
+  protected transient
+    Map<Byte, List<ObjectInspector>> rowContainerStandardObjectInspectors;
 
-  protected static transient Byte[] order; // order in which the results should
+  protected transient Byte[] order; // order in which the results should
   // be output
   protected transient JoinCondDesc[] condn;
-  protected transient boolean noOuterJoin;
+  public transient boolean noOuterJoin;
   protected transient Object[] dummyObj; // for outer joins, contains the
   // potential nulls for the concerned
   // aliases
@@ -140,6 +152,10 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
 
   transient boolean handleSkewJoin = false;
 
+  protected transient int countAfterReport;
+  protected transient int heartbeatInterval;
+  private static final int NOTSKIPBIGTABLE = -1;
+
   public CommonJoinOperator() {
   }
 
@@ -155,9 +171,8 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
     this.operatorId = clone.operatorId;
     this.storage = clone.storage;
     this.condn = clone.condn;
-
+    this.conf = clone.getConf();
     this.setSchema(clone.getSchema());
-
     this.alias = clone.alias;
     this.beginTime = clone.beginTime;
     this.inputRows = clone.inputRows;
@@ -180,70 +195,10 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
     this.posToAliasMap = clone.posToAliasMap;
     this.spillTableDesc = clone.spillTableDesc;
     this.statsMap = clone.statsMap;
+    this.joinFilters = clone.joinFilters;
+    this.joinFilterObjectInspectors = clone.joinFilterObjectInspectors;
   }
 
-  protected int populateJoinKeyValue(Map<Byte, List<ExprNodeEvaluator>> outMap,
-      Map<Byte, List<ExprNodeDesc>> inputMap) {
-
-    int total = 0;
-
-    Iterator<Map.Entry<Byte, List<ExprNodeDesc>>> entryIter = inputMap
-        .entrySet().iterator();
-    while (entryIter.hasNext()) {
-      Map.Entry<Byte, List<ExprNodeDesc>> e = entryIter.next();
-      Byte key = order[e.getKey()];
-
-      List<ExprNodeDesc> expr = e.getValue();
-      int sz = expr.size();
-      total += sz;
-
-      List<ExprNodeEvaluator> valueFields = new ArrayList<ExprNodeEvaluator>();
-
-      for (int j = 0; j < sz; j++) {
-        valueFields.add(ExprNodeEvaluatorFactory.get(expr.get(j)));
-      }
-
-      outMap.put(key, valueFields);
-    }
-
-    return total;
-  }
-
-  protected static HashMap<Byte, List<ObjectInspector>> getObjectInspectorsFromEvaluators(
-      Map<Byte, List<ExprNodeEvaluator>> exprEntries,
-      ObjectInspector[] inputObjInspector) throws HiveException {
-    HashMap<Byte, List<ObjectInspector>> result = new HashMap<Byte, List<ObjectInspector>>();
-    for (Entry<Byte, List<ExprNodeEvaluator>> exprEntry : exprEntries
-        .entrySet()) {
-      Byte alias = exprEntry.getKey();
-      List<ExprNodeEvaluator> exprList = exprEntry.getValue();
-      ArrayList<ObjectInspector> fieldOIList = new ArrayList<ObjectInspector>();
-      for (int i = 0; i < exprList.size(); i++) {
-        fieldOIList.add(exprList.get(i).initialize(inputObjInspector[alias]));
-      }
-      result.put(alias, fieldOIList);
-    }
-    return result;
-  }
-
-  protected static HashMap<Byte, List<ObjectInspector>> getStandardObjectInspectors(
-      Map<Byte, List<ObjectInspector>> aliasToObjectInspectors) {
-    HashMap<Byte, List<ObjectInspector>> result = new HashMap<Byte, List<ObjectInspector>>();
-    for (Entry<Byte, List<ObjectInspector>> oiEntry : aliasToObjectInspectors
-        .entrySet()) {
-      Byte alias = oiEntry.getKey();
-      List<ObjectInspector> oiList = oiEntry.getValue();
-      ArrayList<ObjectInspector> fieldOIList = new ArrayList<ObjectInspector>(
-          oiList.size());
-      for (int i = 0; i < oiList.size(); i++) {
-        fieldOIList.add(ObjectInspectorUtils.getStandardObjectInspector(oiList
-            .get(i), ObjectInspectorCopyOption.WRITABLE));
-      }
-      result.put(alias, fieldOIList);
-    }
-    return result;
-
-  }
 
   protected static <T extends JoinDesc> ObjectInspector getJoinOutputObjectInspector(
       Byte[] order, Map<Byte, List<ObjectInspector>> aliasToObjectInspectors,
@@ -266,6 +221,11 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
   protected void initializeOp(Configuration hconf) throws HiveException {
     this.handleSkewJoin = conf.getHandleSkewJoin();
     this.hconf = hconf;
+
+    heartbeatInterval = HiveConf.getIntVar(hconf,
+        HiveConf.ConfVars.HIVESENDHEARTBEAT);
+    countAfterReport = 0;
+
     totalSz = 0;
     // Map that contains the rows for each alias
     storage = new HashMap<Byte, RowContainer<ArrayList<Object>>>();
@@ -274,17 +234,48 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
 
     joinValues = new HashMap<Byte, List<ExprNodeEvaluator>>();
 
-    if (order == null) {
-      order = conf.getTagOrder();
-    }
+    joinFilters = new HashMap<Byte, List<ExprNodeEvaluator>>();
+
+    order = conf.getTagOrder();
     condn = conf.getConds();
     noOuterJoin = conf.isNoOuterJoin();
 
-    totalSz = populateJoinKeyValue(joinValues, conf.getExprs());
 
-    joinValuesObjectInspectors = getObjectInspectorsFromEvaluators(joinValues,
-        inputObjInspectors);
-    joinValuesStandardObjectInspectors = getStandardObjectInspectors(joinValuesObjectInspectors);
+
+    totalSz = JoinUtil.populateJoinKeyValue(joinValues, conf.getExprs(),
+        order,NOTSKIPBIGTABLE);
+
+    //process join filters
+    joinFilters = new HashMap<Byte, List<ExprNodeEvaluator>>();
+    JoinUtil.populateJoinKeyValue(joinFilters, conf.getFilters(),order,NOTSKIPBIGTABLE);
+
+
+    joinValuesObjectInspectors = JoinUtil.getObjectInspectorsFromEvaluators(joinValues,
+        inputObjInspectors,NOTSKIPBIGTABLE);
+    joinFilterObjectInspectors = JoinUtil.getObjectInspectorsFromEvaluators(joinFilters,
+        inputObjInspectors,NOTSKIPBIGTABLE);
+    joinValuesStandardObjectInspectors = JoinUtil.getStandardObjectInspectors(
+        joinValuesObjectInspectors,NOTSKIPBIGTABLE);
+
+    if (noOuterJoin) {
+      rowContainerStandardObjectInspectors = joinValuesStandardObjectInspectors;
+    } else {
+      Map<Byte, List<ObjectInspector>> rowContainerObjectInspectors =
+        new HashMap<Byte, List<ObjectInspector>>();
+      for (Byte alias : order) {
+        ArrayList<ObjectInspector> rcOIs = new ArrayList<ObjectInspector>();
+        rcOIs.addAll(joinValuesObjectInspectors.get(alias));
+        // for each alias, add object inspector for boolean as the last element
+        rcOIs.add(
+            PrimitiveObjectInspectorFactory.writableBooleanObjectInspector);
+        rowContainerObjectInspectors.put(alias, rcOIs);
+      }
+      rowContainerStandardObjectInspectors =
+        JoinUtil.getStandardObjectInspectors(rowContainerObjectInspectors,NOTSKIPBIGTABLE);
+    }
+
+
+
 
     dummyObj = new Object[numAliases];
     dummyObjVectors = new RowContainer[numAliases];
@@ -305,16 +296,27 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
       for (int j = 0; j < sz; j++) {
         nr.add(null);
       }
+
+      if (!noOuterJoin) {
+        // add whether the row is filtered or not
+        // this value does not matter for the dummyObj
+        // because the join values are already null
+        nr.add(new BooleanWritable(false));
+      }
       dummyObj[pos] = nr;
       // there should be only 1 dummy object in the RowContainer
-      RowContainer<ArrayList<Object>> values = getRowContainer(hconf, pos,
-          alias, 1);
+      RowContainer<ArrayList<Object>> values = JoinUtil.getRowContainer(hconf,
+          rowContainerStandardObjectInspectors.get((byte)pos),
+          alias, 1, spillTableDesc, conf, noOuterJoin);
+
       values.add((ArrayList<Object>) dummyObj[pos]);
       dummyObjVectors[pos] = values;
 
       // if serde is null, the input doesn't need to be spilled out
       // e.g., the output columns does not contains the input table
-      RowContainer rc = getRowContainer(hconf, pos, alias, joinCacheSize);
+      RowContainer rc = JoinUtil.getRowContainer(hconf,
+          rowContainerStandardObjectInspectors.get((byte)pos),
+          alias, joinCacheSize,spillTableDesc, conf,noOuterJoin);
       storage.put(pos, rc);
 
       pos++;
@@ -330,97 +332,10 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
 
   }
 
-  RowContainer getRowContainer(Configuration hconf, byte pos, Byte alias,
-      int containerSize) throws HiveException {
-    TableDesc tblDesc = getSpillTableDesc(alias);
-    SerDe serde = getSpillSerDe(alias);
 
-    if (serde == null) {
-      containerSize = 1;
-    }
 
-    RowContainer rc = new RowContainer(containerSize, hconf);
-    StructObjectInspector rcOI = null;
-    if (tblDesc != null) {
-      // arbitrary column names used internally for serializing to spill table
-      List<String> colNames = Utilities.getColumnNames(tblDesc.getProperties());
-      // object inspector for serializing input tuples
-      rcOI = ObjectInspectorFactory.getStandardStructObjectInspector(colNames,
-          joinValuesStandardObjectInspectors.get(pos));
-    }
 
-    rc.setSerDe(serde, rcOI);
-    rc.setTableDesc(tblDesc);
-    return rc;
-  }
-
-  private SerDe getSpillSerDe(byte alias) {
-    TableDesc desc = getSpillTableDesc(alias);
-    if (desc == null) {
-      return null;
-    }
-    SerDe sd = (SerDe) ReflectionUtils.newInstance(desc.getDeserializerClass(),
-        null);
-    try {
-      sd.initialize(null, desc.getProperties());
-    } catch (SerDeException e) {
-      e.printStackTrace();
-      return null;
-    }
-    return sd;
-  }
-
-  transient boolean newGroupStarted = false;
-
-  public TableDesc getSpillTableDesc(Byte alias) {
-    if (spillTableDesc == null || spillTableDesc.size() == 0) {
-      initSpillTables();
-    }
-    return spillTableDesc.get(alias);
-  }
-
-  public Map<Byte, TableDesc> getSpillTableDesc() {
-    if (spillTableDesc == null) {
-      initSpillTables();
-    }
-    return spillTableDesc;
-  }
-
-  private void initSpillTables() {
-    Map<Byte, List<ExprNodeDesc>> exprs = conf.getExprs();
-    spillTableDesc = new HashMap<Byte, TableDesc>(exprs.size());
-    for (int tag = 0; tag < exprs.size(); tag++) {
-      List<ExprNodeDesc> valueCols = exprs.get((byte) tag);
-      int columnSize = valueCols.size();
-      StringBuilder colNames = new StringBuilder();
-      StringBuilder colTypes = new StringBuilder();
-      if (columnSize <= 0) {
-        continue;
-      }
-      for (int k = 0; k < columnSize; k++) {
-        String newColName = tag + "_VALUE_" + k; // any name, it does not
-        // matter.
-        colNames.append(newColName);
-        colNames.append(',');
-        colTypes.append(valueCols.get(k).getTypeString());
-        colTypes.append(',');
-      }
-      // remove the last ','
-      colNames.setLength(colNames.length() - 1);
-      colTypes.setLength(colTypes.length() - 1);
-      TableDesc tblDesc = new TableDesc(LazyBinarySerDe.class,
-          SequenceFileInputFormat.class, HiveSequenceFileOutputFormat.class,
-          Utilities.makeProperties(
-          org.apache.hadoop.hive.serde.Constants.SERIALIZATION_FORMAT, ""
-          + Utilities.ctrlaCode,
-          org.apache.hadoop.hive.serde.Constants.LIST_COLUMNS, colNames
-          .toString(),
-          org.apache.hadoop.hive.serde.Constants.LIST_COLUMN_TYPES,
-          colTypes.toString()));
-      spillTableDesc.put((byte) tag, tblDesc);
-    }
-  }
-
+transient boolean newGroupStarted = false;
   @Override
   public void startGroup() throws HiveException {
     LOG.trace("Join: Starting new group");
@@ -441,26 +356,6 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
 
   protected transient Byte alias;
 
-  /**
-   * Return the value as a standard object. StandardObject can be inspected by a
-   * standard ObjectInspector.
-   */
-  protected static ArrayList<Object> computeValues(Object row,
-      List<ExprNodeEvaluator> valueFields, List<ObjectInspector> valueFieldsOI)
-      throws HiveException {
-
-    // Compute the values
-    ArrayList<Object> nr = new ArrayList<Object>(valueFields.size());
-    for (int i = 0; i < valueFields.size(); i++) {
-
-      nr.add(ObjectInspectorUtils.copyToStandardObject(valueFields.get(i)
-          .evaluate(row), valueFieldsOI.get(i),
-          ObjectInspectorCopyOption.WRITABLE));
-    }
-
-    return nr;
-  }
-
   transient Object[] forwardCache;
 
   private void createForwardJoinObject(IntermediateObject intObj,
@@ -480,7 +375,9 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
         }
       }
     }
+
     forward(forwardCache, outputObjInspector);
+    countAfterReport = 0;
   }
 
   private void copyOldArray(boolean[] src, boolean[] dest) {
@@ -538,6 +435,12 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
       ArrayList<boolean[]> resNulls, ArrayList<boolean[]> inputNulls,
       ArrayList<Object> newObj, IntermediateObject intObj, int left,
       boolean newObjNull) {
+    // newObj is null if is already null or
+    // if the row corresponding to the left alias does not pass through filter
+    newObjNull = newObjNull ||
+        ((BooleanWritable) (intObj.getObjs()[left].get(
+            joinValues.get(order[left]).size()))).get();
+
     Iterator<boolean[]> nullsIter = inputNulls.iterator();
     while (nullsIter.hasNext()) {
       boolean[] oldNulls = nullsIter.next();
@@ -583,10 +486,14 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
       }
     }
 
+    // if the row does not pass through filter, all old Objects are null
+    if (((BooleanWritable)newObj.get(newObj.size()-1)).get()) {
+      allOldObjsNull = true;
+    }
     nullsIter = inputNulls.iterator();
     while (nullsIter.hasNext()) {
       boolean[] oldNulls = nullsIter.next();
-      boolean oldObjNull = oldNulls[left];
+      boolean oldObjNull = oldNulls[left] || allOldObjsNull;
 
       if (!oldObjNull) {
         boolean[] newNulls = new boolean[intObj.getCurSize()];
@@ -642,13 +549,21 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
         break;
       }
     }
+
+    // if the row does not pass through filter, all old Objects are null
+    if (((BooleanWritable)newObj.get(newObj.size()-1)).get()) {
+      allOldObjsNull = true;
+    }
     boolean rhsPreserved = false;
 
     nullsIter = inputNulls.iterator();
     while (nullsIter.hasNext()) {
       boolean[] oldNulls = nullsIter.next();
-      boolean oldObjNull = oldNulls[left];
-
+      // old obj is null even if the row corresponding to the left alias
+      // does not pass through filter
+      boolean oldObjNull = oldNulls[left] || ((BooleanWritable)
+        (intObj.getObjs()[left].get(joinValues.get(order[left]).size()))).get()
+        || allOldObjsNull;
       if (!oldObjNull) {
         boolean[] newNulls = new boolean[intObj.getCurSize()];
         copyOldArray(oldNulls, newNulls);
@@ -816,6 +731,7 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
       }
 
       forward(forwardCache, outputObjInspector);
+      countAfterReport = 0;
       return;
     }
 
@@ -876,6 +792,36 @@ public abstract class CommonJoinOperator<T extends JoinDesc> extends
           true);
       LOG.trace("called genObject");
     }
+  }
+
+  protected void reportProgress() {
+    // Send some status periodically
+    countAfterReport++;
+
+    if ((countAfterReport % heartbeatInterval) == 0
+        && (reporter != null)) {
+      reporter.progress();
+      countAfterReport = 0;
+    }
+  }
+
+  /**
+   * Returns true if the row does not pass through filters.
+   */
+  protected static Boolean isFiltered(Object row,
+      List<ExprNodeEvaluator> filters, List<ObjectInspector> ois)
+      throws HiveException {
+    // apply join filters on the row.
+    Boolean ret = false;
+    for (int j = 0; j < filters.size(); j++) {
+      Object condition = filters.get(j).evaluate(row);
+      ret = (Boolean) ((PrimitiveObjectInspector)
+          ois.get(j)).getPrimitiveJavaObject(condition);
+      if (ret == null || !ret) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

@@ -85,35 +85,49 @@ TOK_STRING;
 TOK_LIST;
 TOK_STRUCT;
 TOK_MAP;
+TOK_UNIONTYPE;
+TOK_COLTYPELIST;
 TOK_CREATEDATABASE;
 TOK_CREATETABLE;
+TOK_CREATEINDEX;
+TOK_CREATEINDEX_INDEXTBLNAME;
+TOK_DEFERRED_REBUILDINDEX;
+TOK_DROPINDEX;
 TOK_LIKETABLE;
 TOK_DESCTABLE;
 TOK_DESCFUNCTION;
+TOK_ALTERTABLE_PARTITION;
 TOK_ALTERTABLE_RENAME;
 TOK_ALTERTABLE_ADDCOLS;
 TOK_ALTERTABLE_RENAMECOL;
 TOK_ALTERTABLE_REPLACECOLS;
 TOK_ALTERTABLE_ADDPARTS;
 TOK_ALTERTABLE_DROPPARTS;
+TOK_ALTERTABLE_ALTERPARTS_PROTECTMODE;
 TOK_ALTERTABLE_TOUCH;
 TOK_ALTERTABLE_ARCHIVE;
 TOK_ALTERTABLE_UNARCHIVE;
 TOK_ALTERTABLE_SERDEPROPERTIES;
 TOK_ALTERTABLE_SERIALIZER;
+TOK_TABLE_PARTITION;
 TOK_ALTERTABLE_FILEFORMAT;
+TOK_ALTERTABLE_LOCATION;
 TOK_ALTERTABLE_PROPERTIES;
 TOK_ALTERTABLE_CHANGECOL_AFTER_POSITION;
+TOK_ALTERINDEX_REBUILD;
 TOK_MSCK;
 TOK_SHOWDATABASES;
 TOK_SHOWTABLES;
 TOK_SHOWFUNCTIONS;
 TOK_SHOWPARTITIONS;
 TOK_SHOW_TABLESTATUS;
+TOK_SHOWLOCKS;
+TOK_LOCKTABLE;
+TOK_UNLOCKTABLE;
 TOK_SWITCHDATABASE;
 TOK_DROPDATABASE;
-TOK_DATABASECOMMENT;
 TOK_DROPTABLE;
+TOK_DATABASECOMMENT;
 TOK_TABCOLLIST;
 TOK_TABCOL;
 TOK_TABLECOMMENT;
@@ -128,6 +142,12 @@ TOK_TBLSEQUENCEFILE;
 TOK_TBLTEXTFILE;
 TOK_TBLRCFILE;
 TOK_TABLEFILEFORMAT;
+TOK_FILEFORMAT_GENERIC;
+TOK_OFFLINE;
+TOK_ENABLE;
+TOK_DISABLE;
+TOK_READONLY;
+TOK_NO_DROP;
 TOK_STORAGEHANDLER;
 TOK_ALTERTABLE_CLUSTER_SORT;
 TOK_TABCOLNAME;
@@ -150,12 +170,13 @@ TOK_TABLEPROPLIST;
 TOK_TABTYPE;
 TOK_LIMIT;
 TOK_TABLEPROPERTY;
-TOK_IFNOTEXISTS;
 TOK_IFEXISTS;
+TOK_IFNOTEXISTS;
 TOK_HINTLIST;
 TOK_HINT;
 TOK_MAPJOIN;
 TOK_STREAMTABLE;
+TOK_HOLD_DDLTIME;
 TOK_HINTARGLIST;
 TOK_USERSCRIPTCOLNAMES;
 TOK_USERSCRIPTCOLSCHEMA;
@@ -164,6 +185,7 @@ TOK_RECORDWRITER;
 TOK_LEFTSEMIJOIN;
 TOK_LATERAL_VIEW;
 TOK_TABALIAS;
+TOK_ANALYZE;
 }
 
 
@@ -227,7 +249,13 @@ ddlStatement
     | createViewStatement
     | dropViewStatement
     | createFunctionStatement
+    | createIndexStatement
+    | dropIndexStatement
+    | alterIndexRebuild
     | dropFunctionStatement
+    | analyzeStatement
+    | lockStatement
+    | unlockStatement
     ;
 
 ifExists
@@ -243,6 +271,7 @@ ifNotExists
     : KW_IF KW_NOT KW_EXISTS
     -> ^(TOK_IFNOTEXISTS)
     ;
+
 
 createDatabaseStatement
 @init { msgs.push("create database statement"); }
@@ -305,6 +334,60 @@ createTableStatement
         )
     ;
 
+createIndexStatement
+@init { msgs.push("create index statement");}
+@after {msgs.pop();}
+    : KW_CREATE KW_INDEX indexName=Identifier 
+      KW_ON KW_TABLE tab=Identifier LPAREN indexedCols=columnNameList RPAREN 
+      KW_AS typeName=StringLiteral
+      autoRebuild?
+      indexTblName?
+      tableRowFormat?
+      tableFileFormat?
+      tableLocation?
+    ->^(TOK_CREATEINDEX $indexName $typeName $tab $indexedCols 
+        autoRebuild?
+        indexTblName?
+        tableRowFormat?
+        tableFileFormat?
+        tableLocation?)
+    ;
+
+autoRebuild
+@init { msgs.push("auto rebuild index");}
+@after {msgs.pop();}
+    : KW_WITH KW_DEFERRED KW_REBUILD
+    ->^(TOK_DEFERRED_REBUILDINDEX)
+    ;
+
+indexTblName
+@init { msgs.push("index table name");}
+@after {msgs.pop();}
+    : KW_IN KW_TABLE indexTbl=Identifier
+    ->^(TOK_CREATEINDEX_INDEXTBLNAME $indexTbl)
+    ;
+
+indexPropertiesPrefixed
+@init { msgs.push("table properties with prefix"); }
+@after { msgs.pop(); }
+    :
+        KW_IDXPROPERTIES! indexProperties
+    ;
+
+indexProperties
+@init { msgs.push("table properties"); }
+@after { msgs.pop(); }
+    :
+      LPAREN propertiesList RPAREN -> ^(TOK_TABLEPROPERTIES propertiesList)
+    ;
+
+dropIndexStatement
+@init { msgs.push("drop index statement");}
+@after {msgs.pop();}
+    : KW_DROP KW_INDEX indexName=Identifier KW_ON tab=Identifier
+    ->^(TOK_DROPINDEX $indexName $tab)
+    ;
+
 dropTableStatement
 @init { msgs.push("drop statement"); }
 @after { msgs.pop(); }
@@ -335,7 +418,7 @@ alterTableStatementSuffix
     | alterStatementSuffixUnArchive
     | alterStatementSuffixProperties
     | alterStatementSuffixSerdeProperties
-    | alterStatementSuffixFileFormat
+    | alterTblPartitionStatement
     | alterStatementSuffixClusterbySortby
     ;
 
@@ -379,7 +462,7 @@ alterStatementSuffixAddPartitions
     : Identifier KW_ADD ifNotExists? partitionSpec partitionLocation? (partitionSpec partitionLocation?)*
     -> ^(TOK_ALTERTABLE_ADDPARTS Identifier ifNotExists? (partitionSpec partitionLocation?)+)
     ;
-
+    
 alterStatementSuffixTouch
 @init { msgs.push("touch statement"); }
 @after { msgs.pop(); }
@@ -438,19 +521,81 @@ alterStatementSuffixSerdeProperties
     -> ^(TOK_ALTERTABLE_SERDEPROPERTIES $name tableProperties)
     ;
 
+tablePartitionPrefix
+@init {msgs.push("table partition prefix");}
+@after {msgs.pop();}
+  :name=Identifier partitionSpec? 
+  ->^(TOK_TABLE_PARTITION $name partitionSpec?)
+  ;
+
+alterTblPartitionStatement
+@init {msgs.push("alter table partition statement");}
+@after {msgs.pop();}
+  :  tablePartitionPrefix alterTblPartitionStatementSuffix
+  -> ^(TOK_ALTERTABLE_PARTITION tablePartitionPrefix alterTblPartitionStatementSuffix)
+  ;
+
+alterTblPartitionStatementSuffix
+@init {msgs.push("alter table partition statement suffix");}
+@after {msgs.pop();}
+  : alterStatementSuffixFileFormat
+  | alterStatementSuffixLocation
+  | alterStatementSuffixProtectMode
+  ;
+
 alterStatementSuffixFileFormat
 @init {msgs.push("alter fileformat statement"); }
-@after {msgs.pop(); }
-	:name=Identifier KW_SET KW_FILEFORMAT fileFormat
-	-> ^(TOK_ALTERTABLE_FILEFORMAT $name fileFormat)
+@after {msgs.pop();}
+	: KW_SET KW_FILEFORMAT fileFormat
+	-> ^(TOK_ALTERTABLE_FILEFORMAT fileFormat)
 	;
+
+alterStatementSuffixLocation
+@init {msgs.push("alter location");}
+@after {msgs.pop();}
+  : KW_SET KW_LOCATION newLoc=StringLiteral
+  -> ^(TOK_ALTERTABLE_LOCATION $newLoc)
+  ;
+
+alterStatementSuffixProtectMode
+@init { msgs.push("alter partition protect mode statement"); }
+@after { msgs.pop(); }
+    : alterProtectMode
+    -> ^(TOK_ALTERTABLE_ALTERPARTS_PROTECTMODE alterProtectMode)
+    ;
+
+alterProtectMode
+@init { msgs.push("protect mode specification enable"); }
+@after { msgs.pop(); }
+    : KW_ENABLE alterProtectModeMode  -> ^(TOK_ENABLE alterProtectModeMode)
+    | KW_DISABLE alterProtectModeMode  -> ^(TOK_DISABLE alterProtectModeMode)
+    ;
+
+alterProtectModeMode
+@init { msgs.push("protect mode specification enable"); }
+@after { msgs.pop(); }
+    : KW_OFFLINE  -> ^(TOK_OFFLINE)
+    | KW_NO_DROP  -> ^(TOK_NO_DROP)
+    | KW_READONLY  -> ^(TOK_READONLY)
+    ;
+
 
 alterStatementSuffixClusterbySortby
 @init {msgs.push("alter cluster by sort by statement");}
 @after{msgs.pop();}
 	:name=Identifier tableBuckets
 	->^(TOK_ALTERTABLE_CLUSTER_SORT $name tableBuckets)
+	| 
+	name=Identifier KW_NOT KW_CLUSTERED
+	->^(TOK_ALTERTABLE_CLUSTER_SORT $name)
 	;
+
+alterIndexRebuild
+@init { msgs.push("update index statement");}
+@after {msgs.pop();}
+    : KW_ALTER KW_INDEX indexName=Identifier KW_ON base_table_name=Identifier partitionSpec? KW_REBUILD
+    ->^(TOK_ALTERINDEX_REBUILD $base_table_name $indexName partitionSpec?)
+    ;
 
 fileFormat
 @init { msgs.push("file format specification"); }
@@ -458,8 +603,9 @@ fileFormat
     : KW_SEQUENCEFILE  -> ^(TOK_TBLSEQUENCEFILE)
     | KW_TEXTFILE  -> ^(TOK_TBLTEXTFILE)
     | KW_RCFILE  -> ^(TOK_TBLRCFILE)
-    | KW_INPUTFORMAT inFmt=StringLiteral KW_OUTPUTFORMAT outFmt=StringLiteral
-      -> ^(TOK_TABLEFILEFORMAT $inFmt $outFmt)
+    | KW_INPUTFORMAT inFmt=StringLiteral KW_OUTPUTFORMAT outFmt=StringLiteral (KW_INPUTDRIVER inDriver=StringLiteral KW_OUTPUTDRIVER outDriver=StringLiteral)?
+      -> ^(TOK_TABLEFILEFORMAT $inFmt $outFmt $inDriver? $outDriver?)
+    | genericSpec=Identifier -> ^(TOK_FILEFORMAT_GENERIC $genericSpec) 
     ;
 
 tabTypeExpr
@@ -478,8 +624,14 @@ partTypeExpr
 descStatement
 @init { msgs.push("describe statement"); }
 @after { msgs.pop(); }
-    : (KW_DESCRIBE|KW_DESC) (isExtended=KW_EXTENDED)? (parttype=partTypeExpr) -> ^(TOK_DESCTABLE $parttype $isExtended?)
+    : (KW_DESCRIBE|KW_DESC) (descOptions=KW_FORMATTED|descOptions=KW_EXTENDED)? (parttype=partTypeExpr) -> ^(TOK_DESCTABLE $parttype $descOptions?)
     | (KW_DESCRIBE|KW_DESC) KW_FUNCTION KW_EXTENDED? (name=descFuncNames) -> ^(TOK_DESCFUNCTION $name KW_EXTENDED?)
+    ;
+    
+analyzeStatement
+@init { msgs.push("analyze statement"); }
+@after { msgs.pop(); }
+    : KW_ANALYZE KW_TABLE (parttype=partTypeExpr) KW_COMPUTE KW_STATISTICS -> ^(TOK_ANALYZE $parttype)
     ;
 
 showStatement
@@ -491,6 +643,25 @@ showStatement
     | KW_SHOW KW_PARTITIONS Identifier partitionSpec? -> ^(TOK_SHOWPARTITIONS Identifier partitionSpec?)
     | KW_SHOW KW_TABLE KW_EXTENDED ((KW_FROM|KW_IN) db_name=Identifier)? KW_LIKE showStmtIdentifier partitionSpec?
     -> ^(TOK_SHOW_TABLESTATUS showStmtIdentifier $db_name? partitionSpec?)
+    | KW_SHOW KW_LOCKS -> ^(TOK_SHOWLOCKS)
+    ;
+
+lockStatement
+@init { msgs.push("lock statement"); }
+@after { msgs.pop(); }
+    : KW_LOCK KW_TABLE Identifier partitionSpec? lockMode -> ^(TOK_LOCKTABLE Identifier lockMode partitionSpec?)
+    ;
+
+lockMode
+@init { msgs.push("lock mode"); }
+@after { msgs.pop(); }
+    : KW_SHARED | KW_EXCLUSIVE
+    ;
+
+unlockStatement
+@init { msgs.push("unlock statement"); }
+@after { msgs.pop(); }
+    : KW_UNLOCK KW_TABLE Identifier partitionSpec?  -> ^(TOK_UNLOCKTABLE Identifier partitionSpec?)
     ;
 
 metastoreCheck
@@ -682,11 +853,13 @@ tableFileFormat
       KW_STORED KW_AS KW_SEQUENCEFILE  -> TOK_TBLSEQUENCEFILE
       | KW_STORED KW_AS KW_TEXTFILE  -> TOK_TBLTEXTFILE
       | KW_STORED KW_AS KW_RCFILE  -> TOK_TBLRCFILE
-      | KW_STORED KW_AS KW_INPUTFORMAT inFmt=StringLiteral KW_OUTPUTFORMAT outFmt=StringLiteral
-      -> ^(TOK_TABLEFILEFORMAT $inFmt $outFmt)
+      | KW_STORED KW_AS KW_INPUTFORMAT inFmt=StringLiteral KW_OUTPUTFORMAT outFmt=StringLiteral (KW_INPUTDRIVER inDriver=StringLiteral KW_OUTPUTDRIVER outDriver=StringLiteral)?      
+      -> ^(TOK_TABLEFILEFORMAT $inFmt $outFmt $inDriver? $outDriver?)
       | KW_STORED KW_BY storageHandler=StringLiteral
          (KW_WITH KW_SERDEPROPERTIES serdeprops=tableProperties)?
       -> ^(TOK_STORAGEHANDLER $storageHandler $serdeprops?)
+      | KW_STORED KW_AS genericSpec=Identifier      
+      -> ^(TOK_FILEFORMAT_GENERIC $genericSpec)
     ;
 
 tableLocation
@@ -778,11 +951,18 @@ colType
     : type
     ;
 
+colTypeList
+@init { msgs.push("column type list"); }
+@after { msgs.pop(); }
+    : colType (COMMA colType)* -> ^(TOK_COLTYPELIST colType+)
+    ;
+
 type
     : primitiveType
     | listType
     | structType
-    | mapType;
+    | mapType 
+    | unionType;
 
 primitiveType
 @init { msgs.push("primitive type specification"); }
@@ -817,6 +997,12 @@ mapType
 @after { msgs.pop(); }
     : KW_MAP LESSTHAN left=primitiveType COMMA right=type GREATERTHAN
     -> ^(TOK_MAP $left $right)
+    ;
+
+unionType
+@init { msgs.push("uniontype type"); }
+@after { msgs.pop(); }
+    : KW_UNIONTYPE LESSTHAN colTypeList GREATERTHAN -> ^(TOK_UNIONTYPE colTypeList)
     ;
 
 queryOperator
@@ -926,7 +1112,7 @@ selectClause
 @init { msgs.push("select clause"); }
 @after { msgs.pop(); }
     :
-    KW_SELECT hintClause? (((KW_ALL | dist=KW_DISTINCT)? selectList) 
+    KW_SELECT hintClause? (((KW_ALL | dist=KW_DISTINCT)? selectList)
                           | (transform=KW_TRANSFORM selectTrfmClause))
      -> {$transform == null && $dist == null}? ^(TOK_SELECT hintClause? selectList)
      -> {$transform == null && $dist != null}? ^(TOK_SELECTDI hintClause? selectList)
@@ -941,7 +1127,7 @@ selectList
     :
     selectItem ( COMMA  selectItem )* -> selectItem+
     ;
-    
+
 selectTrfmClause
 @init { msgs.push("transform clause"); }
 @after { msgs.pop(); }
@@ -972,7 +1158,7 @@ hintItem
 @init { msgs.push("hint item"); }
 @after { msgs.pop(); }
     :
-    hintName (LPAREN hintArgs RPAREN)? -> ^(TOK_HINT hintName hintArgs)
+    hintName (LPAREN hintArgs RPAREN)? -> ^(TOK_HINT hintName hintArgs?)
     ;
 
 hintName
@@ -981,6 +1167,7 @@ hintName
     :
     KW_MAPJOIN -> TOK_MAPJOIN
     | KW_STREAMTABLE -> TOK_STREAMTABLE
+    | KW_HOLD_DDLTIME -> TOK_HOLD_DDLTIME
     ;
 
 hintArgs
@@ -1242,7 +1429,7 @@ functionName
 @init { msgs.push("function name"); }
 @after { msgs.pop(); }
     : // Keyword IF is also a function name
-    Identifier | KW_IF | KW_ARRAY | KW_MAP | KW_STRUCT
+    Identifier | KW_IF | KW_ARRAY | KW_MAP | KW_STRUCT | KW_UNIONTYPE
     ;
 
 castExpression
@@ -1492,6 +1679,7 @@ sysFuncNames
     | KW_ARRAY
     | KW_MAP
     | KW_STRUCT
+    | KW_UNIONTYPE
     | EQUAL
     | NOTEQUAL
     | LESSTHANOREQUALTO
@@ -1556,6 +1744,8 @@ KW_PARTITION : 'PARTITION';
 KW_PARTITIONS : 'PARTITIONS';
 KW_TABLE: 'TABLE';
 KW_TABLES: 'TABLES';
+KW_INDEX: 'INDEX';
+KW_REBUILD: 'REBUILD';
 KW_FUNCTIONS: 'FUNCTIONS';
 KW_SHOW: 'SHOW';
 KW_MSCK: 'MSCK';
@@ -1599,6 +1789,7 @@ KW_STRING: 'STRING';
 KW_ARRAY: 'ARRAY';
 KW_STRUCT: 'STRUCT';
 KW_MAP: 'MAP';
+KW_UNIONTYPE: 'UNIONTYPE';
 KW_REDUCE: 'REDUCE';
 KW_PARTITIONED: 'PARTITIONED';
 KW_CLUSTERED: 'CLUSTERED';
@@ -1623,6 +1814,13 @@ KW_TEXTFILE: 'TEXTFILE';
 KW_RCFILE: 'RCFILE';
 KW_INPUTFORMAT: 'INPUTFORMAT';
 KW_OUTPUTFORMAT: 'OUTPUTFORMAT';
+KW_INPUTDRIVER: 'INPUTDRIVER';
+KW_OUTPUTDRIVER: 'OUTPUTDRIVER';
+KW_OFFLINE: 'OFFLINE';
+KW_ENABLE: 'ENABLE';
+KW_DISABLE: 'DISABLE';
+KW_READONLY: 'READONLY';
+KW_NO_DROP: 'NO_DROP';
 KW_LOCATION: 'LOCATION';
 KW_TABLESAMPLE: 'TABLESAMPLE';
 KW_BUCKET: 'BUCKET';
@@ -1638,12 +1836,15 @@ KW_TEMPORARY: 'TEMPORARY';
 KW_FUNCTION: 'FUNCTION';
 KW_EXPLAIN: 'EXPLAIN';
 KW_EXTENDED: 'EXTENDED';
+KW_FORMATTED: 'FORMATTED';	 
 KW_SERDE: 'SERDE';
 KW_WITH: 'WITH';
+KW_DEFERRED: 'DEFERRED';
 KW_SERDEPROPERTIES: 'SERDEPROPERTIES';
 KW_LIMIT: 'LIMIT';
 KW_SET: 'SET';
 KW_TBLPROPERTIES: 'TBLPROPERTIES';
+KW_IDXPROPERTIES: 'INDEXPROPERTIES';
 KW_VALUE_TYPE: '$VALUE$';
 KW_ELEM_TYPE: '$ELEM$';
 KW_CASE: 'CASE';
@@ -1653,6 +1854,7 @@ KW_ELSE: 'ELSE';
 KW_END: 'END';
 KW_MAPJOIN: 'MAPJOIN';
 KW_STREAMTABLE: 'STREAMTABLE';
+KW_HOLD_DDLTIME: 'HOLD_DDLTIME';
 KW_CLUSTERSTATUS: 'CLUSTERSTATUS';
 KW_UTC: 'UTC';
 KW_UTCTIMESTAMP: 'UTC_TMESTAMP';
@@ -1674,7 +1876,10 @@ KW_REVOKE: 'REVOKE';
 KW_SSL: 'SSL';
 KW_UNDO: 'UNDO';
 KW_LOCK: 'LOCK';
+KW_LOCKS: 'LOCKS';
 KW_UNLOCK: 'UNLOCK';
+KW_SHARED: 'SHARED';
+KW_EXCLUSIVE: 'EXCLUSIVE';
 KW_PROCEDURE: 'PROCEDURE';
 KW_UNSIGNED: 'UNSIGNED';
 KW_WHILE: 'WHILE';
@@ -1698,6 +1903,8 @@ KW_LATERAL: 'LATERAL';
 KW_TOUCH: 'TOUCH';
 KW_ARCHIVE: 'ARCHIVE';
 KW_UNARCHIVE: 'UNARCHIVE';
+KW_COMPUTE: 'COMPUTE';
+KW_STATISTICS: 'STATISTICS';
 KW_USE: 'USE';
 
 // Operators

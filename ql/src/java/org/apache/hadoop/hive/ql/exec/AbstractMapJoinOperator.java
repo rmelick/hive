@@ -30,6 +30,7 @@ import org.apache.hadoop.hive.ql.exec.persistence.RowContainer;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.MapJoinDesc;
 import org.apache.hadoop.hive.ql.plan.api.OperatorType;
+import org.apache.hadoop.hive.ql.util.JoinUtil;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
@@ -67,7 +68,8 @@ public abstract class AbstractMapJoinOperator <T extends MapJoinDesc> extends Co
       };
 
   transient boolean firstRow;
-  transient int heartbeatInterval;
+
+  private static final int NOTSKIPBIGTABLE = -1;
 
   public AbstractMapJoinOperator() {
   }
@@ -82,22 +84,22 @@ public abstract class AbstractMapJoinOperator <T extends MapJoinDesc> extends Co
 
     numMapRowsRead = 0;
     firstRow = true;
-    heartbeatInterval = HiveConf.getIntVar(hconf,
-        HiveConf.ConfVars.HIVESENDHEARTBEAT);
 
     joinKeys = new HashMap<Byte, List<ExprNodeEvaluator>>();
 
-    populateJoinKeyValue(joinKeys, conf.getKeys());
-    joinKeysObjectInspectors = getObjectInspectorsFromEvaluators(joinKeys,
-        inputObjInspectors);
-    joinKeysStandardObjectInspectors = getStandardObjectInspectors(joinKeysObjectInspectors);
+    JoinUtil.populateJoinKeyValue(joinKeys, conf.getKeys(),order,NOTSKIPBIGTABLE);
+    joinKeysObjectInspectors = JoinUtil.getObjectInspectorsFromEvaluators(joinKeys,
+        inputObjInspectors,NOTSKIPBIGTABLE);
+    joinKeysStandardObjectInspectors = JoinUtil.getStandardObjectInspectors(
+        joinKeysObjectInspectors,NOTSKIPBIGTABLE);
 
     // all other tables are small, and are cached in the hash table
     posBigTable = conf.getPosBigTable();
 
     emptyList = new RowContainer<ArrayList<Object>>(1, hconf);
-    RowContainer bigPosRC = getRowContainer(hconf, (byte) posBigTable,
-        order[posBigTable], joinCacheSize);
+    RowContainer bigPosRC = JoinUtil.getRowContainer(hconf,
+        rowContainerStandardObjectInspectors.get((byte) posBigTable),
+        order[posBigTable], joinCacheSize,spillTableDesc, conf,noOuterJoin);
     storage.put((byte) posBigTable, bigPosRC);
 
     mapJoinRowsKey = HiveConf.getIntVar(hconf,
@@ -123,22 +125,28 @@ public abstract class AbstractMapJoinOperator <T extends MapJoinDesc> extends Co
     initializeChildren(hconf);
   }
 
+
   @Override
   protected void fatalErrorMessage(StringBuilder errMsg, long counterCode) {
     errMsg.append("Operator " + getOperatorId() + " (id=" + id + "): "
         + FATAL_ERR_MSG[(int) counterCode]);
   }
 
-  protected void reportProgress() {
-    // Send some status periodically
-    numMapRowsRead++;
-    if (((numMapRowsRead % heartbeatInterval) == 0) && (reporter != null)) {
-      reporter.progress();
-    }
-  }
-
   @Override
   public int getType() {
     return OperatorType.MAPJOIN;
   }
+
+  // returns true if there are elements in key list and any of them is null
+  protected boolean hasAnyNulls(ArrayList<Object> key) {
+    if (key != null && key.size() > 0) {
+      for (Object k : key) {
+        if (k == null) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
 }

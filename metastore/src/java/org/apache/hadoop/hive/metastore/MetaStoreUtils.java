@@ -325,7 +325,6 @@ public class MetaStoreUtils {
     return "map<" + k + "," + v + ">";
   }
 
-
   public static void setSerdeParam(SerDeInfo sdi, Properties schema,
       String param) {
     String val = schema.getProperty(param);
@@ -755,5 +754,36 @@ public class MetaStoreUtils {
       }
     }
     return true;
+  }
+
+  public static String getIndexTableName(String dbName, String baseTblName, String indexName) {
+    return dbName + "__" + baseTblName + "_" + indexName + "__";
+  }
+
+  public static boolean isIndexTable(Table table) {
+    if (table == null) {
+      return false;
+    }
+    return TableType.INDEX_TABLE.toString().equals(table.getTableType());
+  }
+
+  /**
+   * Given a map of partition column names to values, this creates a filter
+   * string that can be used to call the *byFilter methods
+   * @param m
+   * @return
+   */
+  public static String makeFilterStringFromMap(Map<String, String> m) {
+    StringBuilder filter = new StringBuilder();
+    for (Entry<String, String> e : m.entrySet()) {
+      String col = e.getKey();
+      String val = e.getValue();
+      if (filter.length() == 0) {
+        filter.append(col + "=\"" + val + "\"");
+      } else {
+        filter.append(" and " + col + "=\"" + val + "\"");
+      }
+    }
+    return filter.toString();
   }
 }

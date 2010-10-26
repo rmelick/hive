@@ -51,6 +51,7 @@ import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.lib.Node;
 import org.apache.hadoop.hive.ql.lib.NodeProcessor;
 import org.apache.hadoop.hive.ql.lib.NodeProcessorCtx;
+import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
 import org.apache.hadoop.hive.ql.parse.OpParseContext;
 import org.apache.hadoop.hive.ql.parse.RowResolver;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
@@ -63,6 +64,7 @@ import org.apache.hadoop.hive.ql.plan.PlanUtils;
 import org.apache.hadoop.hive.ql.plan.ReduceSinkDesc;
 import org.apache.hadoop.hive.ql.plan.SelectDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
+import org.apache.hadoop.hive.ql.plan.TableScanDesc;
 
 /**
  * Factory for generating the different node processors used by ColumnPruner.
@@ -178,12 +180,34 @@ public final class ColumnPrunerProcFactory {
           cols);
       ArrayList<Integer> needed_columns = new ArrayList<Integer>();
       RowResolver inputRR = cppCtx.getOpToParseCtxMap().get(scanOp).getRR();
+      TableScanDesc desc = scanOp.getConf();
+      List<VirtualColumn> virtualCols = desc.getVirtualCols();
+      List<VirtualColumn> newVirtualCols = new ArrayList<VirtualColumn>();
       for (int i = 0; i < cols.size(); i++) {
+        String[] tabCol = inputRR.reverseLookup(cols.get(i));
+        if(tabCol == null) {
+          continue;
+        }
+        ColumnInfo colInfo = inputRR.get(tabCol[0], tabCol[1]);
+        if (colInfo.getIsVirtualCol()) {
+          // part is also a virtual column, but part col should not in this
+          // list.
+          for (int j = 0; j < virtualCols.size(); j++) {
+            VirtualColumn vc = virtualCols.get(j);
+            if (vc.getName().equals(colInfo.getInternalName())) {
+              newVirtualCols.add(vc);
+            }
+          }
+          //no need to pass virtual columns to reader.
+          continue;
+        }
         int position = inputRR.getPosition(cols.get(i));
         if (position >=0) {
           needed_columns.add(position);
         }
       }
+
+      desc.setVirtualCols(newVirtualCols);
       scanOp.setNeededColumnIDs(needed_columns);
       return null;
     }
@@ -575,6 +599,20 @@ public final class ColumnPrunerProcFactory {
     }
 
     List<String> childColLists = cppCtx.genColLists(op);
+
+    //add the columns in join filters
+    Set<Map.Entry<Byte, List<ExprNodeDesc>>> filters =
+      conf.getFilters().entrySet();
+    Iterator<Map.Entry<Byte, List<ExprNodeDesc>>> iter = filters.iterator();
+    while (iter.hasNext()) {
+      Map.Entry<Byte, List<ExprNodeDesc>> entry = iter.next();
+      Byte tag = entry.getKey();
+      for (ExprNodeDesc desc : entry.getValue()) {
+        List<String> cols = prunedColLists.get(tag);
+        cols = Utilities.mergeUniqElems(cols, desc.getCols());
+        prunedColLists.put(tag, cols);
+     }
+    }
 
     RowResolver joinRR = cppCtx.getOpToParseCtxMap().get(op).getRR();
     RowResolver newJoinRR = new RowResolver();

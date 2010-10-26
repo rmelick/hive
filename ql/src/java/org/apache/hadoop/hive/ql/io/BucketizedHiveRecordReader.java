@@ -20,13 +20,14 @@ package org.apache.hadoop.hive.ql.io;
 
 import java.io.IOException;
 
-import org.apache.hadoop.hive.ql.exec.ExecMapper;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
 
 /**
  * BucketizedHiveRecordReader is a wrapper on a list of RecordReader. It behaves
@@ -34,7 +35,7 @@ import org.apache.hadoop.mapred.Reporter;
  * file.
  */
 public class BucketizedHiveRecordReader<K extends WritableComparable, V extends Writable>
-    implements RecordReader<K, V> {
+    extends HiveContextAwareRecordReader<K, V> {
   protected final BucketizedHiveInputSplit split;
   protected final InputFormat inputFormat;
   protected final JobConf jobConf;
@@ -53,7 +54,7 @@ public class BucketizedHiveRecordReader<K extends WritableComparable, V extends 
     initNextRecordReader();
   }
 
-  public void close() throws IOException {
+  public void doClose() throws IOException {
     if (curReader != null) {
       curReader.close();
       curReader = null;
@@ -84,18 +85,13 @@ public class BucketizedHiveRecordReader<K extends WritableComparable, V extends 
         / (float) (split.getLength()));
   }
 
-  public boolean next(K key, V value) throws IOException {
-    try {
-      while ((curReader == null) || !curReader.next(key, value)) {
-        if (!initNextRecordReader()) {
-       	  return false;
-        }
+  public boolean doNext(K key, V value) throws IOException {
+    while ((curReader == null) || !curReader.next(key, value)) {
+      if (!initNextRecordReader()) {
+        return false;
       }
-      return true;
-    } catch (IOException e) {
-      ExecMapper.setAbort(true);
-      throw e;
     }
+    return true;
   }
 
   /**

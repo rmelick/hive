@@ -1,6 +1,5 @@
 package org.apache.hadoop.hive.ql.exec;
 
-import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -8,10 +7,9 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.io.IOContext;
 import org.apache.hadoop.hive.ql.plan.MapredLocalWork;
 import org.apache.hadoop.hive.ql.plan.MapredLocalWork.BucketMapJoinContext;
-import org.apache.hadoop.hive.serde2.objectinspector.InspectableObject;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.ReflectionUtils;
 
@@ -33,15 +31,22 @@ public class ExecMapperContext {
   private Map<String, FetchOperator> fetchOperators;
   private JobConf jc;
 
-  public ExecMapperContext() {
+  private IOContext ioCxt;
+
+  private String currentBigBucketFile=null;
+
+  public String getCurrentBigBucketFile() {
+    return currentBigBucketFile;
   }
 
-  public void processInputFileChangeForLocalWork() throws HiveException {
-    // put inputFileChanged() after localWork check
-    if (this.localWork != null && inputFileChanged()) {
-      processMapLocalWork(localWork.getInputFileChangeSensitive());
-    }
+  public void setCurrentBigBucketFile(String currentBigBucketFile) {
+    this.currentBigBucketFile = currentBigBucketFile;
   }
+
+  public ExecMapperContext() {
+    ioCxt = IOContext.get();
+  }
+
 
 
   /**
@@ -56,7 +61,7 @@ public class ExecMapperContext {
    */
   public boolean inputFileChanged() {
     if (!inputFileChecked) {
-      currentInputFile = HiveConf.getVar(jc, HiveConf.ConfVars.HADOOPMAPFILENAME);
+      currentInputFile = this.ioCxt.getInputFile();
       inputFileChecked = true;
     }
     return lastInputFile == null || !lastInputFile.equals(currentInputFile);
@@ -81,57 +86,6 @@ public class ExecMapperContext {
     this.lastInputFile = lastInputFile;
   }
 
-  private void processMapLocalWork(boolean inputFileChangeSenstive) throws HiveException {
-    // process map local operators
-    if (fetchOperators != null) {
-      try {
-        int fetchOpNum = 0;
-        for (Map.Entry<String, FetchOperator> entry : fetchOperators.entrySet()) {
-          int fetchOpRows = 0;
-          String alias = entry.getKey();
-          FetchOperator fetchOp = entry.getValue();
-
-          if (inputFileChangeSenstive) {
-            fetchOp.clearFetchContext();
-            setUpFetchOpContext(fetchOp, alias);
-          }
-
-          Operator<? extends Serializable> forwardOp = localWork
-              .getAliasToWork().get(alias);
-
-          while (true) {
-            InspectableObject row = fetchOp.getNextRow();
-            if (row == null) {
-              forwardOp.close(false);
-              break;
-            }
-            fetchOpRows++;
-            forwardOp.process(row.o, 0);
-            // check if any operator had a fatal error or early exit during
-            // execution
-            if (forwardOp.getDone()) {
-              ExecMapper.setDone(true);
-              break;
-            }
-          }
-
-          if (l4j.isInfoEnabled()) {
-            l4j.info("fetch " + fetchOpNum++ + " processed " + fetchOpRows
-                + " used mem: "
-                + ExecMapper.memoryMXBean.getHeapMemoryUsage().getUsed());
-          }
-        }
-      } catch (Throwable e) {
-        if (e instanceof OutOfMemoryError) {
-          // Don't create a new object if we are already out of memory
-          throw (OutOfMemoryError) e;
-        } else {
-          throw new HiveException(
-              "Hive Runtime Error: Map local work failed", e);
-        }
-      }
-    }
-  }
 
   private void setUpFetchOpContext(FetchOperator fetchOp, String alias)
       throws Exception {
@@ -190,4 +144,13 @@ public class ExecMapperContext {
   public void setFetchOperators(Map<String, FetchOperator> fetchOperators) {
     this.fetchOperators = fetchOperators;
   }
+
+  public IOContext getIoCxt() {
+    return ioCxt;
+  }
+
+  public void setIoCxt(IOContext ioCxt) {
+    this.ioCxt = ioCxt;
+  }
+
 }

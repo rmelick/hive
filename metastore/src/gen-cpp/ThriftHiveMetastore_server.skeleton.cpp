@@ -162,6 +162,11 @@ class ThriftHiveMetastoreHandler : virtual public ThriftHiveMetastoreIf {
     printf("get_partition_names_ps\n");
   }
 
+  void get_partitions_by_filter(std::vector<Partition> & _return, const std::string& db_name, const std::string& tbl_name, const std::string& filter, const int16_t max_parts) {
+    // Your implementation goes here
+    printf("get_partitions_by_filter\n");
+  }
+
   void alter_partition(const std::string& db_name, const std::string& tbl_name, const Partition& new_part) {
     // Your implementation goes here
     printf("alter_partition\n");
@@ -180,6 +185,31 @@ class ThriftHiveMetastoreHandler : virtual public ThriftHiveMetastoreIf {
   void partition_name_to_spec(std::map<std::string, std::string> & _return, const std::string& part_name) {
     // Your implementation goes here
     printf("partition_name_to_spec\n");
+  }
+
+  void add_index(Index& _return, const Index& new_index, const Table& index_table) {
+    // Your implementation goes here
+    printf("add_index\n");
+  }
+
+  bool drop_index_by_name(const std::string& db_name, const std::string& tbl_name, const std::string& index_name, const bool deleteData) {
+    // Your implementation goes here
+    printf("drop_index_by_name\n");
+  }
+
+  void get_index_by_name(Index& _return, const std::string& db_name, const std::string& tbl_name, const std::string& index_name) {
+    // Your implementation goes here
+    printf("get_index_by_name\n");
+  }
+
+  void get_indexes(std::vector<Index> & _return, const std::string& db_name, const std::string& tbl_name, const int16_t max_indexes) {
+    // Your implementation goes here
+    printf("get_indexes\n");
+  }
+
+  void get_index_names(std::vector<std::string> & _return, const std::string& db_name, const std::string& tbl_name, const int16_t max_indexes) {
+    // Your implementation goes here
+    printf("get_index_names\n");
   }
 
 };

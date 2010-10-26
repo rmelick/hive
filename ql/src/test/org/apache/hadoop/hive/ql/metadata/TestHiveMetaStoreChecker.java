@@ -16,7 +16,6 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat;
-import org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat;
 import org.apache.hadoop.hive.serde.Constants;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.thrift.TException;
@@ -172,6 +171,7 @@ public class TestHiveMetaStoreChecker extends TestCase {
     hive.createDatabase(db);
 
     Table table = new Table(dbName, tableName);
+    table.setDbName(dbName);
     table.setInputFormatClass(TextInputFormat.class);
     table.setOutputFormatClass(HiveIgnoreKeyTextOutputFormat.class);
     table.setPartCols(partCols);

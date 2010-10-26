@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.Index;
 import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
@@ -36,7 +37,7 @@ public interface RawStore extends Configurable {
   /**
    * Opens a new one or the one already created Every call of this function must
    * have corresponding commit or rollback function call
-   * 
+   *
    * @return an active transaction
    */
 
@@ -45,7 +46,7 @@ public interface RawStore extends Configurable {
   /**
    * if this is the commit of the first open call then an actual commit is
    * called.
-   * 
+   *
    * @return true or false
    */
   public abstract boolean commitTransaction();
@@ -61,8 +62,7 @@ public interface RawStore extends Configurable {
   public abstract Database getDatabase(String name)
       throws NoSuchObjectException;
 
-  public abstract boolean dropDatabase(String dbname)
-      throws NoSuchObjectException, MetaException;
+  public abstract boolean dropDatabase(String dbname) throws NoSuchObjectException, MetaException;
 
   public abstract List<String> getDatabases(String pattern) throws MetaException;
 
@@ -102,10 +102,31 @@ public interface RawStore extends Configurable {
       throws MetaException;
 
   public List<String> getAllTables(String dbName) throws MetaException;
-    
+
   public abstract List<String> listPartitionNames(String db_name,
       String tbl_name, short max_parts) throws MetaException;
 
+  public abstract List<String> listPartitionNamesByFilter(String db_name,
+      String tbl_name, String filter, short max_parts) throws MetaException;
+
   public abstract void alterPartition(String db_name, String tbl_name,
       Partition new_part) throws InvalidObjectException, MetaException;
+
+  public abstract boolean addIndex(Index index)
+      throws InvalidObjectException, MetaException;
+
+  public abstract Index getIndex(String dbName, String origTableName, String indexName) throws MetaException;
+
+  public abstract boolean dropIndex(String dbName, String origTableName, String indexName) throws MetaException;
+
+  public abstract List<Index> getIndexes(String dbName,
+      String origTableName, int max) throws MetaException;
+
+  public abstract List<String> listIndexNames(String dbName,
+      String origTableName, short max) throws MetaException;
+
+  public abstract List<Partition> getPartitionsByFilter(
+      String dbName, String tblName, String filter, short maxParts)
+      throws MetaException, NoSuchObjectException;
+
 }

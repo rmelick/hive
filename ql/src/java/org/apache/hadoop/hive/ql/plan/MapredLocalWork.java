@@ -20,12 +20,13 @@ package org.apache.hadoop.hive.ql.plan;
 
 import java.io.File;
 import java.io.Serializable;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map.Entry;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.BucketMatcher;
 import org.apache.hadoop.hive.ql.exec.Operator;
 
@@ -41,8 +42,13 @@ public class MapredLocalWork implements Serializable {
   private LinkedHashMap<String, FetchWork> aliasToFetchWork;
   private boolean inputFileChangeSensitive;
   private BucketMapJoinContext bucketMapjoinContext;
+  private String tmpFileURI;
+
+
+  private List<Operator<? extends Serializable>> dummyParentOp ;
 
   public MapredLocalWork() {
+
   }
 
   public MapredLocalWork(
@@ -50,12 +56,31 @@ public class MapredLocalWork implements Serializable {
       final LinkedHashMap<String, FetchWork> aliasToFetchWork) {
     this.aliasToWork = aliasToWork;
     this.aliasToFetchWork = aliasToFetchWork;
+
   }
+
+  public MapredLocalWork(MapredLocalWork clone){
+    this.tmpFileURI = clone.tmpFileURI;
+    this.inputFileChangeSensitive=clone.inputFileChangeSensitive;
+
+  }
+
+
+  public void setDummyParentOp(List<Operator<? extends Serializable>> op){
+    this.dummyParentOp=op;
+  }
+
+
+  public List<Operator<? extends Serializable>> getDummyParentOp(){
+    return this.dummyParentOp;
+  }
+
 
   @Explain(displayName = "Alias -> Map Local Operator Tree")
   public LinkedHashMap<String, Operator<? extends Serializable>> getAliasToWork() {
     return aliasToWork;
   }
+
 
   public void setAliasToWork(
       final LinkedHashMap<String, Operator<? extends Serializable>> aliasToWork) {
@@ -87,6 +112,8 @@ public class MapredLocalWork implements Serializable {
     this.inputFileChangeSensitive = inputFileChangeSensitive;
   }
 
+
+
   public void deriveExplainAttributes() {
     if (bucketMapjoinContext != null) {
       bucketMapjoinContext.deriveBucketMapJoinMapping();
@@ -107,6 +134,14 @@ public class MapredLocalWork implements Serializable {
 
   public void setBucketMapjoinContext(BucketMapJoinContext bucketMapjoinContext) {
     this.bucketMapjoinContext = bucketMapjoinContext;
+  }
+
+  public void setTmpFileURI(String tmpFileURI) {
+    this.tmpFileURI = tmpFileURI;
+  }
+
+  public String getTmpFileURI() {
+    return tmpFileURI;
   }
 
   public static class BucketMapJoinContext implements Serializable {
@@ -166,9 +201,7 @@ public class MapredLocalWork implements Serializable {
 
     private String getBaseFileName (String path) {
       try {
-        URI uri = new URI(path);
-        File file = new File(uri);
-        return file.getName();
+	return ((new Path(path)).getName());
       } catch (Exception ex) {
         // This could be due to either URI syntax error or File constructor
         // illegal arg; we don't really care which one it is.
@@ -199,11 +232,13 @@ public class MapredLocalWork implements Serializable {
       this.aliasBucketFileNameMapping = aliasBucketFileNameMapping;
     }
 
+    @Override
     public String toString() {
-      if (aliasBucketFileNameMapping != null)
+      if (aliasBucketFileNameMapping != null) {
         return "Mapping:" + aliasBucketFileNameMapping.toString();
-      else
+      } else {
         return "";
+      }
     }
 
     @Explain(displayName = "Alias Bucket Base File Name Mapping", normalExplain = false)
