@@ -23,13 +23,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Order;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 
 @explain(displayName="Alter Table")
 public class alterTableDesc extends ddlDesc implements Serializable 
 {
   private static final long serialVersionUID = 1L;
-  public static enum alterTableTypes {RENAME, ADDCOLS, REPLACECOLS, ADDPROPS, ADDSERDE, ADDSERDEPROPS};
+  public static enum alterTableTypes {RENAME, ADDCOLS, REPLACECOLS, ADDPROPS, ADDSERDE, ADDSERDEPROPS, ADDFILEFORMAT, ADDCLUSTERSORTCOLUMN, RENAMECOLUMN};
     
   alterTableTypes      op;
   String               oldName;
@@ -37,7 +38,39 @@ public class alterTableDesc extends ddlDesc implements Serializable
   List<FieldSchema>    newCols;
   String               serdeName;
   Map<String, String>  props;
+  String	             inputFormat;
+	String               outputFormat;
+	int                  numberBuckets;
+	List<String>         bucketColumns;
+	List<Order>          sortColumns;
+
+
+  String              oldColName;
+  String              newColName;
+  String              newColType;
+  String              newColComment;
+  boolean             first;
+  String              afterCol;
   
+  /**
+   * @param tblName table name
+   * @param oldColName  old column name
+   * @param newColName  new column name
+   * @param newComment 
+   * @param newType 
+   */
+  public alterTableDesc(String tblName, String oldColName, String newColName, String newType, String newComment, boolean first, String afterCol) {
+    super();
+    this.oldName = tblName;
+    this.oldColName = oldColName;
+    this.newColName = newColName;
+    this.newColType = newType;
+    this.newColComment = newComment;
+    this.first = first;
+    this.afterCol = afterCol;
+    this.op = alterTableTypes.RENAMECOLUMN;
+  }
+
   /**
    * @param oldName old name of the table
    * @param newName new name of the table
@@ -66,6 +99,30 @@ public class alterTableDesc extends ddlDesc implements Serializable
   }
 
   /**
+   * 
+   * @param name name of the table
+   * @param inputFormat new table input format
+   * @param outputFormat new table output format 
+   */
+  public alterTableDesc(String name, String inputFormat, String outputFormat, String serdeName) {
+	  super();
+	  this.op = alterTableTypes.ADDFILEFORMAT;
+	  this.oldName = name;
+	  this.inputFormat = inputFormat;
+	  this.outputFormat = outputFormat;
+	  this.serdeName = serdeName;
+  }
+  
+  public alterTableDesc(String tableName, int numBuckets,
+      List<String> bucketCols, List<Order> sortCols) {
+  	this.oldName = tableName;
+  	this.op = alterTableTypes.ADDCLUSTERSORTCOLUMN;
+  	this.numberBuckets = numBuckets;
+  	this.bucketColumns = bucketCols;
+  	this.sortColumns = sortCols;
+  }
+
+	/**
    * @return the old name of the table
    */
   @explain(displayName="old name")
@@ -168,6 +225,162 @@ public class alterTableDesc extends ddlDesc implements Serializable
    */
   public void setProps(Map<String, String> props) {
     this.props = props;
+  }
+  
+  /**
+   * @return the input format
+   */
+  @explain(displayName="input format")
+	public String getInputFormat() {
+  	return inputFormat;
+  }
+
+  /**
+   * @param inputFormat the input format to set
+   */
+	public void setInputFormat(String inputFormat) {
+  	this.inputFormat = inputFormat;
+  }
+
+  /**
+   * @return the output format
+   */
+  @explain(displayName="output format")
+	public String getOutputFormat() {
+  	return outputFormat;
+  }
+
+  /**
+   * @param outputFormat the output format to set
+   */
+	public void setOutputFormat(String outputFormat) {
+  	this.outputFormat = outputFormat;
+  }
+
+	/**
+	 * @return the number of buckets
+	 */
+	public int getNumberBuckets() {
+  	return numberBuckets;
+  }
+
+	/**
+	 * @param numberBuckets the number of buckets to set
+	 */
+	public void setNumberBuckets(int numberBuckets) {
+  	this.numberBuckets = numberBuckets;
+  }
+
+	/**
+	 * @return the bucket columns
+	 */
+	public List<String> getBucketColumns() {
+  	return bucketColumns;
+  }
+
+	/**
+	 * @param bucketColumns the bucket columns to set
+	 */
+	public void setBucketColumns(List<String> bucketColumns) {
+  	this.bucketColumns = bucketColumns;
+  }
+
+	/**
+	 * @return the sort columns
+	 */
+	public List<Order> getSortColumns() {
+  	return sortColumns;
+  }
+
+	/**
+	 * @param sortColumns the sort columns to set
+	 */
+	public void setSortColumns(List<Order> sortColumns) {
+  	this.sortColumns = sortColumns;
+  }
+
+/**
+ * @return old column name
+ */
+  public String getOldColName() {
+    return oldColName;
+  }
+
+  /**
+   * @param oldColName the old column name
+   */
+  public void setOldColName(String oldColName) {
+    this.oldColName = oldColName;
+  }
+
+  /**
+   * @return new column name
+   */
+  public String getNewColName() {
+    return newColName;
+  }
+
+  /**
+   * @param newColName the new column name
+   */
+  public void setNewColName(String newColName) {
+    this.newColName = newColName;
+  }
+
+  /**
+   * @return new column type
+   */
+  public String getNewColType() {
+    return newColType;
+  }
+
+  /**
+   * @param newType new column's type
+   */
+  public void setNewColType(String newType) {
+    this.newColType = newType;
+  }
+
+  /**
+   * @return new column's comment
+   */
+  public String getNewColComment() {
+    return newColComment;
+  }
+
+  /**
+   * @param newComment new column's comment
+   */
+  public void setNewColComment(String newComment) {
+    this.newColComment = newComment;
+  }
+
+  /**
+   * @return if the column should be changed to position 0
+   */
+  public boolean getFirst() {
+    return first;
+  }
+
+  /**
+   * @param first set the column to position 0
+   */
+  public void setFirst(boolean first) {
+    this.first = first;
+  }
+
+  /**
+   * @return the column's after position
+   */
+  public String getAfterCol() {
+    return afterCol;
+  }
+
+  /**
+   * @param afterCol set the column's after position
+   */
+  public void setAfterCol(String afterCol) {
+    this.afterCol = afterCol;
   }
 
 }

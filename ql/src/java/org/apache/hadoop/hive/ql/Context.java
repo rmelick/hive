@@ -180,6 +180,9 @@ public class Context {
         makeMRScratchDir();
       } catch (IOException e) {
         throw new RuntimeException (e);
+      } catch (IllegalArgumentException e) {
+        throw new RuntimeException("Error while making MR scratch " + 
+            "directory - check filesystem config (" + e.getCause() + ")", e);
       }
     }
     return MRScratchDir.toString();
@@ -194,6 +197,9 @@ public class Context {
         makeLocalScratchDir();
       } catch (IOException e) {
         throw new RuntimeException(e);
+      } catch (IllegalArgumentException e) {
+        throw new RuntimeException("Error while making local scratch " + 
+            "directory - check filesystem config (" + e.getCause() + ")", e);
       }
     }
     return localScratchDir.toString();
@@ -206,14 +212,14 @@ public class Context {
     if (explain) {
       try {
         if (localScratchDir != null)
-          FileSystem.getLocal(conf).delete(localScratchDir);
+          FileSystem.getLocal(conf).delete(localScratchDir, true);
       } catch (Exception e) {
         LOG.warn("Error Removing Scratch: " + StringUtils.stringifyException(e));
       }
     } else {
       for (Path p: allScratchDirs) {
         try {
-          p.getFileSystem(conf).delete(p);
+          p.getFileSystem(conf).delete(p, true);
         } catch (Exception e) {
           LOG.warn("Error Removing Scratch: " + StringUtils.stringifyException(e));
         }

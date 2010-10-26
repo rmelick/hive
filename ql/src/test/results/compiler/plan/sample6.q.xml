@@ -30,7 +30,7 @@
                <boolean>true</boolean> 
               </void> 
               <void property="sourceDir"> 
-               <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1211971134/10000</string> 
+               <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/758006675/10000</string> 
               </void> 
               <void property="table"> 
                <object id="tableDesc0" class="org.apache.hadoop.hive.ql.plan.tableDesc"> 
@@ -44,7 +44,7 @@
                  <class>org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat</class> 
                 </void> 
                 <void property="properties"> 
-                 <object class="java.util.Properties"> 
+                 <object id="Properties0" class="java.util.Properties"> 
                   <void method="put"> 
                    <string>name</string> 
                    <string>dest1</string> 
@@ -83,7 +83,11 @@
                   </void> 
                   <void method="put"> 
                    <string>location</string> 
-                   <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/dest1</string> 
+                   <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/test/data/warehouse/dest1</string> 
+                  </void> 
+                  <void method="put"> 
+                   <string>transient_lastDdlTime</string> 
+                   <string>1263415351</string> 
                   </void> 
                  </object> 
                 </void> 
@@ -93,7 +97,7 @@
                </object> 
               </void> 
               <void property="tmpDir"> 
-               <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1211971134/10001</string> 
+               <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/758006675/10001</string> 
               </void> 
              </object> 
             </void> 
@@ -121,10 +125,10 @@
                <boolean>true</boolean> 
               </void> 
               <void property="sourceDir"> 
-               <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/125395821/10002</string> 
+               <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/540986636/10002</string> 
               </void> 
               <void property="targetDir"> 
-               <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1211971134/10000</string> 
+               <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/758006675/10000</string> 
               </void> 
              </object> 
             </void> 
@@ -142,7 +146,7 @@
             <void property="aliasToWork"> 
              <object class="java.util.LinkedHashMap"> 
               <void method="put"> 
-               <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/125395821/10002</string> 
+               <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/540986636/10002</string> 
                <object id="TableScanOperator0" class="org.apache.hadoop.hive.ql.exec.TableScanOperator"> 
                 <void property="childOperators"> 
                  <object class="java.util.ArrayList"> 
@@ -201,21 +205,19 @@
                       <void property="partitionCols"> 
                        <object class="java.util.ArrayList"> 
                         <void method="add"> 
-                         <object class="org.apache.hadoop.hive.ql.plan.exprNodeFuncDesc"> 
-                          <void property="UDFClass"> 
-                           <class>org.apache.hadoop.hive.ql.udf.UDFRand</class> 
-                          </void> 
-                          <void property="UDFMethod"> 
-                           <object class="org.apache.hadoop.hive.ql.udf.UDFRand" method="getMethod"> 
-                            <string>evaluate</string> 
-                            <array class="java.lang.Class" length="0"/> 
-                           </object> 
-                          </void> 
+                         <object class="org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc"> 
                           <void property="childExprs"> 
                            <object class="java.util.ArrayList"/> 
                           </void> 
-                          <void property="methodName"> 
-                           <string>rand</string> 
+                          <void property="genericUDF"> 
+                           <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                            <void property="udfClass"> 
+                             <class>org.apache.hadoop.hive.ql.udf.UDFRand</class> 
+                            </void> 
+                            <void property="udfName"> 
+                             <string>rand</string> 
+                            </void> 
+                           </object> 
                           </void> 
                           <void property="typeInfo"> 
                            <object class="org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo"> 
@@ -268,7 +270,7 @@
                       <void property="valueSerializeInfo"> 
                        <object id="tableDesc2" class="org.apache.hadoop.hive.ql.plan.tableDesc"> 
                         <void property="deserializerClass"> 
-                         <class>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</class> 
+                         <class>org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe</class> 
                         </void> 
                         <void property="inputFileFormatClass"> 
                          <class>org.apache.hadoop.mapred.SequenceFileInputFormat</class> 
@@ -295,6 +297,25 @@
                        </object> 
                       </void> 
                      </object> 
+                    </void> 
+                    <void property="counterNames"> 
+                     <object class="java.util.ArrayList"> 
+                      <void method="add"> 
+                       <string>CNTR_NAME_RS_6_NUM_INPUT_ROWS</string> 
+                      </void> 
+                      <void method="add"> 
+                       <string>CNTR_NAME_RS_6_NUM_OUTPUT_ROWS</string> 
+                      </void> 
+                      <void method="add"> 
+                       <string>CNTR_NAME_RS_6_TIME_TAKEN</string> 
+                      </void> 
+                      <void method="add"> 
+                       <string>CNTR_NAME_RS_6_FATAL_ERROR</string> 
+                      </void> 
+                     </object> 
+                    </void> 
+                    <void property="operatorId"> 
+                     <string>RS_6</string> 
                     </void> 
                     <void property="parentOperators"> 
                      <object class="java.util.ArrayList"> 
@@ -335,6 +356,25 @@
                   </void> 
                  </object> 
                 </void> 
+                <void property="counterNames"> 
+                 <object class="java.util.ArrayList"> 
+                  <void method="add"> 
+                   <string>CNTR_NAME_TS_5_NUM_INPUT_ROWS</string> 
+                  </void> 
+                  <void method="add"> 
+                   <string>CNTR_NAME_TS_5_NUM_OUTPUT_ROWS</string> 
+                  </void> 
+                  <void method="add"> 
+                   <string>CNTR_NAME_TS_5_TIME_TAKEN</string> 
+                  </void> 
+                  <void method="add"> 
+                   <string>CNTR_NAME_TS_5_FATAL_ERROR</string> 
+                  </void> 
+                 </object> 
+                </void> 
+                <void property="operatorId"> 
+                 <string>TS_5</string> 
+                </void> 
                 <void property="schema"> 
                  <object idref="RowSchema0"/> 
                 </void> 
@@ -351,10 +391,10 @@
             <void property="pathToAliases"> 
              <object class="java.util.LinkedHashMap"> 
               <void method="put"> 
-               <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/125395821/10002</string> 
+               <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/540986636/10002</string> 
                <object class="java.util.ArrayList"> 
                 <void method="add"> 
-                 <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/125395821/10002</string> 
+                 <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/540986636/10002</string> 
                 </void> 
                </object> 
               </void> 
@@ -363,8 +403,23 @@
             <void property="pathToPartitionInfo"> 
              <object class="java.util.LinkedHashMap"> 
               <void method="put"> 
-               <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/125395821/10002</string> 
+               <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/540986636/10002</string> 
                <object class="org.apache.hadoop.hive.ql.plan.partitionDesc"> 
+                <void property="deserializerClass"> 
+                 <class>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</class> 
+                </void> 
+                <void property="inputFileFormatClass"> 
+                 <class>org.apache.hadoop.mapred.TextInputFormat</class> 
+                </void> 
+                <void property="outputFileFormatClass"> 
+                 <class>org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat</class> 
+                </void> 
+                <void property="properties"> 
+                 <object idref="Properties0"/> 
+                </void> 
+                <void property="serdeClassName"> 
+                 <string>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</string> 
+                </void> 
                 <void property="tableDesc"> 
                  <object idref="tableDesc0"/> 
                 </void> 
@@ -381,7 +436,7 @@
                   <void property="conf"> 
                    <object class="org.apache.hadoop.hive.ql.plan.fileSinkDesc"> 
                     <void property="dirName"> 
-                     <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1211971134/10000</string> 
+                     <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/758006675/10000</string> 
                     </void> 
                     <void property="tableInfo"> 
                      <object class="org.apache.hadoop.hive.ql.plan.tableDesc"> 
@@ -430,11 +485,15 @@
                         </void> 
                         <void method="put"> 
                          <string>location</string> 
-                         <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/dest1</string> 
+                         <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/test/data/warehouse/dest1</string> 
                         </void> 
                         <void method="put"> 
                          <string>file.outputformat</string> 
                          <string>org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat</string> 
+                        </void> 
+                        <void method="put"> 
+                         <string>transient_lastDdlTime</string> 
+                         <string>1263415351</string> 
                         </void> 
                        </object> 
                       </void> 
@@ -444,6 +503,25 @@
                      </object> 
                     </void> 
                    </object> 
+                  </void> 
+                  <void property="counterNames"> 
+                   <object class="java.util.ArrayList"> 
+                    <void method="add"> 
+                     <string>CNTR_NAME_FS_8_NUM_INPUT_ROWS</string> 
+                    </void> 
+                    <void method="add"> 
+                     <string>CNTR_NAME_FS_8_NUM_OUTPUT_ROWS</string> 
+                    </void> 
+                    <void method="add"> 
+                     <string>CNTR_NAME_FS_8_TIME_TAKEN</string> 
+                    </void> 
+                    <void method="add"> 
+                     <string>CNTR_NAME_FS_8_FATAL_ERROR</string> 
+                    </void> 
+                   </object> 
+                  </void> 
+                  <void property="operatorId"> 
+                   <string>FS_8</string> 
                   </void> 
                   <void property="parentOperators"> 
                    <object class="java.util.ArrayList"> 
@@ -475,6 +553,25 @@
                  </object> 
                 </void> 
                </object> 
+              </void> 
+              <void property="counterNames"> 
+               <object class="java.util.ArrayList"> 
+                <void method="add"> 
+                 <string>CNTR_NAME_OP_7_NUM_INPUT_ROWS</string> 
+                </void> 
+                <void method="add"> 
+                 <string>CNTR_NAME_OP_7_NUM_OUTPUT_ROWS</string> 
+                </void> 
+                <void method="add"> 
+                 <string>CNTR_NAME_OP_7_TIME_TAKEN</string> 
+                </void> 
+                <void method="add"> 
+                 <string>CNTR_NAME_OP_7_FATAL_ERROR</string> 
+                </void> 
+               </object> 
+              </void> 
+              <void property="operatorId"> 
+               <string>OP_7</string> 
               </void> 
               <void property="schema"> 
                <object class="org.apache.hadoop.hive.ql.exec.RowSchema"> 
@@ -536,7 +633,7 @@
       <void property="resolverCtx"> 
        <object class="org.apache.hadoop.hive.ql.plan.ConditionalResolverMergeFiles$ConditionalResolverMergeFilesCtx"> 
         <void property="dir"> 
-         <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/125395821/10002</string> 
+         <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/540986636/10002</string> 
         </void> 
         <void property="listTasks"> 
          <object idref="ArrayList0"/> 
@@ -570,8 +667,72 @@
      <void method="put"> 
       <string>s</string> 
       <object class="org.apache.hadoop.hive.ql.plan.partitionDesc"> 
+       <void property="deserializerClass"> 
+        <class>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</class> 
+       </void> 
+       <void property="inputFileFormatClass"> 
+        <class>org.apache.hadoop.mapred.TextInputFormat</class> 
+       </void> 
+       <void property="outputFileFormatClass"> 
+        <class>org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat</class> 
+       </void> 
        <void property="partSpec"> 
         <object id="LinkedHashMap0" class="java.util.LinkedHashMap"/> 
+       </void> 
+       <void property="properties"> 
+        <object id="Properties1" class="java.util.Properties"> 
+         <void method="put"> 
+          <string>name</string> 
+          <string>srcbucket</string> 
+         </void> 
+         <void method="put"> 
+          <string>columns.types</string> 
+          <string>int:string</string> 
+         </void> 
+         <void method="put"> 
+          <string>bucket_field_name</string> 
+          <string>key</string> 
+         </void> 
+         <void method="put"> 
+          <string>serialization.ddl</string> 
+          <string>struct srcbucket { i32 key, string value}</string> 
+         </void> 
+         <void method="put"> 
+          <string>columns</string> 
+          <string>key,value</string> 
+         </void> 
+         <void method="put"> 
+          <string>serialization.format</string> 
+          <string>1</string> 
+         </void> 
+         <void method="put"> 
+          <string>bucket_count</string> 
+          <string>2</string> 
+         </void> 
+         <void method="put"> 
+          <string>serialization.lib</string> 
+          <string>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</string> 
+         </void> 
+         <void method="put"> 
+          <string>file.inputformat</string> 
+          <string>org.apache.hadoop.mapred.TextInputFormat</string> 
+         </void> 
+         <void method="put"> 
+          <string>file.outputformat</string> 
+          <string>org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat</string> 
+         </void> 
+         <void method="put"> 
+          <string>location</string> 
+          <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/test/data/warehouse/srcbucket</string> 
+         </void> 
+         <void method="put"> 
+          <string>transient_lastDdlTime</string> 
+          <string>1263415349</string> 
+         </void> 
+        </object> 
+       </void> 
+       <void property="serdeClassName"> 
+        <string>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</string> 
        </void> 
        <void property="tableDesc"> 
         <object class="org.apache.hadoop.hive.ql.plan.tableDesc"> 
@@ -585,52 +746,7 @@
           <class>org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat</class> 
          </void> 
          <void property="properties"> 
-          <object id="Properties0" class="java.util.Properties"> 
-           <void method="put"> 
-            <string>name</string> 
-            <string>srcbucket</string> 
-           </void> 
-           <void method="put"> 
-            <string>columns.types</string> 
-            <string>int:string</string> 
-           </void> 
-           <void method="put"> 
-            <string>bucket_field_name</string> 
-            <string>key</string> 
-           </void> 
-           <void method="put"> 
-            <string>serialization.ddl</string> 
-            <string>struct srcbucket { i32 key, string value}</string> 
-           </void> 
-           <void method="put"> 
-            <string>columns</string> 
-            <string>key,value</string> 
-           </void> 
-           <void method="put"> 
-            <string>serialization.format</string> 
-            <string>1</string> 
-           </void> 
-           <void method="put"> 
-            <string>bucket_count</string> 
-            <string>2</string> 
-           </void> 
-           <void method="put"> 
-            <string>serialization.lib</string> 
-            <string>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</string> 
-           </void> 
-           <void method="put"> 
-            <string>file.inputformat</string> 
-            <string>org.apache.hadoop.mapred.TextInputFormat</string> 
-           </void> 
-           <void method="put"> 
-            <string>file.outputformat</string> 
-            <string>org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat</string> 
-           </void> 
-           <void method="put"> 
-            <string>location</string> 
-            <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcbucket</string> 
-           </void> 
-          </object> 
+          <object idref="Properties1"/> 
          </void> 
          <void property="serdeClassName"> 
           <string>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</string> 
@@ -667,12 +783,31 @@
                            <int>1</int> 
                           </void> 
                           <void property="dirName"> 
-                           <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/125395821/10002</string> 
+                           <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/tmp/540986636/10002</string> 
                           </void> 
                           <void property="tableInfo"> 
                            <object idref="tableDesc0"/> 
                           </void> 
                          </object> 
+                        </void> 
+                        <void property="counterNames"> 
+                         <object class="java.util.ArrayList"> 
+                          <void method="add"> 
+                           <string>CNTR_NAME_FS_3_NUM_INPUT_ROWS</string> 
+                          </void> 
+                          <void method="add"> 
+                           <string>CNTR_NAME_FS_3_NUM_OUTPUT_ROWS</string> 
+                          </void> 
+                          <void method="add"> 
+                           <string>CNTR_NAME_FS_3_TIME_TAKEN</string> 
+                          </void> 
+                          <void method="add"> 
+                           <string>CNTR_NAME_FS_3_FATAL_ERROR</string> 
+                          </void> 
+                         </object> 
+                        </void> 
+                        <void property="operatorId"> 
+                         <string>FS_3</string> 
                         </void> 
                         <void property="parentOperators"> 
                          <object class="java.util.ArrayList"> 
@@ -747,6 +882,25 @@
                       </void> 
                      </object> 
                     </void> 
+                    <void property="counterNames"> 
+                     <object class="java.util.ArrayList"> 
+                      <void method="add"> 
+                       <string>CNTR_NAME_SEL_2_NUM_INPUT_ROWS</string> 
+                      </void> 
+                      <void method="add"> 
+                       <string>CNTR_NAME_SEL_2_NUM_OUTPUT_ROWS</string> 
+                      </void> 
+                      <void method="add"> 
+                       <string>CNTR_NAME_SEL_2_TIME_TAKEN</string> 
+                      </void> 
+                      <void method="add"> 
+                       <string>CNTR_NAME_SEL_2_FATAL_ERROR</string> 
+                      </void> 
+                     </object> 
+                    </void> 
+                    <void property="operatorId"> 
+                     <string>SEL_2</string> 
+                    </void> 
                     <void property="parentOperators"> 
                      <object class="java.util.ArrayList"> 
                       <void method="add"> 
@@ -792,63 +946,15 @@
                    <boolean>true</boolean> 
                   </void> 
                   <void property="predicate"> 
-                   <object class="org.apache.hadoop.hive.ql.plan.exprNodeFuncDesc"> 
-                    <void property="UDFClass"> 
-                     <class>org.apache.hadoop.hive.ql.udf.UDFOPEqual</class> 
-                    </void> 
-                    <void property="UDFMethod"> 
-                     <object id="Method0" class="org.apache.hadoop.hive.ql.udf.UDFOPEqual" method="getMethod"> 
-                      <string>evaluate</string> 
-                      <array class="java.lang.Class" length="2"> 
-                       <void index="0"> 
-                        <class>org.apache.hadoop.io.IntWritable</class> 
-                       </void> 
-                       <void index="1"> 
-                        <class>org.apache.hadoop.io.IntWritable</class> 
-                       </void> 
-                      </array> 
-                     </object> 
-                    </void> 
+                   <object class="org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc"> 
                     <void property="childExprs"> 
                      <object class="java.util.ArrayList"> 
                       <void method="add"> 
-                       <object class="org.apache.hadoop.hive.ql.plan.exprNodeFuncDesc"> 
-                        <void property="UDFClass"> 
-                         <class>org.apache.hadoop.hive.ql.udf.UDFOPMod</class> 
-                        </void> 
-                        <void property="UDFMethod"> 
-                         <object id="Method1" class="org.apache.hadoop.hive.ql.udf.UDFOPMod" method="getMethod"> 
-                          <string>evaluate</string> 
-                          <array class="java.lang.Class" length="2"> 
-                           <void index="0"> 
-                            <class>org.apache.hadoop.io.IntWritable</class> 
-                           </void> 
-                           <void index="1"> 
-                            <class>org.apache.hadoop.io.IntWritable</class> 
-                           </void> 
-                          </array> 
-                         </object> 
-                        </void> 
+                       <object class="org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc"> 
                         <void property="childExprs"> 
                          <object class="java.util.ArrayList"> 
                           <void method="add"> 
-                           <object class="org.apache.hadoop.hive.ql.plan.exprNodeFuncDesc"> 
-                            <void property="UDFClass"> 
-                             <class>org.apache.hadoop.hive.ql.udf.UDFOPBitAnd</class> 
-                            </void> 
-                            <void property="UDFMethod"> 
-                             <object id="Method2" class="org.apache.hadoop.hive.ql.udf.UDFOPBitAnd" method="getMethod"> 
-                              <string>evaluate</string> 
-                              <array class="java.lang.Class" length="2"> 
-                               <void index="0"> 
-                                <class>org.apache.hadoop.io.IntWritable</class> 
-                               </void> 
-                               <void index="1"> 
-                                <class>org.apache.hadoop.io.IntWritable</class> 
-                               </void> 
-                              </array> 
-                             </object> 
-                            </void> 
+                           <object class="org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc"> 
                             <void property="childExprs"> 
                              <object class="java.util.ArrayList"> 
                               <void method="add"> 
@@ -870,8 +976,8 @@
                                   </void> 
                                  </object> 
                                 </void> 
-                                <void property="genericUDFClass"> 
-                                 <class>org.apache.hadoop.hive.ql.udf.generic.GenericUDFHash</class> 
+                                <void property="genericUDF"> 
+                                 <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFHash"/> 
                                 </void> 
                                 <void property="typeInfo"> 
                                  <object idref="PrimitiveTypeInfo1"/> 
@@ -890,8 +996,18 @@
                               </void> 
                              </object> 
                             </void> 
-                            <void property="methodName"> 
-                             <string>&amp;</string> 
+                            <void property="genericUDF"> 
+                             <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                              <void property="operator"> 
+                               <boolean>true</boolean> 
+                              </void> 
+                              <void property="udfClass"> 
+                               <class>org.apache.hadoop.hive.ql.udf.UDFOPBitAnd</class> 
+                              </void> 
+                              <void property="udfName"> 
+                               <string>&amp;</string> 
+                              </void> 
+                             </object> 
                             </void> 
                             <void property="typeInfo"> 
                              <object idref="PrimitiveTypeInfo1"/> 
@@ -910,8 +1026,18 @@
                           </void> 
                          </object> 
                         </void> 
-                        <void property="methodName"> 
-                         <string>%</string> 
+                        <void property="genericUDF"> 
+                         <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                          <void property="operator"> 
+                           <boolean>true</boolean> 
+                          </void> 
+                          <void property="udfClass"> 
+                           <class>org.apache.hadoop.hive.ql.udf.UDFOPMod</class> 
+                          </void> 
+                          <void property="udfName"> 
+                           <string>%</string> 
+                          </void> 
+                         </object> 
                         </void> 
                         <void property="typeInfo"> 
                          <object idref="PrimitiveTypeInfo1"/> 
@@ -930,8 +1056,18 @@
                       </void> 
                      </object> 
                     </void> 
-                    <void property="methodName"> 
-                     <string>==</string> 
+                    <void property="genericUDF"> 
+                     <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                      <void property="operator"> 
+                       <boolean>true</boolean> 
+                      </void> 
+                      <void property="udfClass"> 
+                       <class>org.apache.hadoop.hive.ql.udf.UDFOPEqual</class> 
+                      </void> 
+                      <void property="udfName"> 
+                       <string>=</string> 
+                      </void> 
+                     </object> 
                     </void> 
                     <void property="typeInfo"> 
                      <object id="PrimitiveTypeInfo2" class="org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo"> 
@@ -942,7 +1078,29 @@
                     </void> 
                    </object> 
                   </void> 
+                  <void property="sampleDescr"> 
+                   <object class="org.apache.hadoop.hive.ql.plan.filterDesc$sampleDesc"/> 
+                  </void> 
                  </object> 
+                </void> 
+                <void property="counterNames"> 
+                 <object class="java.util.ArrayList"> 
+                  <void method="add"> 
+                   <string>CNTR_NAME_FIL_1_NUM_INPUT_ROWS</string> 
+                  </void> 
+                  <void method="add"> 
+                   <string>CNTR_NAME_FIL_1_NUM_OUTPUT_ROWS</string> 
+                  </void> 
+                  <void method="add"> 
+                   <string>CNTR_NAME_FIL_1_TIME_TAKEN</string> 
+                  </void> 
+                  <void method="add"> 
+                   <string>CNTR_NAME_FIL_1_FATAL_ERROR</string> 
+                  </void> 
+                 </object> 
+                </void> 
+                <void property="operatorId"> 
+                 <string>FIL_1</string> 
                 </void> 
                 <void property="parentOperators"> 
                  <object class="java.util.ArrayList"> 
@@ -958,33 +1116,15 @@
             <void property="conf"> 
              <object class="org.apache.hadoop.hive.ql.plan.filterDesc"> 
               <void property="predicate"> 
-               <object class="org.apache.hadoop.hive.ql.plan.exprNodeFuncDesc"> 
-                <void property="UDFClass"> 
-                 <class>org.apache.hadoop.hive.ql.udf.UDFOPEqual</class> 
-                </void> 
-                <void property="UDFMethod"> 
-                 <object idref="Method0"/> 
-                </void> 
+               <object class="org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc"> 
                 <void property="childExprs"> 
                  <object class="java.util.ArrayList"> 
                   <void method="add"> 
-                   <object class="org.apache.hadoop.hive.ql.plan.exprNodeFuncDesc"> 
-                    <void property="UDFClass"> 
-                     <class>org.apache.hadoop.hive.ql.udf.UDFOPMod</class> 
-                    </void> 
-                    <void property="UDFMethod"> 
-                     <object idref="Method1"/> 
-                    </void> 
+                   <object class="org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc"> 
                     <void property="childExprs"> 
                      <object class="java.util.ArrayList"> 
                       <void method="add"> 
-                       <object class="org.apache.hadoop.hive.ql.plan.exprNodeFuncDesc"> 
-                        <void property="UDFClass"> 
-                         <class>org.apache.hadoop.hive.ql.udf.UDFOPBitAnd</class> 
-                        </void> 
-                        <void property="UDFMethod"> 
-                         <object idref="Method2"/> 
-                        </void> 
+                       <object class="org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc"> 
                         <void property="childExprs"> 
                          <object class="java.util.ArrayList"> 
                           <void method="add"> 
@@ -1006,8 +1146,8 @@
                               </void> 
                              </object> 
                             </void> 
-                            <void property="genericUDFClass"> 
-                             <class>org.apache.hadoop.hive.ql.udf.generic.GenericUDFHash</class> 
+                            <void property="genericUDF"> 
+                             <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFHash"/> 
                             </void> 
                             <void property="typeInfo"> 
                              <object idref="PrimitiveTypeInfo1"/> 
@@ -1026,8 +1166,18 @@
                           </void> 
                          </object> 
                         </void> 
-                        <void property="methodName"> 
-                         <string>&amp;</string> 
+                        <void property="genericUDF"> 
+                         <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                          <void property="operator"> 
+                           <boolean>true</boolean> 
+                          </void> 
+                          <void property="udfClass"> 
+                           <class>org.apache.hadoop.hive.ql.udf.UDFOPBitAnd</class> 
+                          </void> 
+                          <void property="udfName"> 
+                           <string>&amp;</string> 
+                          </void> 
+                         </object> 
                         </void> 
                         <void property="typeInfo"> 
                          <object idref="PrimitiveTypeInfo1"/> 
@@ -1046,8 +1196,18 @@
                       </void> 
                      </object> 
                     </void> 
-                    <void property="methodName"> 
-                     <string>%</string> 
+                    <void property="genericUDF"> 
+                     <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                      <void property="operator"> 
+                       <boolean>true</boolean> 
+                      </void> 
+                      <void property="udfClass"> 
+                       <class>org.apache.hadoop.hive.ql.udf.UDFOPMod</class> 
+                      </void> 
+                      <void property="udfName"> 
+                       <string>%</string> 
+                      </void> 
+                     </object> 
                     </void> 
                     <void property="typeInfo"> 
                      <object idref="PrimitiveTypeInfo1"/> 
@@ -1066,8 +1226,18 @@
                   </void> 
                  </object> 
                 </void> 
-                <void property="methodName"> 
-                 <string>==</string> 
+                <void property="genericUDF"> 
+                 <object class="org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge"> 
+                  <void property="operator"> 
+                   <boolean>true</boolean> 
+                  </void> 
+                  <void property="udfClass"> 
+                   <class>org.apache.hadoop.hive.ql.udf.UDFOPEqual</class> 
+                  </void> 
+                  <void property="udfName"> 
+                   <string>=</string> 
+                  </void> 
+                 </object> 
                 </void> 
                 <void property="typeInfo"> 
                  <object idref="PrimitiveTypeInfo2"/> 
@@ -1075,6 +1245,25 @@
                </object> 
               </void> 
              </object> 
+            </void> 
+            <void property="counterNames"> 
+             <object class="java.util.ArrayList"> 
+              <void method="add"> 
+               <string>CNTR_NAME_FIL_4_NUM_INPUT_ROWS</string> 
+              </void> 
+              <void method="add"> 
+               <string>CNTR_NAME_FIL_4_NUM_OUTPUT_ROWS</string> 
+              </void> 
+              <void method="add"> 
+               <string>CNTR_NAME_FIL_4_TIME_TAKEN</string> 
+              </void> 
+              <void method="add"> 
+               <string>CNTR_NAME_FIL_4_FATAL_ERROR</string> 
+              </void> 
+             </object> 
+            </void> 
+            <void property="operatorId"> 
+             <string>FIL_4</string> 
             </void> 
             <void property="parentOperators"> 
              <object class="java.util.ArrayList"> 
@@ -1122,6 +1311,22 @@
           </void> 
          </object> 
         </void> 
+        <void property="counterNames"> 
+         <object class="java.util.ArrayList"> 
+          <void method="add"> 
+           <string>CNTR_NAME_TS_0_NUM_INPUT_ROWS</string> 
+          </void> 
+          <void method="add"> 
+           <string>CNTR_NAME_TS_0_NUM_OUTPUT_ROWS</string> 
+          </void> 
+          <void method="add"> 
+           <string>CNTR_NAME_TS_0_TIME_TAKEN</string> 
+          </void> 
+          <void method="add"> 
+           <string>CNTR_NAME_TS_0_FATAL_ERROR</string> 
+          </void> 
+         </object> 
+        </void> 
         <void property="neededColumnIDs"> 
          <object class="java.util.ArrayList"> 
           <void method="add"> 
@@ -1131,6 +1336,9 @@
            <int>1</int> 
           </void> 
          </object> 
+        </void> 
+        <void property="operatorId"> 
+         <string>TS_0</string> 
         </void> 
         <void property="schema"> 
          <object class="org.apache.hadoop.hive.ql.exec.RowSchema"> 
@@ -1146,7 +1354,7 @@
     <void property="pathToAliases"> 
      <object class="java.util.LinkedHashMap"> 
       <void method="put"> 
-       <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcbucket/srcbucket0.txt</string> 
+       <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/test/data/warehouse/srcbucket/srcbucket0.txt</string> 
        <object class="java.util.ArrayList"> 
         <void method="add"> 
          <string>s</string> 
@@ -1158,10 +1366,25 @@
     <void property="pathToPartitionInfo"> 
      <object class="java.util.LinkedHashMap"> 
       <void method="put"> 
-       <string>file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcbucket/srcbucket0.txt</string> 
+       <string>file:/data/users/pyang/mstore/trunk/VENDOR.hive/trunk/build/ql/test/data/warehouse/srcbucket/srcbucket0.txt</string> 
        <object class="org.apache.hadoop.hive.ql.plan.partitionDesc"> 
+        <void property="deserializerClass"> 
+         <class>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</class> 
+        </void> 
+        <void property="inputFileFormatClass"> 
+         <class>org.apache.hadoop.mapred.TextInputFormat</class> 
+        </void> 
+        <void property="outputFileFormatClass"> 
+         <class>org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat</class> 
+        </void> 
         <void property="partSpec"> 
          <object idref="LinkedHashMap0"/> 
+        </void> 
+        <void property="properties"> 
+         <object idref="Properties1"/> 
+        </void> 
+        <void property="serdeClassName"> 
+         <string>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</string> 
         </void> 
         <void property="tableDesc"> 
          <object class="org.apache.hadoop.hive.ql.plan.tableDesc"> 
@@ -1175,7 +1398,7 @@
            <class>org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat</class> 
           </void> 
           <void property="properties"> 
-           <object idref="Properties0"/> 
+           <object idref="Properties1"/> 
           </void> 
           <void property="serdeClassName"> 
            <string>org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe</string> 

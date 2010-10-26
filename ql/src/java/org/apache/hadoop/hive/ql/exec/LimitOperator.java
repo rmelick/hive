@@ -23,6 +23,7 @@ import java.io.Serializable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.limitDesc;
+import org.apache.hadoop.hive.ql.plan.api.OperatorType;
 
 /**
  * Limit operator implementation
@@ -40,7 +41,7 @@ public class LimitOperator extends Operator<limitDesc> implements Serializable {
     currCount = 0;
   }
 
-  public void process(Object row, int tag) throws HiveException {
+  public void processOp(Object row, int tag) throws HiveException {
     if (currCount < limit) {
       forward(row, inputObjInspectors[tag]);
       currCount++;
@@ -51,6 +52,10 @@ public class LimitOperator extends Operator<limitDesc> implements Serializable {
   
   public String getName() {
     return "LIM";
+  }
+  
+  public int getType() {
+    return OperatorType.LIMIT;
   }
   
 }

@@ -117,6 +117,7 @@
     <pathelement location="${build.dir.hive}/ql/classes"/>
     <pathelement location="${build.dir.hive}/cli/classes"/>
     <pathelement location="${build.dir.hive}/shims/classes"/>
+    <pathelement location="${build.dir.hive}/hwi/classes"/>
     <fileset dir="${basedir}" includes="lib/*.jar"/>
     <path refid="common-classpath"/>
   </path>
@@ -166,7 +167,7 @@
   <target name="jar" depends="compile">
     <echo message="Jar: ${ant.project.name}"/>
     <jar
-      jarfile="${build.dir}/hive_${ant.project.name}.jar"
+      jarfile="${build.dir}/hive-${ant.project.name}-${version}.jar"
       basedir="${build.classes}">
       <manifest>
         <!-- Not putting these in their own manifest section, since that inserts
@@ -235,6 +236,12 @@
       </not>
     </condition>
 
+    <condition property="qfile_regex" value="">
+      <not>
+        <isset property="qfile_regex"/>
+      </not>
+    </condition>
+
     <condition property="overwrite" value="false">
       <not>
         <isset property="overwrite"/>
@@ -269,7 +276,7 @@
     </subant>
 
     <taskdef name="getversionpref" classname="org.apache.hadoop.hive.ant.GetVersionPref"
-             classpath="${build.dir.hive}/anttasks/hive_anttasks.jar"/>
+             classpath="${build.dir.hive}/anttasks/hive-anttasks-${version}.jar"/>
 
   </target>
 
@@ -298,13 +305,17 @@
       <sysproperty key="test.log.dir" value="${test.log.dir}"/>
       <sysproperty key="hadoop.log.dir" value="${test.log.dir}"/>
       <sysproperty key="test.silent" value="${test.silent}"/>
+      <sysproperty key="test.tmp.dir" value="${build.dir}/tmp"/>
+      <sysproperty key="test.warehouse.dir" value="${build.dir}/test/data/warehouse"/>
+      <sysproperty key="build.dir" value="${build.dir}"/>
+      <sysproperty key="build.dir.hive" value="${build.dir.hive}"/>
 
       <classpath refid="${test.classpath.id}"/>
       <formatter type="${test.junit.output.format}" usefile="${test.junit.output.usefile}" />
       <batchtest todir="${test.build.dir}" unless="testcase">
         <fileset dir="${test.build.classes}"
                  includes="**/${test.include}.class"
-                 excludes="**/TestSerDe.class" />
+                 excludes="**/TestSerDe.class,**/*$*.class" />
       </batchtest>
       <batchtest todir="${test.build.dir}" if="testcase">
         <fileset dir="${test.build.classes}" includes="**/${testcase}.class"/>

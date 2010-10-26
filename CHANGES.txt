@@ -1,6 +1,6 @@
 Hive Change Log
 
-Release 0.4.2 - Unreleased
+Release 0.5.1 - Unreleased
 
   INCOMPATIBLE CHANGES
 
@@ -8,51 +8,521 @@ Release 0.4.2 - Unreleased
 
   IMPROVEMENTS
 
+    HIVE-1190. Configure build to download Hadoop tarballs from Facebook mirror.
+    (John Sichi via zshao)
+
+    HIVE-1195. Increase ObjectInspector[] length on demand
+    (Zheng Shao via Ning Zhang)
+
   OPTIMIZATIONS
 
   BUG FIXES
 
-    HIVE-898. Hive ODBC build fails on OSX.
-    (Carl Steinbach and Ning Zhang via zshao)
+    HIVE-1185. Fix RCFile resource leak when opening a non-RCFile.
+    (He Yongqiang via zshao)
 
-Release 0.4.1
+    HIVE-1188. NPE when running TestJdbcDriver/TestHiveServer
+    (Carl Steinbach via Ning Zhang)
+
+    HIVE-1200. Fix CombineHiveInputFormat
+    (Zheng Shao via namit)
+
+    HIVE-1242. CombineHiveInputFormat does not work for compressed text files
+    (Namit Jain via Ning Zhang)
+
+    HIVE-1085. ColumnarSerde should not be the default Serde when user
+    specified a fileformat using 'stored as' (Yongqiang He via Ning Zhang)
+
+Release 0.5.0
 
   INCOMPATIBLE CHANGES
 
+    HIVE-236. RLIKE/REGEXP allowing matching of partial strings.
+    (Paul Yang via zshao)
+
   NEW FEATURES
 
-    HIVE-884. Metastore Server should call System.exit() on error.
-    (Zheng Shao via pchakka)
+    HIVE-743. Let user specify serde for custom scripts.
+    (Namit Jain via rmurthy)
 
-  IMPROVEMENTS
+    HIVE-749. add hive.optimize.pruner
+    (Zheng Shao via namit)
 
-  OPTIMIZATIONS
+    HIVE-693. Add a AWS S3 log format deserializer
+    (Zheng Shao and Andraz Tori via namit)
 
-  BUG FIXES
+    HIVE-699. Functions with variable length arguments
+    (Zheng Shao via namit)
 
-    HIVE-864. Fix map-join memory-leak.
+    HIVE-713. Integrate operator counters into query plan to view progress of
+    queries. (Namit Jain and Raghu Murthy via zshao)
+
+    HIVE-187. Preliminary ODBC Support. (Eric Hwang via rmurthy)
+
+    HIVE-708. Add TypedBytes SerDe for transform. (Namit Jain via zshao)
+
+    HIVE-777. CREATE TABLE with STRUCT type. (He Yongqiang via zshao)
+
+    HIVE-792. Support "add archive" in addition to "add file" and "add jar".
+    (He Yongqiang via zshao)
+
+    HIVE-645. UDF to run JDBC
+    (Edward Capriolo via namit)
+
+    HIVE-785. Add RecordWriter for ScriptOperator. (Namit Jain via zshao)
+
+    HIVE-687. Add UDF unhex. (Mihir Kedia via namit)
+
+    HIVE-591. Add Unique Join. (Emil Ibrishimov via namit)
+
+    HIVE-667. Provide hive ql to check table/partition status.
+    (Yongqiang He via zshao)
+
+    HIVE-843. Add UDFs for hour, minute and second
+    (Zheng Shao via namit)
+
+    HIVE-854. Provide for post-execute hooks.
+    (Namit Jain via rmurthy)
+
+    HIVE-853. Provide hints for controlling join order
+    (Emil Ibrishimov via namit)
+
+    HIVE-31. Support Create Table As Select
+    (Ning Zhang via namit)
+
+    HIVE-682. Add concat_ws (Jonathan Chang via namit)
+
+    HIVE-868. Add last ddl time and dml time for table/partition.
     (Namit Jain via zshao)
 
+    HIVE-869. Allow ScriptOperator to consume not all input data.
+    (Paul Yang via zshao)
+
+    HIVE-688. UDF find_in_set (Jonathan Pythagoras Hsu via namit)
+
+    HIVE-881. CTAS to work with fields terminator. (Ning Zhang via zshao)
+
+    HIVE-874. Add 'repair' option to mack. (Cyrus Katrak via prasadc).
+
+    HIVE-873. Better error messages for Hive cmdline. (Paul Yang via zshao)
+
+    HIVE-554. Add GenericUDF to create arrays, maps. (Paul Yang via zshao)
+
+    HIVE-911. Add UDF WeekOfYear. (Paul Yang via zshao)
+
+    HIVE-870. Add left semi join. (Ning Zhang via namit)
+
+    HIVE-870. Add table functions. (Paul Yang via namit)
+
+    HIVE-549. Run independent tasks for a query in parallel.
+    (Chaitanya Mishra via namit)
+
+    HIVE-946. Pass context to custom mapper/reducer
+    (Paul Yang via namit)
+
+    HIVE-935. Add lateral view (Paul Yang via namit)
+
+    HIVE-571 Add rename column in a table
+    (He Yongqiang via namit)
+
+    HIVE-1020 Create a confifuration variable to control speculative execution for reducers in hive
+    (namit via He Yongqiang)
+
+    HIVE-683 Add UDF field
+    (Larry Odrognek via namit)
+
+    HIVE-1015 Java MapReduce wrapper for TRANSFORM/MAP/REDUCE scripts
+    (Larry Odrognek via namit)
+
+    HIVE-1036. Add API Method to Query HiveConf Values of the Metastore.
+    (Paul Yang via zshao)
+
+    HIVE-1106. Support ALTER TABLE t ADD IF NOT EXIST PARTITION.
+    (Paul Yang via zshao)
+
+    HIVE-1158. New parameter for specifying map join size
+    (Ning Zhang via namit)
+
+  IMPROVEMENTS
+
+    HIVE-760. Add version info to META-INF/MANIFEST.MF.
+    (Bill Graham via zshao)
+
+    HIVE-759. Add "hive.intermediate.compression.codec/type" option.
+    (Yongqiang He via zshao)
+
+    HIVE-732. Use LazyBinarySerDe (Zheng Shao via namit)
+
+    HIVE-768. Add conf var to disable counters introduced by HIVE-713.
+    (Namit Jain via zshao)
+
+    HIVE-679. Adding the basic JDBC methods to allow querying using the
+    SQuirrelSQL tool. (Bill Graham via rmurthy)
+
+    HIVE-811. Fix Javadocs. (Namit Jain via zshao)
+
+    HIVE-813. Show the actual exception thrown in UDF evaluation
+    (Zheng Shao via rmurthy)
+
+    HIVE-756. Performance improvement for RCFile and ColumnarSerDe in Hive.
+    (Ning Zhang via zshao)
+
+    HIVE-584. Clean up global and ThreadLocal variables in Hive.
+    (Yonqqiang He via zshao)
+
+    HIVE-74. Hive can use CombineFileInputFormat for when the input has many
+    small files (Namit Jain via rmurthy)
+
+    HIVE-827. Increase hive.mapjoin.cache.numrows default value.
+    (Namit Jain via zshao)
+
+    HIVE-855. UDF: Concat should accept multiple arguments.
+    (Paul Yang via zshao)
+
+    HIVE-914. Optimize UDFJson (Paul Yang via namit)
+
+    HIVE-945. custom mappers/reducers should not be initialized at compile time (namit via He Yongqiang)
+
+    HIVE-947. runlength encding for RCFILE (He Yongqiang via namit)
+
+    HIVE-949. avoid deep copy for group by hash table lookup
+    (He Yongqiang via namit)
+
+    HIVE-931. optimize group by to use sorting and grouping properties
+    (He Yongqiang via namit)
+
+    HIVE-968. remove mapjoin files and use a MRU cache to optimize lookups
+    (Ning Zhang via namit)
+
+    HIVE-980. update readme.txt to build hive using eclipse
+    (Patrick Angeles via namit)
+
+    HIVE-1012. Ability to run testcases via regular expression
+    (Carl Steinbach via namit)
+
+    HIVE-963. No out of memory errors for skew join
+    (Ning Zhang via namit)
+
+    HIVE-1023. typedbytes: datatypes should be derived from data
+    (namit via He Yongqiang)
+
+    HIVE-983. Function from_unixtime takes long.
+    (Ning Zhang via zshao)
+
+    HIVE-1105. Add service script for starting metastore server.
+    (John Sichi via zshao)
+
+    HIVE-1182. Fix TestCliDriver too many open file error.
+    (Zheng Shao via Ning Zhang)
+
+    HIVE-1181. Make it optional to check file format. (Yongqiang He via zshao)
+
+  OPTIMIZATIONS
+
+  BUG FIXES
+
+    HIVE-734. problem while inserting nulls. (Ning Zhang via namit)
+
+    HIVE-769. Bug in partition pruner checking. (Zheng Shao via namit)
+
+    HIVE-773. Remove lzocodec import from FileSinkOperator.
+    (He Yongqiang via johan)
+
+    HIVE-769. Bug in partition pruner checking - bug in patch.
+    (Zheng Shao via namit)
+
+    HIVE-782. Bug in reducer progress (Raghu Murthy via namit)
+
+    HIVE-780. Better error messages for wrong argument lengths in UDAFs
+    (Zheng Shao via namit)
+
+    HIVE-790. race conditions with script and union operators
+    (Ning Zhang via namit)
+
+    HIVE-798. remove UDAFSum and UDAFCount
+    (Zheng Shao via namit)
+
+    HIVE-778. add describe for div
+    (Ning Zhang via namit)
+
+    HIVE-755. Driver NullPointerException when calling getResults without first compiling
+    (Eric Hwang via namit)
+
+    HIVE-752. Bug in shimLoader for HWI server (Edward Capriolo via namit)
+
+    HIVE-810. add test and annotation for jdbc udf (Edward Capriolo via namit)
+
+    HIVE-812. Hive compiled with ant package works with all supported hadoop versions
+    (Zheng Shao via namit)
+
+    HIVE-823. Make table alise in MAPJOIN hint case insensitive.
+    (Namit Jain via zshao)
+
+    HIVE-771. Code cleanup in QueryPlan (Emil Ibrishimov via namit)
+
+    HIVE-838. In strict mode, remove error if no partition is selected.
+    (Namit Jain via rmurthy)
+
+    HIVE-841. Change deprecated Hadoop APIs in Context.java (Cyrus Katrak via namit)
+
+    HIVE-844. Remove ASTPartitionPruner from genmapredTasks.
+    (Namit Jain via zshao)
+
+    HIVE-817. hive.hwi.war.file incorrectly tries to use environment variables to locate war file
+    (Edward Capriolo via namit)
+
+    HIVE-795. Better error messages from Hive Server (Bill Graham via namit)
+
+    HIVE-716. Web interface wait/notify, interface changes
+    (Edward Capriolo via namit)
+
+    HIVE-831. Remove ASTPartitionPruner (missed this in HIVE-844)
+    (Namit Jain via rmurthy)
+
+    HIVE-845. Shims do not build against latest hadoop
+    (Cyrus Katrak via namit)
+
+    HIVE-858. Better logging for script operator even in case of failure
+    (Zheng Shao via namit)
+
+    HIVE-861. NumberFormatException in sum and average
+    (Zheng Shao via namit)
+
+    HIVE-859. Clean HWI build.xml
+    (Edward Capriolo via namit)
+
+    HIVE-865. Map Join memory leak
+    (Ning Zhang via namit)
+
+    HIVE-876. UDFOPNegative should deal with NULL gracefully.
+    (Ning Zhang via zshao)
+
+    HIVE-877. More test cases for UDFOPNegative. (Ning Zhang via zshao)
+
+    HIVE-879. Fix null pointer for empty dir. (Namit Jain via zshao)
+
     HIVE-878. Update the hash table entry before flushing in Group By
-    hash aggregation (Zheng Shao via namit)
+    hash aggregation. (Zheng Shao via namit)
 
     HIVE-882. Create a new directory every time for scratch.
     (Namit Jain via zshao)
 
-    HIVE-890. Fix cli.sh for detecting Hadoop versions. (Paul Huff via zshao)
+    HIVE-884. Metastore Server should call System.exit() on error.
+    (Zheng Shao via pchakka)
 
-    HIVE-892. Hive to kill hadoop jobs using POST. (Dhruba Borthakur via zshao)
+    HIVE-890. Fix cli.sh for detecting Hadoop versions.
+    (Paul Huff via zshao)
+
+    HIVE-885. Better error messages for debugging serde problem at reducer
+    input (Zheng Shao via namit)
+
+    HIVE-893. Thrift serde doesn't work with the new version of thrift.
+    (Ning Zhang via zshao)
+
+    HIVE-880. User group information not populated for pre and post hook.
+    (Namit Jain via zshao)
 
     HIVE-883. URISyntaxException when partition value contains special chars.
     (Zheng Shao via namit)
 
+    HIVE-903. msck: output not deterministic
+    (Cyrus Katrak via namit)
+
+    HIVE-905. Smallint not working for typedbyteserde. (Namit Jain via zshao)
+
+    HIVE-840. No error if user specifies multiple columns of same name as
+    output (He Yongqiang via namit)
+
     HIVE-902. Fix cli.sh to work with hadoop versions less than 20.
     (Carl Steinbach via zshao)
 
-    HIVE-1099. Make queries in input40.q deterministic
+    HIVE-796. RCFile results missing columns from UNION ALL
+    (He Yongqiang via namit)
+
+    HIVE-819. Add lazy decompress abilitt to rcfile
+    (He Yongqiang via namit)
+
+    HIVE-910. RCFile is not included when user specifying it as the default
+    file format (He Yongqiang via namit)
+
+    HIVE-907. NullPointerException in ErrorMsg.findSQLState
+    (Bill Graham via namit)
+
+    HIVE-910. NULL value is not correctly handled by ColumnarStruct
+    (He Yongqiang via namit)
+
+    HIVE-804 Support deletion of partitions based on a prefix partition spefication
+    (Zheng Shao via namit)
+
+    HIVE-921 MapJoin schema reordering (Ning Zhang via namit)
+
+    HIVE-923 Use HiveInputFormat by default (Zheng Shao via namit)
+
+    HIVE-926 bug in mapjoin when rows are getting aged out from cache (namit via He Yongqiang)
+
+    HIVE-912 ctas name should be case insensitive (Ning Zhang via namit)
+
+    HIVE-929. Use a new parameter to check whether to merge files or not
+    (He Yongqiang via namit)
+
+    HIVE-980 mapjoin followed by union does not work (namit via He Yongqiang)
+
+    HIVE-940 restrict creation of partitions with empty keys (Prasad Chakka via namit)
+
+    HIVE-941 hiveserver.sh doesn't work with Hadoop 0.20.0 or higher
+    (Ning Zhang via namit)
+
+    HIVE-944 Generate thrift files in queryplan
     (Paul Yang via namit)
 
-Release 0.4.0
+    HIVE-953 Fix test script_broken_pipe3.q
+    (Paul Yang via namit)
+
+    HIVE-957 Separate table and partition metadata
+    (He Yongqiang via namit)
+
+    HIVE-961 bug in group by key wrapper
+    (He Yongqiang via namit)
+
+    HIVE-966 Hive should emit log messages in 24-hour format
+    (Zheng Shao via namit)
+
+    HIVE-962 "show functions" should work with unquoted string.
+    (Paul Yang via zshao)
+
+    HIVE-638 fix sampling in subquery for real
+    (namit via He Yongqiang)
+
+    HIVE-973. Support nested types in custom scripts. (Namit Jain via zshao)
+
+    HIVE-991 union with 200 kids fail
+    (namit via He Yongqiang)
+
+    HIVE-993 Remove duplicate conversion for MapJoin
+    (He Yongqiang via namit)
+
+    HIVE-992 commons-dhcp not working
+    (Bennie Schut via namit)
+
+    HIVE-595 throw error if rename fails
+    (Zheng Shao via namit)
+
+    HIVE-999 bug in sampling if denominator != numBuckets
+    (He Yongqiang via namit)
+
+    HIVE-1000 bug in sampling if buckted table is empty
+    (He Yongqiang via namit)
+
+    HIVE-1001 CombinedHiveInputFormat should parse the inputpath correctly
+    (namit via He Yongqiang)
+
+    HIVE-913 no error if user specifies same output table mutliple times
+    (namit via He Yongqiang)
+
+    HIVE-977 NullPointerException when operating on a non-existing partition
+    (namit via He Yongqiang)
+
+    HIVE-1004 Change default memory for Hive client to 256M
+    (Zheng Shao via namit)
+
+    HIVE-1006 getPartitionDescFromPath failing from CombineHiveInputFormat
+    (Dave Lerman via namit)
+
+    HIVE-927 Check the schema for both inputs of union
+    (He Yongqiang via namit)
+
+    HIVE-302 Check that lines terminated by can only be "\n"
+    (Zheng Shao via namit)
+
+    HIVE-979 selectNoStar is a part of explainPlan
+    (Paul Yang via namit)
+
+    HIVE-1009 bug in union along with transform
+    (Ning Zhang via namit)
+
+    HIVE-986 Ant "eclipse-files" target is broken for Hadoop 0.20
+    (Zheng Shao via namit)
+
+    HIVE-1017 || and && are not supported currently
+    (Ning Zhang via namit)
+
+    HIVE-916 typedbytes: changes
+    (namit via He Yongqiang)
+
+    HIVE-976 Compare the path in unit tests for sampling
+    (John Sichi via namit)
+
+    HIVE-1026 Fix test sample6.q to make it deterministic
+    (John Sichi via namit)
+
+    HIVE-1028. Fix tinyint in TypedBytes. (Namit Jain via zshao)
+
+    HIVE-458. Better error messages for fs.default.name. (Paul Yang via zshao)
+
+    HIVE-1030 Hive should use scratchDir instead of system temporary directory
+    for storing plans (Zheng Shao via namit)
+
+    HIVE-1030 mapjoin should throw an error if the input is too large
+    (Ning Zhang via namit)
+
+    HIVE-996 describe function throws NPE when when called on UDTF or UDAF
+    (Carl Steinbach via namit)
+
+    HIVE-1031 describe function array throws ParseException
+    (Carl Steinbach via namit)
+
+    HIVE-978 Hive jars should follow Hadoop naming and include version
+    (Chad Metcalf and Zheng Shao via namit)
+
+    HIVE-1038 mapjoin dies if the join prunes all the columns
+    (namit via He Yongqiang)
+
+    HIVE-1037 SerDe & ObjectInspector for RowContainer mismatch with the
+    input data (Ning Zhang via namit)
+
+    HIVE-1042 incorrect error while processing a function in transform
+    (Paul Yang via namit)
+
+    HIVE-1039 bug in multi table/directory inserts
+    (Ning Zhang via namit)
+
+    HIVE-1049. Fix ant targets "eclipse-files" and "javadoc".
+    (Carl Steinbach via zshao)
+
+    HIVE-1048. Make output of TestParse deterministic
+    (Paul Yang via namit)
+
+    HIVE-1045. (bigint % int) should return bigint instead of double.
+    (Paul Yang via zshao)
+
+    HIVE-1046. Pass build.dir.hive and other properties to subant.
+    (Zheng Shao via namit)
+
+    HIVE-1072. Keep CreateTime when a partition is overwritten.
+    (Paul Yang via zshao)
+
+    HIVE-1059. Date/DateTime/TimeStamp types should throw an error.
+    (Paul Yang via zshao)
+
+    HIVE-1097. Change memory for groupby_bigdata
+    (Paul Yang via namit)
+
+    HIVE-898. Hive ODBC build fails on OSX.
+    (Carl Steinbach and Ning Zhang via zshao)
+
+    HIVE-1141. Remove recursive call in FetchOperator.getNextRow.
+    (Zheng Shao via He Yongqiang)
+
+    HIVE-1140. Fix incorrect ambiguous column reference error message.
+    (Paul Yang via zshao)
+
+    HIVE-1183. hive.hwi.war.file vanished from hive-default.xml
+    (Zheng Shao via namit)
+
+    HIVE--1207. ScriptOperator AutoProgressor does not set the interval.
+    (Zheng Shao via He Yongqiang)
+
+Release 0.4.0 -  Unreleased
 
   INCOMPATIBLE CHANGES
 
@@ -174,17 +644,7 @@ Release 0.4.0
 
     HIVE-691. show documentation for functions. (Emil Ibrishimov via namit)
 
-    HIVE-743. Let user specify serde for custom sctipts.
-    (Namit Jain via rmurthy)
-
-    HIVE-749. add hive.optimize.pruner
-    (Zheng Shao via namit)
-
     HIVE-748. Test for extracting urls. (Namit Jain via zshao)
-
-    HIVE-187. Preliminary ODBC Support. (Eric Hwang via rmurthy)
-
-    HIVE-857. Transform script should support objects of same type. (Zheng Shao via namit)
 
   IMPROVEMENTS
     HIVE-389. Option to build without ivy (jssarma)
@@ -271,17 +731,8 @@ Release 0.4.0
     HIVE-737. Support having hadoop jars in HADOOP_HOME/build for running
     hive cli. (Johan Oskarsson via athusoo)
 
-    HIVE-760. Add version info to META-INF/MANIFEST.MF
-    (Bill Graham via rmurthy)
-
-    HIVE-679. Adding the basic JDBC methods to allow querying using the
-    SQuirrelSQL tool. (Bill Graham via rmurthy)
-
-    HIVE-813. Show the actual exception thrown in UDF evaluation.
-    (Zheng Shao via rmurthy)
-
-    HIVE-1182. Fix TestCliDriver too many open file error.
-    (Zheng Shao via Ning Zhang)
+    HIVE-750. New partitionpruner does not work with test mode.
+    (Namit Jain via zshao)
 
   OPTIMIZATIONS
 
@@ -297,8 +748,7 @@ Release 0.4.0
     HIVE-610. Move all properties from jpox.properties to hive-site.xml.
     (Prasad Chakka via zshao)
 
-    HIVE-811. Fix Javadocs. (Namit Jain via zshao)
-
+  BUG FIXES
 
     HIVE-381. Fix JDBC HiveResultSet's next function.
     (Kim P via namit)
@@ -576,14 +1026,8 @@ Release 0.4.0
 
     HIVE-597. apache header for jdbc files. (Raghu Murthy via namit)
 
-    HIVE-734. fix nulls insertion problem. (Ning Zhang via via namit)
-
     HIVE-772. Fix genConversionSelect for init serde with null.
     (Namit Jain via zshao)
-
-    HIVE-769. Fix bug in partition pruning (Zheng Shao via namit)
-
-    HIVE-769. Fix bug in partition pruning - bug in patch (Zheng Shao via namit)
 
     HIVE-774. Fix the behavior of "/" and add "DIV". (Ning Zhang via zshao)
 
@@ -592,19 +1036,6 @@ Release 0.4.0
     HIVE-764. Fixed json.jar. (Raghu Murthy via zshao)
 
     HIVE-794. MergeTask should use COMPRESSRESULT. (Saurabh Nanda via zshao)
-
-    HIVE-790. Bug in union and script. (Ning Zhang via namit)
-
-    HIVE-755. Driver NullPointerException when calling getResults without first
-    compiling (Eric Hwang via namit)
-
-    HIVE-752. Bug in shimLoader for HWI server (Edward Capriolo via namit)
-
-    HIVE-812. ant package should work with all versions of hadoop.
-    (Zheng Shao via namit)
-
-    HIVE-750. New partitionpruner does not work with test mode.
-    (Namit Jain via zshao)
 
     HIVE-726. Make "ant package -Dhadoop.version=0.17.0" work.
     (Todd Lipcon via zshao)
@@ -615,8 +1046,7 @@ Release 0.4.0
     HIVE-718. Fix Loading data inpath into a new partition.
     (Namit Jain via zshao)
 
-    HIVE-838. In strict mode, remove error if no partition is selected.
-    (Namit Jain via rmurthy)
+    HIVE-864. Fix map-join memory-leak. (Namit Jain via zshao)
 
 Release 0.3.1 - Unreleased
 
@@ -1087,3 +1517,6 @@ Release 0.2.0 - Unreleased
 
     HIVE-283. Do case insensitive comparison of aliases in partition
     pruning. (athusoo)
+
+    HIVE-1088. RCFileRecordReader's first split will read duplicate rows if
+    the split end is < the first sync mark (Yongqiang He via Ning Zhang)

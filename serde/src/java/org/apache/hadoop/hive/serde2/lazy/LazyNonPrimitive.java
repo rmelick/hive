@@ -18,6 +18,7 @@
 package org.apache.hadoop.hive.serde2.lazy;
 
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.io.WritableComparator;
 
 /**
  * LazyPrimitive stores a primitive Object in a LazyObject.
@@ -52,10 +53,16 @@ public abstract class LazyNonPrimitive<OI extends ObjectInspector> extends LazyO
     this.bytes = bytes;
     this.start = start;
     this.length = length;
+    assert start >= 0;
+    assert start + length <= bytes.getData().length;
   }
 
   @Override
   public Object getObject() {
     return this; 
+  }
+  
+  public int hashCode() {
+    return LazyUtils.hashBytes(bytes.getData(), start, length);
   }
 }

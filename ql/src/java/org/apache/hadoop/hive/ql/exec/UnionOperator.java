@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.unionDesc;
+import org.apache.hadoop.hive.ql.plan.api.OperatorType;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFUtils.ReturnObjectInspectorResolver;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
@@ -110,7 +111,7 @@ public class UnionOperator extends  Operator<unionDesc>  implements Serializable
   }
   
   @Override
-  public synchronized void process(Object row, int tag) throws HiveException {
+  public synchronized void processOp(Object row, int tag) throws HiveException {
 
     StructObjectInspector soi = parentObjInspectors[tag];
     List<? extends StructField> fields = parentFields[tag];
@@ -118,20 +119,24 @@ public class UnionOperator extends  Operator<unionDesc>  implements Serializable
     if (needsTransform[tag]) {
       for (int c = 0; c < fields.size(); c++) {
         outputRow.set(c, columnTypeResolvers[c].convertIfNecessary(
-            soi.getStructFieldData(row, fields.get(c)),
-            fields.get(c).getFieldObjectInspector()));
+                                     soi.getStructFieldData(row, fields.get(c)),
+                                     fields.get(c).getFieldObjectInspector()));
       }
       forward(outputRow, outputObjInspector);
     } else {
       forward(row, inputObjInspectors[tag]);
     }
   }
-  
+
   /**
    * @return the name of the operator
    */
   @Override
   public String getName() {
     return new String("UNION");
+  }
+  
+  public int getType() {
+    return OperatorType.UNION;
   }
 }

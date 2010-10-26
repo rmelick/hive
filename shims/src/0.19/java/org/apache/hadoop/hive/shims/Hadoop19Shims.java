@@ -18,6 +18,7 @@
 package org.apache.hadoop.hive.shims;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
@@ -25,6 +26,10 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.TaskCompletionEvent;
+import org.apache.hadoop.mapred.TaskAttemptID;
+import org.apache.hadoop.mapred.TaskID;
+
 import java.io.IOException;
 
 /**
@@ -91,4 +96,26 @@ public class Hadoop19Shims implements HadoopShims {
     return a.compareTo(b);
   }
 
+  public HadoopShims.CombineFileInputFormatShim getCombineFileInputFormat() {
+    return null;
+  }
+
+  public String getInputFormatClassName() {
+    return "org.apache.hadoop.hive.ql.io.HiveInputFormat";
+  }
+
+  @Override
+  public long getAccessTime(FileStatus file) {
+    return file.getAccessTime();
+  }
+
+
+  String [] ret = new String[2];
+  @Override
+  public String [] getTaskJobIDs(TaskCompletionEvent t) {
+    TaskID tid = t.getTaskAttemptId().getTaskID();
+    ret[0] = tid.toString();
+    ret[1] = tid.getJobID().toString();
+    return ret;
+  }
 }

@@ -43,7 +43,7 @@ import org.apache.hadoop.hive.ql.parse.OpParseContext;
 import org.apache.hadoop.hive.ql.parse.RowResolver;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.exprNodeDesc;
-import org.apache.hadoop.hive.ql.plan.exprNodeFuncDesc;
+import org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.plan.filterDesc;
 import org.apache.hadoop.hive.ql.plan.joinCond;
 import org.apache.hadoop.hive.ql.plan.joinDesc;
@@ -93,12 +93,12 @@ public class OpProcFactory {
         Object... nodeOutputs) throws SemanticException {
       LOG.info("Processing for " +  nd.getName() + "(" + ((Operator)nd).getIdentifier() + ")");
       OpWalkerInfo owi = (OpWalkerInfo)procCtx;
-      RowResolver inputRR = owi.getRowResolver(nd);
       TableScanOperator tsOp = (TableScanOperator)nd;
       mergeWithChildrenPred(tsOp, owi, null, null, false);
       ExprWalkerInfo pushDownPreds = owi.getPrunedPreds(tsOp);
       return createFilter(tsOp, pushDownPreds, owi);
     }
+
   }
 
   /**
@@ -311,14 +311,11 @@ public class OpProcFactory {
         List<exprNodeDesc> children = new ArrayList<exprNodeDesc>(2);
         children.add(condn);
         children.add((exprNodeDesc) preds.get(i));
-        condn = new exprNodeFuncDesc(
-                                     "AND",
-                                     TypeInfoFactory.booleanTypeInfo,
-                                     FunctionRegistry.getUDFClass("AND"),
-                                     FunctionRegistry.getUDFMethod("AND",
-                                                                   TypeInfoFactory.booleanTypeInfo,
-                                                                   TypeInfoFactory.booleanTypeInfo),
-                                     children);
+        condn = new exprNodeGenericFuncDesc(
+                                            TypeInfoFactory.booleanTypeInfo,
+                                            FunctionRegistry.getGenericUDFForAnd(),
+                                            children
+                                            );
       }
     }
 

@@ -24,8 +24,6 @@ import java.util.List;
 
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.ql.exec.Utilities;
-import org.apache.hadoop.hive.ql.lib.Node;
-import org.apache.hadoop.hive.ql.parse.RowResolver;
 
 
 public class exprNodeFieldDesc extends exprNodeDesc implements Serializable {

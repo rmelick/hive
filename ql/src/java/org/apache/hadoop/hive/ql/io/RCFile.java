@@ -38,8 +38,10 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.io.CodecPool;
+import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.columnar.BytesRefArrayWritable;
 import org.apache.hadoop.hive.serde2.columnar.BytesRefWritable;
+import org.apache.hadoop.hive.serde2.columnar.LazyDecompressionCallback;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -54,7 +56,6 @@ import org.apache.hadoop.io.compress.Compressor;
 import org.apache.hadoop.io.compress.Decompressor;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.hadoop.util.StringUtils;
 
 /**
  * <code>RCFile</code>s, short of Record Columnar File, are flat files
@@ -291,8 +292,41 @@ public class RCFile {
    * </ul>
    */
   static class ValueBuffer implements Writable {
+    
+    class LazyDecompressionCallbackImpl implements LazyDecompressionCallback {
+      
+      int index = -1;
+      int colIndex = -1;
+      
+      public LazyDecompressionCallbackImpl(int index, int colIndex) {
+        super();
+        this.index = index;
+        this.colIndex = colIndex;
+      }
+
+      @Override
+      public byte[] decompress() throws IOException {
+        
+        if (decompressedFlag[index] || codec == null)
+          return loadedColumnsValueBuffer[index].getData();
+        
+        NonSyncDataOutputBuffer compressedData = loadedColumnsValueBuffer[index];
+        NonSyncDataOutputBuffer decompressedData = new NonSyncDataOutputBuffer();
+        decompressBuffer.reset();
+        DataInputStream valueIn = new DataInputStream(deflatFilter);
+        deflatFilter.resetState();
+        decompressBuffer.reset(compressedData.getData(), keyBuffer.eachColumnValueLen[colIndex]);
+        decompressedData.write(valueIn, keyBuffer.eachColumnUncompressedValueLen[colIndex]);
+        loadedColumnsValueBuffer[index] = decompressedData;
+        decompressedFlag[index] = true;
+        return decompressedData.getData();
+      }
+    }
+    
     // used to load columns' value into memory
     private NonSyncDataOutputBuffer[] loadedColumnsValueBuffer = null;
+    private boolean[] decompressedFlag = null;
+    private LazyDecompressionCallbackImpl[] lazyDecompressCallbackObjs = null; 
 
     boolean inited = false;
 
@@ -339,6 +373,8 @@ public class RCFile {
             skipped++;
       }
       loadedColumnsValueBuffer = new NonSyncDataOutputBuffer[columnNumber - skipped];
+      decompressedFlag = new boolean[columnNumber - skipped];
+      lazyDecompressCallbackObjs = new LazyDecompressionCallbackImpl[columnNumber - skipped];
       this.codec = codec;
       if (codec != null) {
         valDecompressor = CodecPool.getDecompressor(codec);
@@ -350,6 +386,12 @@ public class RCFile {
         if (skippedColIDs[k])
           continue;
         loadedColumnsValueBuffer[readIndex] = new NonSyncDataOutputBuffer();
+        if(codec != null) {
+          decompressedFlag[readIndex] = false;
+          lazyDecompressCallbackObjs[readIndex] = new LazyDecompressionCallbackImpl(readIndex, k);
+        } else {
+          decompressedFlag[readIndex] = true;
+        }
         readIndex++;
       }
     }
@@ -357,8 +399,6 @@ public class RCFile {
     public void setColumnValueBuffer(NonSyncDataOutputBuffer valBuffer, int addIndex) {
       loadedColumnsValueBuffer[addIndex] = valBuffer;
     }
-
-    NonSyncDataOutputBuffer compressedData = new NonSyncDataOutputBuffer();
 
     @Override
     public void readFields(DataInput in) throws IOException {
@@ -379,17 +419,9 @@ public class RCFile {
 
         NonSyncDataOutputBuffer valBuf = loadedColumnsValueBuffer[addIndex];
         valBuf.reset();
-        if (codec != null) {
-          decompressBuffer.reset();
-          DataInputStream valueIn = new DataInputStream(deflatFilter);
-          deflatFilter.resetState();
-          compressedData.reset();
-          compressedData.write(in, vaRowsLen);
-          decompressBuffer.reset(compressedData.getData(), vaRowsLen);
-          valBuf.write(valueIn, keyBuffer.eachColumnUncompressedValueLen[i]);
-        } else {
-          valBuf.write(in, vaRowsLen);
-        }
+        valBuf.write(in, vaRowsLen);
+        if(codec != null)
+          decompressedFlag[addIndex] = false;
         addIndex++;
       }
 
@@ -487,6 +519,16 @@ public class RCFile {
       // used to store each value's length
       NonSyncDataOutputBuffer valLenBuffer;
 
+      /*
+       * use a run-length encoding. We only record run length if a same
+       * 'prevValueLen' occurs more than one time. And we negative the run
+       * length to distinguish a runLength and a normal value length. For
+       * example, if the values' lengths are 1,1,1,2, we record 1, ~2,2. And for
+       * value lengths 1,2,3 we record 1,2,3.
+       */
+      int runLength = 0;
+      int prevValueLength = -1;
+      
       ColumnBuffer() throws IOException {
         columnValBuffer = new NonSyncDataOutputBuffer();
         valLenBuffer = new NonSyncDataOutputBuffer();
@@ -494,12 +536,42 @@ public class RCFile {
 
       public void append(BytesRefWritable data) throws IOException {
         data.writeDataTo(columnValBuffer);
-        WritableUtils.writeVLong(valLenBuffer, data.getLength());
+        int currentLen = data.getLength();
+        
+        if( prevValueLength < 0) {
+          startNewGroup(currentLen);
+          return;
+        }
+        
+        if(currentLen != prevValueLength) {
+          flushGroup();
+          startNewGroup(currentLen);
+        } else {
+          runLength ++;
+        }
+      }
+
+      private void startNewGroup(int currentLen) {
+        prevValueLength = currentLen;
+        runLength = 0;
+        return;
       }
 
       public void clear() throws IOException {
         valLenBuffer.reset();
         columnValBuffer.reset();
+        prevValueLength = -1;
+        runLength = 0;
+      }
+      
+      public void flushGroup() throws IOException {
+        if (prevValueLength >= 0) {
+          WritableUtils.writeVLong(valLenBuffer, prevValueLength);
+          if (runLength > 0)
+            WritableUtils.writeVLong(valLenBuffer, ~runLength);
+          runLength = -1;
+          prevValueLength = -1;
+        }
       }
     }
 
@@ -729,7 +801,8 @@ public class RCFile {
       int valueLength = 0;
       for (int columnIndex = 0; columnIndex < columnNumber; columnIndex++) {
         ColumnBuffer currentBuf = columnBuffers[columnIndex];
-
+        currentBuf.flushGroup();
+        
         NonSyncDataOutputBuffer columnValue = currentBuf.columnValBuffer;
 
         if (isCompressed()) {
@@ -836,7 +909,9 @@ public class RCFile {
     private byte[] sync = new byte[SYNC_HASH_SIZE];
     private byte[] syncCheck = new byte[SYNC_HASH_SIZE];
     private boolean syncSeen;
+    private long lastSeenSyncPos = 0;
 
+    private long headerEnd;
     private long end;
     private int currentKeyLength;
     private int currentRecordLength;
@@ -859,10 +934,14 @@ public class RCFile {
 
     private int[] columnRowReadIndex = null;
     private NonSyncDataInputBuffer[] colValLenBufferReadIn;
+    private int[] columnRunLength;
+    private int[] columnPrvLength;
     private boolean decompress = false;
 
     private Decompressor keyDecompressor;
     NonSyncDataOutputBuffer keyDecompressedData = new NonSyncDataOutputBuffer();
+    
+    int[] prjColIDs = null; // selected column IDs
 
     /** Create a new RCFile reader. */
     public Reader(FileSystem fs, Path file, Configuration conf)
@@ -876,20 +955,37 @@ public class RCFile {
         long start, long length) throws IOException {
       conf.setInt("io.file.buffer.size", bufferSize);
       this.file = file;
-      in = fs.open(file, bufferSize);
+      in = openFile(fs, file, bufferSize, length);
       this.conf = conf;
       end = start + length;
-      if (start > 0) {
-        seek(0);
-        init();
-        seek(start);
-      } else {
-        init();
+      boolean succeed = false;
+      try {
+        if (start > 0) {
+          seek(0);
+          init();
+          seek(start);
+        } else {
+          init();
+        }
+        succeed = true;
+      } finally {
+        if (!succeed) {
+          if (in != null) {
+            try {
+              in.close();
+            } catch(IOException e) {
+              if (LOG != null && LOG.isDebugEnabled()) {
+                LOG.debug("Exception in closing " + in, e);
+              }
+            }
+          }
+        }
       }
+
       columnNumber = Integer.parseInt(metadata.get(
           new Text(COLUMN_NUMBER_METADATA_STR)).toString());
 
-      java.util.ArrayList<Integer> notSkipIDs = HiveFileFormatUtils.getReadColumnIDs(conf);
+      java.util.ArrayList<Integer> notSkipIDs = ColumnProjectionUtils.getReadColumnIDs(conf);
       skippedColIDs = new boolean[columnNumber];
       if (notSkipIDs.size() > 0) {
         for (int i = 0; i < skippedColIDs.length; i++) {
@@ -900,6 +996,9 @@ public class RCFile {
             skippedColIDs[read] = false;
         }
       } else {
+        // TODO: if no column name is specified e.g, in select count(1) from tt;
+        // skip all columns, this should be distinguished from the case:
+        // select * from tt;
         for (int i = 0; i < skippedColIDs.length; i++) {
           skippedColIDs[i] = false;
         }
@@ -913,16 +1012,37 @@ public class RCFile {
         }
       }
 
+      // get list of selected column IDs
+      prjColIDs = new int[loadColumnNum];
+      for ( int i = 0, j = 0; i < columnNumber; ++i ) {
+        if (!skippedColIDs[i]) {
+          prjColIDs[j++] = i;
+        }
+      }
+
       colValLenBufferReadIn = new NonSyncDataInputBuffer[columnNumber];
+      columnRunLength = new int[columnNumber];
+      columnPrvLength = new int[columnNumber];
       columnRowReadIndex = new int[columnNumber];
       for (int i = 0; i < columnNumber; i++) {
         columnRowReadIndex[i] = 0;
         if (!skippedColIDs[i])
           colValLenBufferReadIn[i] = new NonSyncDataInputBuffer();
+        columnRunLength[i] = 0;
+        columnPrvLength[i] = -1;
       }
 
       currentKey = createKeyBuffer();
       currentValue = new ValueBuffer(null, columnNumber, skippedColIDs, codec);
+    }
+    
+    /**
+     * Override this method to specialize the type of
+     * {@link FSDataInputStream} returned.
+     */
+    protected FSDataInputStream openFile(FileSystem fs, Path file,
+        int bufferSize, long length) throws IOException {
+      return fs.open(file, bufferSize);
     }
 
     private void init() throws IOException {
@@ -982,6 +1102,7 @@ public class RCFile {
 
       if (version > 1) { // if version > 1
         in.readFully(sync); // read sync bytes
+        headerEnd = in.getPos();
       }
     }
 
@@ -1010,6 +1131,15 @@ public class RCFile {
         seek(end);
         return;
       }
+   
+     //this is to handle syn(pos) where pos < headerEnd.
+     if (position < headerEnd) {
+       // seek directly to first record
+       in.seek(headerEnd);
+       // note the sync marker "seen" in the header
+       syncSeen = true;
+       return;
+     }
 
       try {
         seek(position + 4); // skip escape
@@ -1067,6 +1197,7 @@ public class RCFile {
       if (version > 1 && sync != null && length == SYNC_ESCAPE) { // process
         // a
         // sync entry
+        lastSeenSyncPos = in.getPos() - 4; // minus SYNC_ESCAPE's length
         in.readFully(syncCheck); // read syncCheck
         if (!Arrays.equals(sync, syncCheck)) // check it
           throw new IOException("File is corrupt!");
@@ -1128,13 +1259,15 @@ public class RCFile {
       readRowsIndexInBuffer = 0;
       recordsNumInValBuffer = currentKey.numberRows;
 
-      for (int i = 0; i < columnNumber; i++) {
-        if (skippedColIDs[i])
-          continue;
+      for (int j = 0; j < prjColIDs.length; j++) {
+        int i = prjColIDs[j];
         colValLenBufferReadIn[i].reset(currentKey.allCellValLenBuffer[i]
             .getData(), currentKey.allCellValLenBuffer[i].getLength());
         columnRowReadIndex[i] = 0;
+        columnRunLength[i] = 0;
+        columnPrvLength[i] = -1;
       }
+      
       return currentKeyLength;
     }
 
@@ -1184,11 +1317,13 @@ public class RCFile {
       fetchColumnTempBuf.reset(currentKey.allCellValLenBuffer[columnID]
           .getData(), currentKey.allCellValLenBuffer[columnID].getLength());
       for (int i = 0; i < recordsNumInValBuffer; i++) {
-        int length = WritableUtils.readVInt(fetchColumnTempBuf);
+        int length = getColumnNextValueLength(columnID);
 
         BytesRefWritable currentCell = rest.get(i);
-        currentCell.set(currentValue.loadedColumnsValueBuffer[columnID]
-            .getData(), columnNextRowStart, length);
+        if (currentValue.decompressedFlag[columnID])
+          currentCell.set(currentValue.loadedColumnsValueBuffer[columnID].getData(), columnNextRowStart, length);
+        else
+          currentCell.set(currentValue.lazyDecompressCallbackObjs[columnID], columnNextRowStart, length);
         columnNextRowStart = columnNextRowStart + length;
       }
       return rest;
@@ -1258,36 +1393,60 @@ public class RCFile {
 
       if (!currentValue.inited) {
         currentValueBuffer();
+				// do this only when not initialized, but we may need to find a way to
+				// tell the caller how to initialize the valid size
+        ret.resetValid(columnNumber); 
       }
 
       // we do not use BytesWritable here to avoid the byte-copy from
       // DataOutputStream to BytesWritable
 
-      ret.resetValid(columnNumber);
+      for (int j = 0; j < prjColIDs.length; ++j) {
+        int i = prjColIDs[j];
 
-      for (int i = 0, readIndex = 0; i < columnNumber; i++) {
         BytesRefWritable ref = ret.unCheckedGet(i);
 
-        if (skippedColIDs[i]) {
-          if (ref != BytesRefWritable.ZeroBytesRefWritable)
-            ret.set(i, BytesRefWritable.ZeroBytesRefWritable);
-          continue;
-        }
-
         int columnCurrentRowStart = (int) columnRowReadIndex[i];
-        int length = (int) WritableUtils.readVLong(colValLenBufferReadIn[i]);
+        int length = getColumnNextValueLength(i);
         columnRowReadIndex[i] = columnCurrentRowStart + length;
 
-        ref.set(currentValue.loadedColumnsValueBuffer[readIndex].getData(),
-            columnCurrentRowStart, length);
-        readIndex++;
+        if (currentValue.decompressedFlag[j])
+          ref.set(currentValue.loadedColumnsValueBuffer[j].getData(), columnCurrentRowStart, length);
+        else
+          ref.set(currentValue.lazyDecompressCallbackObjs[j], columnCurrentRowStart, length);
       }
       rowFetched = true;
+    }
+
+    private int getColumnNextValueLength(int i) throws IOException {
+      if (columnRunLength[i] > 0) {
+        --columnRunLength[i];
+        return columnPrvLength[i];
+      } else {
+        int length = (int) WritableUtils.readVLong(colValLenBufferReadIn[i]);
+        if (length < 0) {
+          // we reach a runlength here, use the previous length and reset
+          // runlength
+          columnRunLength[i] = ~length;
+          columnRunLength[i]--;
+          length = columnPrvLength[i];
+        } else {
+          columnPrvLength[i] = length;
+          columnRunLength[i] = 0;
+        }
+        return length;
+      }
     }
 
     /** Returns true iff the previous call to next passed a sync mark. */
     public boolean syncSeen() {
       return syncSeen;
+    }
+    
+   
+    /** Returns the last seen sync position */
+    public long lastSeenSyncPos() {
+      return lastSeenSyncPos;
     }
 
     /** Returns the name of the file. */

@@ -36,6 +36,17 @@ import org.apache.hadoop.hive.ql.metadata.Partition;
 
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
+import org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat;
+import org.apache.hadoop.hive.ql.io.RCFileInputFormat;
+import org.apache.hadoop.hive.ql.io.RCFileOutputFormat;
+
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Order;
+import org.apache.hadoop.hive.serde.Constants;
+import org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
+import org.apache.hadoop.mapred.SequenceFileOutputFormat;
+import org.apache.hadoop.mapred.TextInputFormat;
 
 public abstract class BaseSemanticAnalyzer {
   protected final Hive db;
@@ -49,6 +60,22 @@ public abstract class BaseSemanticAnalyzer {
   protected Context ctx;
   protected HashMap<String, String> idToTableNameMap;
 
+  /**
+   * ReadEntitites that are passed to the hooks.
+   */
+  protected Set<ReadEntity> inputs;
+  /**
+   * List of WriteEntities that are passed to the hooks.
+   */
+  protected Set<WriteEntity> outputs;
+
+  protected static final String TEXTFILE_INPUT = TextInputFormat.class.getName();
+  protected static final String TEXTFILE_OUTPUT = IgnoreKeyTextOutputFormat.class.getName();
+  protected static final String SEQUENCEFILE_INPUT = SequenceFileInputFormat.class.getName();
+  protected static final String SEQUENCEFILE_OUTPUT = SequenceFileOutputFormat.class.getName();
+  protected static final String RCFILE_INPUT = RCFileInputFormat.class.getName();
+  protected static final String RCFILE_OUTPUT = RCFileOutputFormat.class.getName();
+  protected static final String COLUMNAR_SERDE = ColumnarSerDe.class.getName();
 
   public BaseSemanticAnalyzer(HiveConf conf) throws SemanticException {
     try {
@@ -58,17 +85,19 @@ public abstract class BaseSemanticAnalyzer {
       LOG = LogFactory.getLog(this.getClass().getName());
       console = new LogHelper(LOG);
       this.idToTableNameMap = new  HashMap<String, String>();
+      inputs = new LinkedHashSet<ReadEntity>();
+      outputs = new LinkedHashSet<WriteEntity>();
     } catch (Exception e) {
       throw new SemanticException (e);
     }
   }
 
-  
+
   public HashMap<String, String> getIdToTableNameMap() {
     return idToTableNameMap;
   }
 
-  
+
   public abstract void analyzeInternal(ASTNode ast) throws SemanticException;
 
   public void analyze(ASTNode ast, Context ctx) throws SemanticException {
@@ -79,7 +108,7 @@ public abstract class BaseSemanticAnalyzer {
   public void validate() throws SemanticException {
     // Implementations may choose to override this
   }
-  
+
   public List<Task<? extends Serializable>> getRootTasks() {
     return rootTasks;
   }
@@ -114,11 +143,11 @@ public abstract class BaseSemanticAnalyzer {
     if ((val.charAt(0) == '\'' && val.charAt(val.length() - 1) == '\'')
         || (val.charAt(0) == '\"' && val.charAt(val.length() - 1) == '\"')) {
       val = val.substring(1, val.length() - 1);
-    } 
+    }
     return val;
   }
 
-  public static String charSetString(String charSetName, String charSetString) 
+  public static String charSetString(String charSetName, String charSetString)
     throws SemanticException {
     try
       {
@@ -131,7 +160,7 @@ public abstract class BaseSemanticAnalyzer {
             assert charSetString.charAt(0) == '0';
             assert charSetString.charAt(1) == 'x';
             charSetString = charSetString.substring(2);
-        
+
             byte[] bArray = new byte[charSetString.length()/2];
             int j = 0;
             for (int i = 0; i < charSetString.length(); i += 2)
@@ -144,7 +173,7 @@ public abstract class BaseSemanticAnalyzer {
 
             String res = new String(bArray, charSetName);
             return res;
-          } 
+          }
       } catch (UnsupportedEncodingException e) {
       throw new SemanticException(e);
     }
@@ -162,7 +191,7 @@ public abstract class BaseSemanticAnalyzer {
     }
     if (val.charAt(0) == '`' && val.charAt(val.length() - 1) == '`') {
       val = val.substring(1, val.length() - 1);
-    } 
+    }
     return val;
   }
 
@@ -172,11 +201,11 @@ public abstract class BaseSemanticAnalyzer {
     Character enclosure = null;
 
     // Some of the strings can be passed in as unicode. For example, the
-    // delimiter can be passed in as \002 - So, we first check if the 
+    // delimiter can be passed in as \002 - So, we first check if the
     // string is a unicode number, else go back to the old behavior
     StringBuilder sb = new StringBuilder(b.length());
     for (int i=0; i < b.length(); i++) {
-      
+
       char currentChar = b.charAt(i);
       if (enclosure == null) {
         if (currentChar == '\'' || b.charAt(i) == '\"') {
@@ -185,12 +214,12 @@ public abstract class BaseSemanticAnalyzer {
         // ignore all other chars outside the enclosure
         continue;
       }
-      
+
       if (enclosure.equals(currentChar)) {
         enclosure = null;
         continue;
       }
-      
+
       if (currentChar == '\\' && (i+4 < b.length())) {
         char i1 = b.charAt(i+1);
         char i2 = b.charAt(i+2);
@@ -233,15 +262,101 @@ public abstract class BaseSemanticAnalyzer {
     }
     return sb.toString();
   }
-  
+
   public Set<ReadEntity> getInputs() {
-    return new LinkedHashSet<ReadEntity>();
+    return inputs;
   }
-  
+
   public Set<WriteEntity> getOutputs() {
-    return new LinkedHashSet<WriteEntity>();
+    return outputs;
+  }
+
+  /**
+   *  Get the list of FieldSchema out of the ASTNode. 
+   */
+  protected List<FieldSchema> getColumns(ASTNode ast) throws SemanticException
+  {
+    List<FieldSchema> colList = new ArrayList<FieldSchema>();
+    int numCh = ast.getChildCount();
+    for (int i = 0; i < numCh; i++) {
+      FieldSchema col = new FieldSchema();
+      ASTNode child = (ASTNode)ast.getChild(i);
+      
+      // child 0 is the name of the column
+      col.setName(unescapeIdentifier(child.getChild(0).getText()));
+      // child 1 is the type of the column
+      ASTNode typeChild = (ASTNode)(child.getChild(1));
+      col.setType(getTypeStringFromAST(typeChild));
+       
+      // child 2 is the optional comment of the column
+      if (child.getChildCount() == 3)
+        col.setComment(unescapeSQLString(child.getChild(2).getText()));
+      colList.add(col);
+    }
+    return colList;
   }
   
+  protected List<String> getColumnNames(ASTNode ast)
+  {
+    List<String> colList = new ArrayList<String>();
+    int numCh = ast.getChildCount();
+    for (int i = 0; i < numCh; i++) {
+      ASTNode child = (ASTNode)ast.getChild(i);
+      colList.add(unescapeIdentifier(child.getText()));
+    }
+    return colList;
+  }
+  
+  protected List<Order> getColumnNamesOrder(ASTNode ast)
+  {
+    List<Order> colList = new ArrayList<Order>();
+    int numCh = ast.getChildCount();
+    for (int i = 0; i < numCh; i++) {
+      ASTNode child = (ASTNode)ast.getChild(i);
+      if (child.getToken().getType() == HiveParser.TOK_TABSORTCOLNAMEASC)
+        colList.add(new Order(unescapeIdentifier(child.getChild(0).getText()), 1));
+      else
+        colList.add(new Order(unescapeIdentifier(child.getChild(0).getText()), 0));
+    }
+    return colList;
+  }
+  
+  protected static String getTypeStringFromAST(ASTNode typeNode) throws SemanticException {
+    switch (typeNode.getType()) {
+    case HiveParser.TOK_LIST:
+      return Constants.LIST_TYPE_NAME + "<"
+        + getTypeStringFromAST((ASTNode)typeNode.getChild(0)) + ">";
+    case HiveParser.TOK_MAP:
+      return Constants.MAP_TYPE_NAME + "<"
+        + getTypeStringFromAST((ASTNode)typeNode.getChild(0)) + ","
+        + getTypeStringFromAST((ASTNode)typeNode.getChild(1)) + ">";
+    case HiveParser.TOK_STRUCT:
+      return getStructTypeStringFromAST(typeNode);
+    default:
+      return DDLSemanticAnalyzer.getTypeName(typeNode.getType());
+    }
+  }
+  
+  private static String getStructTypeStringFromAST(ASTNode typeNode)
+      throws SemanticException {
+    String typeStr = Constants.STRUCT_TYPE_NAME + "<";
+    typeNode = (ASTNode) typeNode.getChild(0);
+    int children = typeNode.getChildCount();
+    if(children <= 0)
+      throw new SemanticException("empty struct not allowed.");
+    for (int i = 0; i < children; i++) {
+      ASTNode child = (ASTNode) typeNode.getChild(i);
+      typeStr += unescapeIdentifier(child.getChild(0).getText()) + ":";
+      typeStr += getTypeStringFromAST((ASTNode) child.getChild(1));
+      if (i < children - 1)
+        typeStr += ",";
+    }
+      
+    typeStr += ">";
+    return typeStr;
+  }
+ 
+ 
   public static class tableSpec {
     public String tableName;
     public Table tableHandle;
@@ -257,7 +372,7 @@ public abstract class BaseSemanticAnalyzer {
         // get table metadata
         tableName = unescapeIdentifier(ast.getChild(0).getText());
         boolean testMode = conf.getBoolVar(HiveConf.ConfVars.HIVETESTMODE);
-        if (testMode) 
+        if (testMode)
           tableName = conf.getVar(HiveConf.ConfVars.HIVETESTMODEPREFIX) + tableName;
 
         tableHandle = db.getTable(MetaStoreUtils.DEFAULT_DATABASE_NAME, tableName);
@@ -277,8 +392,13 @@ public abstract class BaseSemanticAnalyzer {
           partSpec.put(unescapeIdentifier(partspec_val.getChild(0).getText().toLowerCase()), val);
         }
         try {
-          // this doesn't create partition. partition is created in MoveTask
-          partHandle = new Partition(tableHandle, partSpec, null);
+          // In case the partition already exists, we need to get the partition
+          // data from the metastore
+          partHandle = db.getPartition(tableHandle, partSpec, false);
+          if(partHandle == null) {
+            // this doesn't create partition. partition is created in MoveTask
+            partHandle = new Partition(tableHandle, partSpec, null);
+          }
         } catch (HiveException e) {
           throw new SemanticException(ErrorMsg.INVALID_PARTITION.getMsg(ast.getChild(childIndex)));
         }
@@ -287,9 +407,9 @@ public abstract class BaseSemanticAnalyzer {
 
 
     public String toString() {
-      if(partHandle != null) 
+      if(partHandle != null)
         return partHandle.toString();
-      else 
+      else
         return tableHandle.toString();
     }
   }

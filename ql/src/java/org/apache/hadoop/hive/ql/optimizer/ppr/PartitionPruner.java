@@ -49,6 +49,8 @@ import org.apache.hadoop.hive.ql.parse.PrunedPartitionList;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.exprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.exprNodeDesc;
+import org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc;
+import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
@@ -63,7 +65,7 @@ public class PartitionPruner implements Transform {
 
   // The log
   private static final Log LOG = LogFactory.getLog("hive.ql.optimizer.ppr.PartitionPruner");
- 
+
   /* (non-Javadoc)
    * @see org.apache.hadoop.hive.ql.optimizer.Transform#transform(org.apache.hadoop.hive.ql.parse.ParseContext)
    */
@@ -72,15 +74,15 @@ public class PartitionPruner implements Transform {
 
     // create a the context for walking operators
     OpWalkerCtx opWalkerCtx = new OpWalkerCtx(pctx.getOpToPartPruner());
-    
+
     Map<Rule, NodeProcessor> opRules = new LinkedHashMap<Rule, NodeProcessor>();
-    opRules.put(new RuleRegExp("R1", "(TS%FIL%)|(TS%FIL%FIL%)"), 
+    opRules.put(new RuleRegExp("R1", "(TS%FIL%)|(TS%FIL%FIL%)"),
                 OpProcFactory.getFilterProc());
 
     // The dispatcher fires the processor corresponding to the closest matching rule and passes the context along
     Dispatcher disp = new DefaultRuleDispatcher(OpProcFactory.getDefaultProc(), opRules, opWalkerCtx);
     GraphWalker ogw = new DefaultGraphWalker(disp);
-    
+
     // Create a list of topop nodes
     ArrayList<Node> topNodes = new ArrayList<Node>();
     topNodes.addAll(pctx.getTopOps().values());
@@ -91,9 +93,43 @@ public class PartitionPruner implements Transform {
   }
 
   /**
+   * Find out whether the condition only contains partitioned columns. Note that if the table
+   * is not partitioned, the function always returns true.
+   * condition.
+   *
+   * @param tab    the table object
+   * @param expr   the pruner expression for the table
+   */
+  public static boolean onlyContainsPartnCols(Table tab, exprNodeDesc expr) {
+    if (!tab.isPartitioned() || (expr == null))
+      return true;
+
+    if (expr instanceof exprNodeColumnDesc) {
+      String colName = ((exprNodeColumnDesc)expr).getColumn();
+      return tab.isPartitionKey(colName);
+    }
+
+    // It cannot contain a non-deterministic function
+    if ((expr instanceof exprNodeGenericFuncDesc) &&
+        !FunctionRegistry.isDeterministic(((exprNodeGenericFuncDesc)expr).getGenericUDF()))
+      return false;
+
+    // All columns of the expression must be parttioned columns
+    List<exprNodeDesc> children = expr.getChildren();
+    if (children != null) {
+      for (int i = 0; i < children.size(); i++) {
+        if (!onlyContainsPartnCols(tab, children.get(i)))
+          return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
    * Get the partition list for the table that satisfies the partition pruner
    * condition.
-   * 
+   *
    * @param tab    the table object for the alias
    * @param prunerExpr  the pruner expression for the alias
    * @param conf   for checking whether "strict" mode is on.
@@ -102,11 +138,18 @@ public class PartitionPruner implements Transform {
    * @throws HiveException
    */
   public static PrunedPartitionList prune(Table tab, exprNodeDesc prunerExpr,
-      HiveConf conf, String alias) throws HiveException {
+      HiveConf conf, String alias, Map<String, PrunedPartitionList> prunedPartitionsMap) throws HiveException {
     LOG.trace("Started pruning partiton");
     LOG.trace("tabname = " + tab.getName());
     LOG.trace("prune Expression = " + prunerExpr);
-
+    
+    String key = tab.getName() + ";";
+    if (prunerExpr != null)
+      key = key + prunerExpr.getExprString();
+    PrunedPartitionList ret = prunedPartitionsMap.get(key);
+    if(ret !=null)
+      return ret;
+    
     LinkedHashSet<Partition> true_parts = new LinkedHashSet<Partition>();
     LinkedHashSet<Partition> unkn_parts = new LinkedHashSet<Partition>();
     LinkedHashSet<Partition> denied_parts = new LinkedHashSet<Partition>();
@@ -126,7 +169,7 @@ public class PartitionPruner implements Transform {
           for(Map.Entry<String,String>entry : partSpec.entrySet()) {
             partNames.add(entry.getKey());
             partValues.add(entry.getValue());
-            partObjectInspectors.add(PrimitiveObjectInspectorFactory.javaStringObjectInspector); 
+            partObjectInspectors.add(PrimitiveObjectInspectorFactory.javaStringObjectInspector);
           }
           StructObjectInspector partObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(partNames, partObjectInspectors);
 
@@ -136,14 +179,14 @@ public class PartitionPruner implements Transform {
           ois.add(partObjectInspector);
           StructObjectInspector rowWithPartObjectInspector = ObjectInspectorFactory.getUnionStructObjectInspector(ois);
 
-          // If the "strict" mode is on, we have to provide partition pruner for each table.  
+          // If the "strict" mode is on, we have to provide partition pruner for each table.
           if ("strict".equalsIgnoreCase(HiveConf.getVar(conf, HiveConf.ConfVars.HIVEMAPREDMODE))) {
             if (!hasColumnExpr(prunerExpr)) {
-              throw new SemanticException(ErrorMsg.NO_PARTITION_PREDICATE.getMsg( 
+              throw new SemanticException(ErrorMsg.NO_PARTITION_PREDICATE.getMsg(
                   "for Alias \"" + alias + "\" Table \"" + tab.getName() + "\""));
             }
           }
-          
+
           // evaluate the expression tree
           if (prunerExpr != null) {
             ExprNodeEvaluator evaluator = ExprNodeEvaluatorFactory.get(prunerExpr);
@@ -162,7 +205,7 @@ public class PartitionPruner implements Transform {
               if (Boolean.TRUE.equals(r)) {
                 LOG.debug("retained partition: " + partSpec);
                 true_parts.add(part);
-              } else {             
+              } else {
                 LOG.debug("unknown partition: " + partSpec);
                 unkn_parts.add(part);
               }
@@ -182,14 +225,16 @@ public class PartitionPruner implements Transform {
     }
 
     // Now return the set of partitions
-    return new PrunedPartitionList(true_parts, unkn_parts, denied_parts);
+    ret = new PrunedPartitionList(true_parts, unkn_parts, denied_parts);
+    prunedPartitionsMap.put(key, ret);
+    return ret;
   }
-  
+
   /**
    * Whether the expression contains a column node or not.
    */
   public static boolean hasColumnExpr(exprNodeDesc desc) {
-    // Return false for null 
+    // Return false for null
     if (desc == null) {
       return false;
     }
@@ -209,5 +254,5 @@ public class PartitionPruner implements Transform {
     // Return false otherwise
     return false;
   }
-  
+
 }

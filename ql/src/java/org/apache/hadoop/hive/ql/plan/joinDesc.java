@@ -20,15 +20,17 @@ package org.apache.hadoop.hive.ql.plan;
 
 import java.io.Serializable;
 
+import org.apache.hadoop.hive.ql.exec.Utilities;
+import org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat;
 import org.apache.hadoop.hive.ql.plan.exprNodeDesc;
+import org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
+
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
 
 /**
  * Join operator Descriptor implementation.
@@ -37,10 +39,12 @@ import java.util.Map.Entry;
 @explain(displayName="Join Operator")
 public class joinDesc implements Serializable {
   private static final long serialVersionUID = 1L;
-  public static final int INNER_JOIN = 0;
-  public static final int LEFT_OUTER_JOIN = 1;
+  public static final int INNER_JOIN       = 0;
+  public static final int LEFT_OUTER_JOIN  = 1;
   public static final int RIGHT_OUTER_JOIN = 2;
-  public static final int FULL_OUTER_JOIN = 3;
+  public static final int FULL_OUTER_JOIN  = 3;
+  public static final int UNIQUE_JOIN      = 4;
+  public static final int LEFT_SEMI_JOIN   = 5;
 
   // alias to key mapping
   private Map<Byte, List<exprNodeDesc>> exprs;
@@ -56,6 +60,8 @@ public class joinDesc implements Serializable {
 
   protected joinCond[] conds;
   
+  protected Byte[] tagOrder;
+  
   public joinDesc() { }
   
   public joinDesc(final Map<Byte, List<exprNodeDesc>> exprs, ArrayList<String> outputColumnNames, final boolean noOuterJoin, final joinCond[] conds) {
@@ -63,6 +69,12 @@ public class joinDesc implements Serializable {
     this.outputColumnNames = outputColumnNames;
     this.noOuterJoin = noOuterJoin;
     this.conds = conds;
+    
+    tagOrder = new Byte[exprs.size()];
+    for(int i = 0; i<tagOrder.length; i++)
+    {
+      tagOrder[i] = (byte)i;
+    }
   }
   
   public joinDesc(final Map<Byte, List<exprNodeDesc>> exprs, ArrayList<String> outputColumnNames) {
@@ -158,4 +170,21 @@ public class joinDesc implements Serializable {
     this.conds = conds;
   }
 
+  /**
+   * The order in which tables should be processed when joining
+   * 
+   * @return Array of tags
+   */
+  public Byte[] getTagOrder() {
+    return tagOrder;
+  }
+
+  /**
+   * The order in which tables should be processed when joining
+   * 
+   * @param tagOrder Array of tags
+   */
+  public void setTagOrder(Byte[] tagOrder) {
+    this.tagOrder = tagOrder;
+  }
 }

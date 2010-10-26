@@ -22,6 +22,7 @@ import java.io.Serializable;
 
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.forwardDesc;
+import org.apache.hadoop.hive.ql.plan.api.OperatorType;
 
 /**
  * Forward Operator
@@ -31,8 +32,12 @@ public class ForwardOperator extends  Operator<forwardDesc>  implements Serializ
   private static final long serialVersionUID = 1L;
 
   @Override
-  public void process(Object row, int tag)
+  public void processOp(Object row, int tag)
       throws HiveException {
     forward(row, inputObjInspectors[tag]);    
+  }
+  
+  public int getType() {
+    return OperatorType.FORWARD;
   }
 }

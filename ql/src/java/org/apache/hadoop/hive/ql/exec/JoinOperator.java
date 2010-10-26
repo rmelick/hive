@@ -23,6 +23,8 @@ import java.util.ArrayList;
 
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.joinDesc;
+import org.apache.hadoop.hive.ql.plan.api.OperatorType;
+import org.apache.hadoop.hive.ql.exec.persistence.RowContainer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
@@ -40,7 +42,7 @@ public class JoinOperator extends CommonJoinOperator<joinDesc> implements Serial
     initializeChildren(hconf);
   }
   
-  public void process(Object row, int tag)
+  public void processOp(Object row, int tag)
       throws HiveException {
     try {
       // get alias
@@ -84,6 +86,10 @@ public class JoinOperator extends CommonJoinOperator<joinDesc> implements Serial
       e.printStackTrace();
       throw new HiveException(e);
     }
+  }
+  
+  public int getType() {
+    return OperatorType.JOIN;
   }
 
   

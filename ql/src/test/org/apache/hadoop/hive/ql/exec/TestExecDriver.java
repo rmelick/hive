@@ -30,6 +30,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.ql.exec.Utilities.StreamPrinter;
 import org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat;
@@ -40,7 +41,7 @@ import org.apache.hadoop.hive.ql.plan.exprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.exprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.exprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.exprNodeFieldDesc;
-import org.apache.hadoop.hive.ql.plan.exprNodeFuncDesc;
+import org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.plan.extractDesc;
 import org.apache.hadoop.hive.ql.plan.fileSinkDesc;
 import org.apache.hadoop.hive.ql.plan.filterDesc;
@@ -156,31 +157,25 @@ public class TestExecDriver extends TestCase {
   private filterDesc getTestFilterDesc(String column) {
     ArrayList<exprNodeDesc> children1 = new ArrayList<exprNodeDesc>();
     children1.add(new exprNodeColumnDesc(TypeInfoFactory.stringTypeInfo, column, "", false));
-    exprNodeDesc lhs = new exprNodeFuncDesc(
-        Constants.DOUBLE_TYPE_NAME,
+    exprNodeDesc lhs = new exprNodeGenericFuncDesc(
         TypeInfoFactory.doubleTypeInfo,
-        FunctionRegistry.getUDFClass(Constants.DOUBLE_TYPE_NAME),
-        FunctionRegistry.getUDFMethod(Constants.DOUBLE_TYPE_NAME, TypeInfoFactory.stringTypeInfo),
+        FunctionRegistry.getFunctionInfo(Constants.DOUBLE_TYPE_NAME).getGenericUDF(),
         children1);
     
     ArrayList<exprNodeDesc> children2 = new ArrayList<exprNodeDesc>();
     children2.add(new exprNodeConstantDesc(TypeInfoFactory.longTypeInfo, Long.valueOf(100)));
-    exprNodeDesc rhs = new exprNodeFuncDesc(
-        Constants.DOUBLE_TYPE_NAME,
+    exprNodeDesc rhs = new exprNodeGenericFuncDesc(
         TypeInfoFactory.doubleTypeInfo,
-        FunctionRegistry.getUDFClass(Constants.DOUBLE_TYPE_NAME),
-        FunctionRegistry.getUDFMethod(Constants.DOUBLE_TYPE_NAME, TypeInfoFactory.longTypeInfo),
+        FunctionRegistry.getFunctionInfo(Constants.DOUBLE_TYPE_NAME).getGenericUDF(),
         children2);
     
     ArrayList<exprNodeDesc> children3 = new ArrayList<exprNodeDesc>();
     children3.add(lhs);
     children3.add(rhs);
     
-    exprNodeDesc desc = new exprNodeFuncDesc(
-        "<",
+    exprNodeDesc desc = new exprNodeGenericFuncDesc(
         TypeInfoFactory.booleanTypeInfo,
-        FunctionRegistry.getUDFClass("<"),
-        FunctionRegistry.getUDFMethod("<", TypeInfoFactory.doubleTypeInfo, TypeInfoFactory.doubleTypeInfo),
+        FunctionRegistry.getFunctionInfo("<").getGenericUDF(),
         children3);
     
     return new filterDesc(desc, false);
@@ -211,6 +206,7 @@ public class TestExecDriver extends TestCase {
     Operator<scriptDesc> op2 = OperatorFactory.get
       (new scriptDesc("/bin/cat",
           PlanUtils.getDefaultTableDesc("" + Utilities.tabCode, "key,value"),
+                      TextRecordWriter.class,
           PlanUtils.getDefaultTableDesc("" + Utilities.tabCode, "key,value"), 
           TextRecordReader.class),
        op3);
@@ -352,6 +348,7 @@ public class TestExecDriver extends TestCase {
     Operator<scriptDesc> op0 = OperatorFactory.get
     (new scriptDesc("/bin/cat",
         PlanUtils.getDefaultTableDesc("" + Utilities.tabCode, "key,value"),
+                    TextRecordWriter.class,
         PlanUtils.getDefaultTableDesc("" + Utilities.tabCode, "tkey,tvalue"),
         TextRecordReader.class),
      op1);
@@ -433,6 +430,7 @@ public class TestExecDriver extends TestCase {
     Operator<scriptDesc> op0 = OperatorFactory.get
       (new scriptDesc("\'/bin/cat\'",
           PlanUtils.getDefaultTableDesc("" + Utilities.tabCode, "tkey,tvalue"),
+                      TextRecordWriter.class,
           PlanUtils.getDefaultTableDesc("" + Utilities.tabCode, "tkey,tvalue"),
           TextRecordReader.class),
        op1);
@@ -460,7 +458,9 @@ public class TestExecDriver extends TestCase {
   }
 
   private File generatePlanFile() throws Exception {
-    File planFile = File.createTempFile("plan", ".xml");
+    File scratchDir = new File(
+        (new HiveConf(TestExecDriver.class)).getVar(ConfVars.SCRATCHDIR));
+    File planFile = File.createTempFile("plan", ".xml", scratchDir);
     System.out.println("Generating plan file " + planFile.toString());
     FileOutputStream out = new FileOutputStream(planFile);
     Utilities.serializeMapRedWork(mr, out);

@@ -1,5 +1,23 @@
-query: EXPLAIN
+PREHOOK: query: DESCRIBE FUNCTION lower
+PREHOOK: type: DESCFUNCTION
+POSTHOOK: query: DESCRIBE FUNCTION lower
+POSTHOOK: type: DESCFUNCTION
+lower(str) - Returns str with all characters changed to lowercase
+PREHOOK: query: DESCRIBE FUNCTION EXTENDED lower
+PREHOOK: type: DESCFUNCTION
+POSTHOOK: query: DESCRIBE FUNCTION EXTENDED lower
+POSTHOOK: type: DESCFUNCTION
+lower(str) - Returns str with all characters changed to lowercase
+Synonyms: lcase
+Example:
+  > SELECT lower('Facebook') FROM src LIMIT 1;
+  'facebook'
+PREHOOK: query: EXPLAIN
 SELECT lower('AbC 123'), upper('AbC 123') FROM src WHERE key = 86
+PREHOOK: type: QUERY
+POSTHOOK: query: EXPLAIN
+SELECT lower('AbC 123'), upper('AbC 123') FROM src WHERE key = 86
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_FUNCTION lower 'AbC 123')) (TOK_SELEXPR (TOK_FUNCTION upper 'AbC 123'))) (TOK_WHERE (= (TOK_TABLE_OR_COL key) 86))))
 
@@ -16,11 +34,11 @@ STAGE PLANS:
             alias: src
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) = UDFToDouble(86))
+                  expr: (key = 86)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) = UDFToDouble(86))
+                    expr: (key = 86)
                     type: boolean
                 Select Operator
                   expressions:
@@ -41,7 +59,12 @@ STAGE PLANS:
       limit: -1
 
 
-query: SELECT lower('AbC 123'), upper('AbC 123') FROM src WHERE key = 86
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1100342629/10000
+PREHOOK: query: SELECT lower('AbC 123'), upper('AbC 123') FROM src WHERE key = 86
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/Users/carl/Projects/hd8/hive-trunk/build/ql/tmp/1144815521/10000
+POSTHOOK: query: SELECT lower('AbC 123'), upper('AbC 123') FROM src WHERE key = 86
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/Users/carl/Projects/hd8/hive-trunk/build/ql/tmp/1144815521/10000
 abc 123	ABC 123

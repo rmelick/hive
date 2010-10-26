@@ -28,6 +28,7 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.exprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.reduceSinkDesc;
 import org.apache.hadoop.hive.ql.plan.tableDesc;
+import org.apache.hadoop.hive.ql.plan.api.OperatorType;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.Serializer;
 import org.apache.hadoop.hive.serde2.objectinspector.InspectableObject;
@@ -126,7 +127,7 @@ public class ReduceSinkOperator extends TerminalOperator <reduceSinkDesc> implem
   boolean firstRow;
   
   transient Random random;
-  public void process(Object row, int tag) throws HiveException {
+  public void processOp(Object row, int tag) throws HiveException {
     try {
       ObjectInspector rowInspector = inputObjInspectors[tag];
       if (firstRow) {
@@ -203,6 +204,14 @@ public class ReduceSinkOperator extends TerminalOperator <reduceSinkDesc> implem
     try {
       if (out != null) {
         out.collect(keyWritable, value);
+        // Since this is a terminal operator, update counters explicitly - forward is not called
+        if (counterNameToEnum != null) {
+          ++this.outputRows;
+          if (this.outputRows % 1000 == 0) {
+            incrCounter(numOutputRowsCntr, outputRows);
+            this.outputRows = 0;
+          }
+        }
       }
     } catch (IOException e) {
       throw new HiveException (e);
@@ -216,4 +225,7 @@ public class ReduceSinkOperator extends TerminalOperator <reduceSinkDesc> implem
     return new String("RS");
   }
   
+  public int getType() {
+    return OperatorType.REDUCESINK;
+  }
 }

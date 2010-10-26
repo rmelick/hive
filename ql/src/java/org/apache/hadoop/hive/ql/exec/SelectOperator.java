@@ -25,6 +25,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.exprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.selectDesc;
+import org.apache.hadoop.hive.ql.plan.api.OperatorType;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 
 /**
@@ -58,7 +59,7 @@ public class SelectOperator extends Operator <selectDesc> implements Serializabl
     initializeChildren(hconf);
   }
 
-  public void process(Object row, int tag)
+  public void processOp(Object row, int tag)
       throws HiveException {
 
     // Just forward the row as is
@@ -86,5 +87,9 @@ public class SelectOperator extends Operator <selectDesc> implements Serializabl
   @Override
   public String getName() {
     return new String("SEL");
+  }
+  
+  public int getType() {
+    return OperatorType.SELECT;
   }
 }

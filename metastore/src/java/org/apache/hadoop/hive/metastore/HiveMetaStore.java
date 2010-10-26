@@ -21,6 +21,8 @@ package org.apache.hadoop.hive.metastore;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -28,6 +30,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
+import org.apache.hadoop.hive.metastore.api.ConfigValSecurityException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Index;
@@ -47,6 +50,7 @@ import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.hive.metastore.api.Constants;
 
 import com.facebook.fb303.FacebookBase;
 import com.facebook.fb303.FacebookService;
@@ -60,10 +64,10 @@ import org.apache.thrift.transport.TServerTransport;
 import org.apache.thrift.transport.TTransportFactory;
 
 /**
- * TODO:pc remove application logic to a separate interface. 
+ * TODO:pc remove application logic to a separate interface.
  */
 public class HiveMetaStore extends ThriftHiveMetastore {
-  
+
     public static class HMSHandler extends FacebookBase implements ThriftHiveMetastore.Iface {
       public static final Log LOG = LogFactory.getLog(HiveMetaStore.class.getName());
       private static boolean createDefaultDB = false;
@@ -85,15 +89,15 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         }
       };
       public static Integer get() {
-        return threadLocalId.get();     
+        return threadLocalId.get();
       }
-      
+
       public HMSHandler(String name) throws MetaException {
         super(name);
         hiveConf = new HiveConf(this.getClass());
         init();
       }
-      
+
       public HMSHandler(String name, HiveConf conf) throws MetaException {
         super(name);
         hiveConf = conf;
@@ -108,7 +112,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
           classLoader = Configuration.class.getClassLoader();
         }
       }
-      
+
       private boolean init() throws MetaException {
         rawStoreClassName = hiveConf.get("hive.metastore.rawstore.impl");
         checkForDefaultDb = hiveConf.getBoolean("hive.metastore.checkForDefaultDb", true);
@@ -121,7 +125,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
 
       /**
        * @return
-       * @throws MetaException 
+       * @throws MetaException
        */
       private RawStore getMS() throws MetaException {
         RawStore ms = threadLocalMS.get();
@@ -145,7 +149,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         try {
           getMS().getDatabase(MetaStoreUtils.DEFAULT_DATABASE_NAME);
         } catch (NoSuchObjectException e) {
-          getMS().createDatabase(new Database(MetaStoreUtils.DEFAULT_DATABASE_NAME, 
+          getMS().createDatabase(new Database(MetaStoreUtils.DEFAULT_DATABASE_NAME,
                     wh.getDefaultDatabasePath(MetaStoreUtils.DEFAULT_DATABASE_NAME).toString()));
         }
         HMSHandler.createDefaultDB = true;
@@ -158,7 +162,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
           throw new MetaException(rawStoreClassName + " class not found");
         }
       }
-      
+
       private void logStartFunction(String m) {
         LOG.info(threadLocalId.get().toString() + ": " + m);
       }
@@ -166,12 +170,12 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       private void logStartFunction(String f, String db, String tbl) {
         LOG.info(threadLocalId.get().toString() + ": " + f + " : db=" + db + " tbl=" + tbl);
       }
-      
+
       @Override
       public int getStatus() {
         return fb_status.ALIVE;
       }
-      
+
       public void shutdown() {
         logStartFunction("Shutting down the object store...");
         try {
@@ -259,7 +263,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       public boolean drop_type(String name) throws MetaException {
         this.incrementCounter("drop_type");
         logStartFunction("drop_type: " + name);
-        // TODO:pc validate that there are no types that refer to this 
+        // TODO:pc validate that there are no types that refer to this
         return getMS().dropType(name);
       }
 
@@ -280,7 +284,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
               !MetaStoreUtils.validateColNames(tbl.getPartitionKeys()))) {
             throw new InvalidObjectException(tbl.getTableName() + " is not a valid object name");
         }
-        
+
         Path tblPath = null;
         boolean success = false, madeDir = false;
         try {
@@ -309,9 +313,14 @@ public class HiveMetaStore extends ThriftHiveMetastore {
             madeDir = true;
           }
 
+          // set create time
+          long time = System.currentTimeMillis() / 1000;
+          tbl.setCreateTime((int) time);
+          tbl.putToParameters(Constants.DDL_TIME, Long.toString(time));
+
           getMS().createTable(tbl);
           success = getMS().commitTransaction();
-      
+
         } finally {
           if(!success) {
             getMS().rollbackTransaction();
@@ -321,7 +330,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
           }
         }
       }
-      
+
       public boolean is_table_exists(String dbname, String name) throws MetaException {
         try {
           return (get_table(dbname, name) != null);
@@ -329,7 +338,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
           return false;
         }
       }
-      
+
       public void drop_table(String dbname, String name, boolean deleteData) throws NoSuchObjectException, MetaException {
         this.incrementCounter("drop_table");
         logStartFunction("drop_table", dbname, name);
@@ -378,7 +387,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         if(params == null) {
           return false;
         }
-        
+
         return "TRUE".equalsIgnoreCase(params.get("EXTERNAL"));
       }
 
@@ -392,7 +401,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         return t;
       }
 
-      public boolean set_table_parameters(String dbname, String name, 
+      public boolean set_table_parameters(String dbname, String name,
           Map<String, String> params) throws NoSuchObjectException,
           MetaException {
         this.incrementCounter("set_table_parameters");
@@ -435,13 +444,18 @@ public class HiveMetaStore extends ThriftHiveMetastore {
           if( old_part != null) {
             throw new AlreadyExistsException("Partition already exists:" + part);
           }
-          
+
           if(!wh.isDir(partLocation)) {
             if(!wh.mkdirs(partLocation)) {
               throw new MetaException (partLocation + " is not a directory or unable to create one");
             }
             madeDir = true;
           }
+
+          // set create time
+          long time = System.currentTimeMillis() / 1000;
+          part.setCreateTime((int) time);
+          part.putToParameters(Constants.DDL_TIME, Long.toString(time));
 
           success = getMS().addPartition(part);
           if(success) {
@@ -457,7 +471,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         }
         return part;
       }
-      
+
       public int add_partitions(List<Partition> parts) throws MetaException, InvalidObjectException, AlreadyExistsException {
         this.incrementCounter("add_partition");
         if(parts.size() == 0) {
@@ -504,7 +518,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
             // set default location if not specified
             partLocation = new Path(tbl.getSd().getLocation(),
                                     Warehouse.makePartName(tbl.getPartitionKeys(), part.getValues()));
-            
+
           } else {
             partLocation = wh.getDnsPath(new Path(partLocationStr));
           }
@@ -517,6 +531,11 @@ public class HiveMetaStore extends ThriftHiveMetastore {
             }
             madeDir = true;
           }
+
+          // set create time
+          long time = System.currentTimeMillis() / 1000;
+          part.setCreateTime((int) time);
+          part.putToParameters(Constants.DDL_TIME, Long.toString(time));
 
           success = getMS().addPartition(part) && getMS().commitTransaction();
 
@@ -580,7 +599,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         logStartFunction("get_partitions", db_name, tbl_name);
         return getMS().getPartitions(db_name, tbl_name, max_parts);
       }
-      
+
       public List<String> get_partition_names(String db_name, String tbl_name, short max_parts) throws MetaException {
         this.incrementCounter("get_partition_names");
         logStartFunction("get_partition_names", db_name, tbl_name);
@@ -594,13 +613,14 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         logStartFunction("alter_partition", db_name, tbl_name);
         LOG.info("Partition values:" + new_part.getValues());
         try {
+          new_part.putToParameters(Constants.DDL_TIME, Long.toString(System.currentTimeMillis() / 1000));
           getMS().alterPartition(db_name, tbl_name, new_part);
         } catch(InvalidObjectException e) {
           LOG.error(StringUtils.stringifyException(e));
           throw new InvalidOperationException("alter is not possible");
         }
       }
-      
+
       public boolean create_index(Index index_def)
           throws IndexAlreadyExistsException, MetaException {
         this.incrementCounter("create_index");
@@ -613,11 +633,12 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         logStartFunction("getVersion");
         return "3.0";
       }
-      
+
       public void alter_table(String dbname, String name, Table newTable) throws InvalidOperationException,
           MetaException {
         this.incrementCounter("alter_table");
         logStartFunction("truncate_table: db=" + dbname + " tbl=" + name + " newtbl=" + newTable.getTableName());
+        newTable.putToParameters(Constants.DDL_TIME, Long.toString(System.currentTimeMillis() / 1000));
         alterHandler.alterTable(getMS(), wh, dbname, name, newTable);
       }
 
@@ -628,7 +649,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       }
 
 
-      public List<FieldSchema> get_fields(String db, String tableName) 
+      public List<FieldSchema> get_fields(String db, String tableName)
         throws MetaException,UnknownTableException, UnknownDBException {
         this.incrementCounter("get_fields");
         logStartFunction("get_fields: db=" + db + "tbl=" + tableName);
@@ -654,7 +675,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
           }
         }
       }
-      
+
       /**
        * Return the schema of the table. This function includes partition columns
        * in addition to the regular columns.
@@ -665,13 +686,13 @@ public class HiveMetaStore extends ThriftHiveMetastore {
        * @throws UnknownTableException
        * @throws UnknownDBException
        */
-      public List<FieldSchema> get_schema(String db, String tableName) 
+      public List<FieldSchema> get_schema(String db, String tableName)
         throws MetaException, UnknownTableException, UnknownDBException {
         this.incrementCounter("get_schema");
         logStartFunction("get_schema: db=" + db + "tbl=" + tableName);
         String [] names = tableName.split("\\.");
         String base_table_name = names[0];
-        
+
         Table tbl;
         try {
           tbl = this.get_table(db, base_table_name);
@@ -683,7 +704,7 @@ public class HiveMetaStore extends ThriftHiveMetastore {
         if (tbl == null || fieldSchemas == null) {
           throw new UnknownTableException(tableName + " doesn't exist");
         }
-        
+
         if (tbl.getPartitionKeys() != null) {
           // Combine the column field schemas and the partition keys to create the whole schema
           fieldSchemas.addAll(tbl.getPartitionKeys());
@@ -694,8 +715,40 @@ public class HiveMetaStore extends ThriftHiveMetastore {
       public String getCpuProfile(int profileDurationInSec) throws TException {
         return "";
       }
+
+      /**
+       * Returns the value of the given configuration variable name. If the
+       * configuration variable with the given name doesn't exist, or if there 
+       * were an exception thrown while retrieving the variable, or if name is 
+       * null, defaultValue is returned.
+       */
+      public String get_config_value(String name, String defaultValue) 
+      throws TException, ConfigValSecurityException {
+        this.incrementCounter("get_config_value");
+        logStartFunction("get_config_value: name=" + name + 
+            " defaultValue=" + defaultValue);
+        if(name == null) {
+          return defaultValue;
+        }
+        // Allow only keys that start with hive.*, hdfs.*, mapred.* for security
+        // i.e. don't allow access to db password
+        if(!Pattern.matches("(hive|hdfs|mapred).*", name)) {
+          throw new ConfigValSecurityException("For security reasons, the " + 
+              "config key " + name + " cannot be accessed");
+        }
+        
+        String toReturn = defaultValue;
+        try {
+          toReturn = hiveConf.get(name, defaultValue);
+        } catch(RuntimeException e) {
+          LOG.error(threadLocalId.get().toString() + ": " + 
+              "RuntimeException thrown in get_config_value - msg: " + 
+              e.getMessage() + " cause: " + e.getCause());
+        }
+        return toReturn;
+      }
   }
-    
+
   /**
    * @param args
    */

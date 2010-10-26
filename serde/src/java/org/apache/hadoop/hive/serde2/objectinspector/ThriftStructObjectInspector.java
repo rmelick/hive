@@ -27,20 +27,7 @@ class ThriftStructObjectInspector extends
     ReflectionStructObjectInspector {
 
   public boolean shouldIgnoreField(String name) {
-    return name != null && name.startsWith("__isset");
+    return name.startsWith("__isset");
   }
   
-  public boolean equals(Object b) {
-    if (this == b) return true;
-    if (!b.getClass().equals(this.getClass())) {
-      return false;
-    }
-    ThriftStructObjectInspector bInspector = (ThriftStructObjectInspector)b;
-    return objectClass.equals(bInspector.objectClass);
-  }
-
-  public int hashCode() {
-    return 7 * objectClass.hashCode(); 
-  }
-    
 }

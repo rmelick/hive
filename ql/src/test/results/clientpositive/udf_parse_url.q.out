@@ -1,4 +1,23 @@
-query: EXPLAIN
+PREHOOK: query: DESCRIBE FUNCTION parse_url
+PREHOOK: type: DESCFUNCTION
+POSTHOOK: query: DESCRIBE FUNCTION parse_url
+POSTHOOK: type: DESCFUNCTION
+parse_url(url, partToExtract[, key]) - extracts a part from a URL
+PREHOOK: query: DESCRIBE FUNCTION EXTENDED parse_url
+PREHOOK: type: DESCFUNCTION
+POSTHOOK: query: DESCRIBE FUNCTION EXTENDED parse_url
+POSTHOOK: type: DESCFUNCTION
+parse_url(url, partToExtract[, key]) - extracts a part from a URL
+Parts: HOST, PATH, QUERY, REF, PROTOCOL, AUTHORITY, FILE, USERINFO
+key specifies which query to extract
+Example:
+  > SELECT parse_url('http://facebook.com/path/p1.php?query=1', 'HOST') FROM src LIMIT 1;
+  'facebook.com'
+  > SELECT parse_url('http://facebook.com/path/p1.php?query=1', 'QUERY') FROM src LIMIT 1;
+  'query=1'
+  > SELECT parse_url('http://facebook.com/path/p1.php?query=1', 'QUERY', 'query') FROM src LIMIT 1;
+  '1'
+PREHOOK: query: EXPLAIN
 SELECT parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST'), 
 parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'PATH'), 
 parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY') ,
@@ -11,6 +30,21 @@ parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'PROTOCOL') ,
 parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'USERINFO') ,
 parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'AUTHORITY') 
   FROM src WHERE key = 86
+PREHOOK: type: QUERY
+POSTHOOK: query: EXPLAIN
+SELECT parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST'), 
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'PATH'), 
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'REF') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k2') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k3') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'FILE') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'PROTOCOL') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'USERINFO') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'AUTHORITY') 
+  FROM src WHERE key = 86
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'HOST')) (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'PATH')) (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'QUERY')) (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'REF')) (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'QUERY' 'k2')) (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'QUERY' 'k1')) (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'QUERY' 'k3')) (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'FILE')) (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'PROTOCOL')) (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'USERINFO')) (TOK_SELEXPR (TOK_FUNCTION parse_url 'http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1' 'AUTHORITY'))) (TOK_WHERE (= (TOK_TABLE_OR_COL key) 86))))
 
@@ -27,11 +61,11 @@ STAGE PLANS:
             alias: src
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) = UDFToDouble(86))
+                  expr: (key = 86)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) = UDFToDouble(86))
+                    expr: (key = 86)
                     type: boolean
                 Select Operator
                   expressions:
@@ -70,7 +104,7 @@ STAGE PLANS:
       limit: -1
 
 
-query: SELECT parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST'), 
+PREHOOK: query: SELECT parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST'), 
 parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'PATH'), 
 parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY') ,
 parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'REF') ,
@@ -82,6 +116,22 @@ parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'PROTOCOL') ,
 parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'USERINFO') ,
 parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'AUTHORITY') 
   FROM src WHERE key = 86
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/919076975/10000
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/Users/carl/Projects/hd9/hive-trunk/build/ql/tmp/482859701/10000
+POSTHOOK: query: SELECT parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST'), 
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'PATH'), 
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'REF') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k2') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k3') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'FILE') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'PROTOCOL') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'USERINFO') ,
+parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'AUTHORITY') 
+  FROM src WHERE key = 86
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/Users/carl/Projects/hd9/hive-trunk/build/ql/tmp/482859701/10000
 facebook.com	/path1/p.php	k1=v1&k2=v2	Ref1	v2	v1	NULL	/path1/p.php?k1=v1&k2=v2	http	NULL	facebook.com

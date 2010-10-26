@@ -26,6 +26,7 @@
 
 include "thrift/fb303/if/fb303.thrift"
 include "metastore/if/hive_metastore.thrift"
+include "ql/if/queryplan.thrift"
 
 namespace java org.apache.hadoop.hive.service
 namespace cpp Apache.Hadoop.Hive
@@ -48,6 +49,8 @@ struct HiveClusterStatus {
 
 exception HiveServerException {
   1: string message
+  2: i32 errorCode
+  3: string SQLState
 }
 
 # Interface for Thrift Hive Server
@@ -74,5 +77,8 @@ service ThriftHive extends hive_metastore.ThriftHiveMetastore {
   
   # Get the status information about the Map-Reduce cluster
   HiveClusterStatus getClusterStatus() throws(1:HiveServerException ex)
+  
+  # Get the queryplan annotated with counter information
+  queryplan.QueryPlan getQueryPlan() throws(1:HiveServerException ex)
 
 }

@@ -1,8 +1,11 @@
-query: SHOW FUNCTIONS
+PREHOOK: query: SHOW FUNCTIONS
+PREHOOK: type: SHOWFUNCTIONS
+POSTHOOK: query: SHOW FUNCTIONS
+POSTHOOK: type: SHOWFUNCTIONS
 !
+!=
 %
 &
-&&
 *
 +
 -
@@ -18,6 +21,7 @@ query: SHOW FUNCTIONS
 abs
 acos
 and
+array
 ascii
 asin
 avg
@@ -29,6 +33,7 @@ ceil
 ceiling
 coalesce
 concat
+concat_ws
 conv
 cos
 count
@@ -41,12 +46,16 @@ div
 double
 elt
 exp
+explode
+field
+find_in_set
 float
 floor
 from_unixtime
 get_json_object
 hash
 hex
+hour
 if
 index
 instr
@@ -64,8 +73,10 @@ log2
 lower
 lpad
 ltrim
+map
 max
 min
+minute
 month
 negative
 not
@@ -85,6 +96,7 @@ rlike
 round
 rpad
 rtrim
+second
 sin
 size
 smallint
@@ -103,33 +115,43 @@ tinyint
 to_date
 trim
 ucase
+unhex
 unix_timestamp
 upper
 var_pop
 var_samp
 variance
+weekofyear
 when
 year
 |
-||
 ~
-query: SHOW FUNCTIONS '^c.*'
+PREHOOK: query: SHOW FUNCTIONS '^c.*'
+PREHOOK: type: SHOWFUNCTIONS
+POSTHOOK: query: SHOW FUNCTIONS '^c.*'
+POSTHOOK: type: SHOWFUNCTIONS
 case
 ceil
 ceiling
 coalesce
 concat
+concat_ws
 conv
 cos
 count
-query: SHOW FUNCTIONS '.*e$'
+PREHOOK: query: SHOW FUNCTIONS '.*e$'
+PREHOOK: type: SHOWFUNCTIONS
+POSTHOOK: query: SHOW FUNCTIONS '.*e$'
+POSTHOOK: type: SHOWFUNCTIONS
 case
 coalesce
 double
+explode
 from_unixtime
 lcase
 like
 locate
+minute
 negative
 positive
 regexp_replace
@@ -140,13 +162,22 @@ space
 to_date
 ucase
 variance
-query: SHOW FUNCTIONS 'log.*'
+PREHOOK: query: SHOW FUNCTIONS 'log.*'
+PREHOOK: type: SHOWFUNCTIONS
+POSTHOOK: query: SHOW FUNCTIONS 'log.*'
+POSTHOOK: type: SHOWFUNCTIONS
 log
 log10
 log2
-query: SHOW FUNCTIONS '.*date.*'
+PREHOOK: query: SHOW FUNCTIONS '.*date.*'
+PREHOOK: type: SHOWFUNCTIONS
+POSTHOOK: query: SHOW FUNCTIONS '.*date.*'
+POSTHOOK: type: SHOWFUNCTIONS
 date_add
 date_sub
 datediff
 to_date
-query: SHOW FUNCTIONS '***'
+PREHOOK: query: SHOW FUNCTIONS '***'
+PREHOOK: type: SHOWFUNCTIONS
+POSTHOOK: query: SHOW FUNCTIONS '***'
+POSTHOOK: type: SHOWFUNCTIONS

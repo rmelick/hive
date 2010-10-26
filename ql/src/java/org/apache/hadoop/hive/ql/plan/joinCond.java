@@ -19,6 +19,8 @@
 package org.apache.hadoop.hive.ql.plan;
 
 import java.io.Serializable;
+import java.util.Vector;
+import org.apache.hadoop.hive.ql.parse.joinType;
 
 /**
  * Join conditions Descriptor implementation.
@@ -29,6 +31,7 @@ public class joinCond implements Serializable {
   private int left;
   private int right;
   private int type;
+  private boolean preserved;
 
   public joinCond() {}
 
@@ -39,19 +42,45 @@ public class joinCond implements Serializable {
   }
 
   public joinCond(org.apache.hadoop.hive.ql.parse.joinCond condn) {
-    this.left     = condn.getLeft();
-    this.right    = condn.getRight();
-    org.apache.hadoop.hive.ql.parse.joinType itype = condn.getJoinType();
-    if (itype == org.apache.hadoop.hive.ql.parse.joinType.INNER)
+    this.left       = condn.getLeft();
+    this.right      = condn.getRight();
+    this.preserved  = condn.getPreserved();
+    switch ( condn.getJoinType() ) {
+    case INNER:
       this.type = joinDesc.INNER_JOIN;
-    else if (itype == org.apache.hadoop.hive.ql.parse.joinType.LEFTOUTER)
+      break;
+    case LEFTOUTER:
       this.type = joinDesc.LEFT_OUTER_JOIN;
-    else if (itype == org.apache.hadoop.hive.ql.parse.joinType.RIGHTOUTER)
+      break;
+    case RIGHTOUTER:
       this.type = joinDesc.RIGHT_OUTER_JOIN;
-    else if (itype == org.apache.hadoop.hive.ql.parse.joinType.FULLOUTER)
+      break;
+    case FULLOUTER:
       this.type = joinDesc.FULL_OUTER_JOIN;
-    else
+      break;
+    case UNIQUE:
+      this.type = joinDesc.UNIQUE_JOIN;
+      break;
+    case LEFTSEMI:
+      this.type = joinDesc.LEFT_SEMI_JOIN;
+      break;
+    default:
       assert false;
+    }
+  }
+  
+  /**
+   * @return true if table is preserved, false otherwise
+   */
+  public boolean getPreserved() {
+    return this.preserved;
+  }
+  
+  /**
+   * @param preserved if table is preserved, false otherwise
+   */
+  public void setPreserved(final boolean preserved) {
+    this.preserved = preserved;
   }
   
   public int getLeft() {
@@ -95,8 +124,14 @@ public class joinCond implements Serializable {
     case joinDesc.RIGHT_OUTER_JOIN:
       sb.append("Right Outer Join");
       break;
+    case joinDesc.UNIQUE_JOIN:
+      sb.append("Unique Join");
+      break;
+    case joinDesc.LEFT_SEMI_JOIN:
+      sb.append("Left Semi Join ");
+      break;
     default:
-      sb.append("Unknow Join");
+      sb.append("Unknow Join ");
       break;
     }
     

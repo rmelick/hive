@@ -18,22 +18,21 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Arrays;
-import java.util.Comparator;
 
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.ql.plan.explain;
 import org.apache.hadoop.hive.ql.plan.explainWork;
+import org.apache.hadoop.hive.ql.plan.api.StageType;
 import org.apache.hadoop.util.StringUtils;
 
 
@@ -44,6 +43,10 @@ import org.apache.hadoop.util.StringUtils;
 public class ExplainTask extends Task<explainWork> implements Serializable {
   private static final long serialVersionUID = 1L;
 
+  public ExplainTask() {
+    super();
+  }
+  
   public int execute() {
     
     try {
@@ -96,11 +99,13 @@ public class ExplainTask extends Task<explainWork> implements Serializable {
       if (isPrintable(ent.getValue())) {
         out.print(ent.getValue());
         out.println();
-      }
-      else if (ent.getValue() instanceof Serializable) {
+      } else if (ent.getValue() instanceof List) {
+        out.print(ent.getValue().toString());
+        out.println();
+      } else if (ent.getValue() instanceof Serializable) {
         out.println();
         outputPlan((Serializable)ent.getValue(), out, extended, indent+2);
-      }
+      } 
     }
   }
 
@@ -346,4 +351,7 @@ public class ExplainTask extends Task<explainWork> implements Serializable {
     }
   }
 
+  public int getType() {
+    return StageType.EXPLAIN;
+  }
 }

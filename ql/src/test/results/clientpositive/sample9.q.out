@@ -1,6 +1,11 @@
-query: EXPLAIN EXTENDED
+PREHOOK: query: EXPLAIN EXTENDED
 SELECT s.*
 FROM (SELECT a.* FROM srcbucket TABLESAMPLE (BUCKET 1 OUT OF 2 on key) a) s
+PREHOOK: type: QUERY
+POSTHOOK: query: EXPLAIN EXTENDED
+SELECT s.*
+FROM (SELECT a.* FROM srcbucket TABLESAMPLE (BUCKET 1 OUT OF 2 on key) a) s
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_SUBQUERY (TOK_QUERY (TOK_FROM (TOK_TABREF srcbucket (TOK_TABLESAMPLE 1 2 (TOK_TABLE_OR_COL key)) a)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_ALLCOLREF a))))) s)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_ALLCOLREF s)))))
 
@@ -42,7 +47,7 @@ STAGE PLANS:
                     File Output Operator
                       compressed: false
                       GlobalTableId: 0
-                      directory: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/600393334/10001
+                      directory: file:/data/users/jsichi/open/hive-trunk/build/ql/tmp/276265290/10001
                       table:
                           input format: org.apache.hadoop.mapred.TextInputFormat
                           output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -52,10 +57,27 @@ STAGE PLANS:
                             columns.types int:string
       Needs Tagging: false
       Path -> Alias:
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcbucket 
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcbucket/srcbucket0.txt [s:a]
       Path -> Partition:
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcbucket 
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcbucket/srcbucket0.txt 
           Partition
+            base file name: srcbucket0.txt
+            input format: org.apache.hadoop.mapred.TextInputFormat
+            output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            properties:
+              name srcbucket
+              columns.types int:string
+              bucket_field_name key
+              serialization.ddl struct srcbucket { i32 key, string value}
+              columns key,value
+              serialization.format 1
+              bucket_count 2
+              serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+              file.inputformat org.apache.hadoop.mapred.TextInputFormat
+              file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+              location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcbucket
+              transient_lastDdlTime 1262137551
+            serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -70,19 +92,27 @@ STAGE PLANS:
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcbucket
+                location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcbucket
+                transient_lastDdlTime 1262137551
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: srcbucket
+            name: srcbucket
 
   Stage: Stage-0
     Fetch Operator
       limit: -1
 
 
-query: SELECT s.*
+PREHOOK: query: SELECT s.*
 FROM (SELECT a.* FROM srcbucket TABLESAMPLE (BUCKET 1 OUT OF 2 on key) a) s
-Input: default/srcbucket
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1923094099/10000
+PREHOOK: type: QUERY
+PREHOOK: Input: default@srcbucket
+PREHOOK: Output: file:/data/users/jsichi/open/hive-trunk/build/ql/tmp/1954715033/10000
+POSTHOOK: query: SELECT s.*
+FROM (SELECT a.* FROM srcbucket TABLESAMPLE (BUCKET 1 OUT OF 2 on key) a) s
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@srcbucket
+POSTHOOK: Output: file:/data/users/jsichi/open/hive-trunk/build/ql/tmp/1954715033/10000
 474	val_475
 62	val_63
 468	val_469

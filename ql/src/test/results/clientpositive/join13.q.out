@@ -1,4 +1,4 @@
-query: EXPLAIN
+PREHOOK: query: EXPLAIN
 SELECT src1.c1, src2.c4 
 FROM
 (SELECT src.key as c1, src.value as c2 from src) src1
@@ -8,6 +8,18 @@ ON src1.c1 = src2.c3 AND src1.c1 < 100
 JOIN
 (SELECT src.key as c5, src.value as c6 from src) src3
 ON src1.c1 + src2.c3 = src3.c5 AND src3.c5 < 200
+PREHOOK: type: QUERY
+POSTHOOK: query: EXPLAIN
+SELECT src1.c1, src2.c4 
+FROM
+(SELECT src.key as c1, src.value as c2 from src) src1
+JOIN
+(SELECT src.key as c3, src.value as c4 from src) src2
+ON src1.c1 = src2.c3 AND src1.c1 < 100
+JOIN
+(SELECT src.key as c5, src.value as c6 from src) src3
+ON src1.c1 + src2.c3 = src3.c5 AND src3.c5 < 200
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_JOIN (TOK_JOIN (TOK_SUBQUERY (TOK_QUERY (TOK_FROM (TOK_TABREF src)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (. (TOK_TABLE_OR_COL src) key) c1) (TOK_SELEXPR (. (TOK_TABLE_OR_COL src) value) c2)))) src1) (TOK_SUBQUERY (TOK_QUERY (TOK_FROM (TOK_TABREF src)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (. (TOK_TABLE_OR_COL src) key) c3) (TOK_SELEXPR (. (TOK_TABLE_OR_COL src) value) c4)))) src2) (AND (= (. (TOK_TABLE_OR_COL src1) c1) (. (TOK_TABLE_OR_COL src2) c3)) (< (. (TOK_TABLE_OR_COL src1) c1) 100))) (TOK_SUBQUERY (TOK_QUERY (TOK_FROM (TOK_TABREF src)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (. (TOK_TABLE_OR_COL src) key) c5) (TOK_SELEXPR (. (TOK_TABLE_OR_COL src) value) c6)))) src3) (AND (= (+ (. (TOK_TABLE_OR_COL src1) c1) (. (TOK_TABLE_OR_COL src2) c3)) (. (TOK_TABLE_OR_COL src3) c5)) (< (. (TOK_TABLE_OR_COL src3) c5) 200)))) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (. (TOK_TABLE_OR_COL src1) c1)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL src2) c4)))))
 
@@ -49,7 +61,7 @@ STAGE PLANS:
             alias: src
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) < UDFToDouble(100))
+                  expr: (key < 100)
                   type: boolean
               Select Operator
                 expressions:
@@ -58,7 +70,7 @@ STAGE PLANS:
                 outputColumnNames: _col0
                 Filter Operator
                   predicate:
-                      expr: (UDFToDouble(_col0) < UDFToDouble(100))
+                      expr: (_col0 < 100)
                       type: boolean
                   Reduce Output Operator
                     key expressions:
@@ -93,11 +105,11 @@ STAGE PLANS:
         $INTNAME 
             Reduce Output Operator
               key expressions:
-                    expr: (UDFToDouble(_col0) + UDFToDouble(_col2))
+                    expr: (_col0 + _col2)
                     type: double
               sort order: +
               Map-reduce partition columns:
-                    expr: (UDFToDouble(_col0) + UDFToDouble(_col2))
+                    expr: (_col0 + _col2)
                     type: double
               tag: 0
               value expressions:
@@ -110,7 +122,7 @@ STAGE PLANS:
             alias: src
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) < UDFToDouble(200))
+                  expr: (key < 200)
                   type: boolean
               Select Operator
                 expressions:
@@ -119,7 +131,7 @@ STAGE PLANS:
                 outputColumnNames: _col0
                 Filter Operator
                   predicate:
-                      expr: (UDFToDouble(_col0) < UDFToDouble(200))
+                      expr: (_col0 < 200)
                       type: boolean
                   Reduce Output Operator
                     key expressions:
@@ -157,7 +169,7 @@ STAGE PLANS:
       limit: -1
 
 
-query: SELECT src1.c1, src2.c4 
+PREHOOK: query: SELECT src1.c1, src2.c4 
 FROM
 (SELECT src.key as c1, src.value as c2 from src) src1
 JOIN
@@ -166,8 +178,21 @@ ON src1.c1 = src2.c3 AND src1.c1 < 100
 JOIN
 (SELECT src.key as c5, src.value as c6 from src) src3
 ON src1.c1 + src2.c3 = src3.c5 AND src3.c5 < 200
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1605427587/10000
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/njain/hive5/hive5/build/ql/tmp/603825487/10000
+POSTHOOK: query: SELECT src1.c1, src2.c4 
+FROM
+(SELECT src.key as c1, src.value as c2 from src) src1
+JOIN
+(SELECT src.key as c3, src.value as c4 from src) src2
+ON src1.c1 = src2.c3 AND src1.c1 < 100
+JOIN
+(SELECT src.key as c5, src.value as c6 from src) src3
+ON src1.c1 + src2.c3 = src3.c5 AND src3.c5 < 200
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/njain/hive5/hive5/build/ql/tmp/603825487/10000
 0	val_0
 0	val_0
 0	val_0

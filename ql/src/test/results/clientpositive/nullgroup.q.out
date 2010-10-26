@@ -1,5 +1,9 @@
-query: explain
+PREHOOK: query: explain
 select count(1) from src x where x.key > 9999
+PREHOOK: type: QUERY
+POSTHOOK: query: explain
+select count(1) from src x where x.key > 9999
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src x)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_FUNCTION count 1))) (TOK_WHERE (> (. (TOK_TABLE_OR_COL x) key) 9999))))
 
@@ -16,16 +20,17 @@ STAGE PLANS:
             alias: x
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) > UDFToDouble(9999))
+                  expr: (key > 9999)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) > UDFToDouble(9999))
+                    expr: (key > 9999)
                     type: boolean
                 Select Operator
                   Group By Operator
                     aggregations:
                           expr: count(1)
+                    bucketGroup: false
                     mode: hash
                     outputColumnNames: _col0
                     Reduce Output Operator
@@ -38,6 +43,7 @@ STAGE PLANS:
         Group By Operator
           aggregations:
                 expr: count(VALUE._col0)
+          bucketGroup: false
           mode: final
           outputColumnNames: _col0
           Select Operator
@@ -57,12 +63,21 @@ STAGE PLANS:
       limit: -1
 
 
-query: select count(1) from src x where x.key > 9999
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/161603981/10000
+PREHOOK: query: select count(1) from src x where x.key > 9999
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/833754505/10000
+POSTHOOK: query: select count(1) from src x where x.key > 9999
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/833754505/10000
 0
-query: explain
+PREHOOK: query: explain
 select count(1) from src x where x.key > 9999
+PREHOOK: type: QUERY
+POSTHOOK: query: explain
+select count(1) from src x where x.key > 9999
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src x)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_FUNCTION count 1))) (TOK_WHERE (> (. (TOK_TABLE_OR_COL x) key) 9999))))
 
@@ -79,16 +94,17 @@ STAGE PLANS:
             alias: x
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) > UDFToDouble(9999))
+                  expr: (key > 9999)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) > UDFToDouble(9999))
+                    expr: (key > 9999)
                     type: boolean
                 Select Operator
                   Group By Operator
                     aggregations:
                           expr: count(1)
+                    bucketGroup: false
                     mode: hash
                     outputColumnNames: _col0
                     Reduce Output Operator
@@ -101,6 +117,7 @@ STAGE PLANS:
         Group By Operator
           aggregations:
                 expr: count(VALUE._col0)
+          bucketGroup: false
           mode: mergepartial
           outputColumnNames: _col0
           Select Operator
@@ -120,12 +137,21 @@ STAGE PLANS:
       limit: -1
 
 
-query: select count(1) from src x where x.key > 9999
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/720088705/10000
+PREHOOK: query: select count(1) from src x where x.key > 9999
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1463633983/10000
+POSTHOOK: query: select count(1) from src x where x.key > 9999
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1463633983/10000
 0
-query: explain
+PREHOOK: query: explain
 select count(1) from src x where x.key > 9999
+PREHOOK: type: QUERY
+POSTHOOK: query: explain
+select count(1) from src x where x.key > 9999
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src x)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_FUNCTION count 1))) (TOK_WHERE (> (. (TOK_TABLE_OR_COL x) key) 9999))))
 
@@ -143,11 +169,11 @@ STAGE PLANS:
             alias: x
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) > UDFToDouble(9999))
+                  expr: (key > 9999)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) > UDFToDouble(9999))
+                    expr: (key > 9999)
                     type: boolean
                 Select Operator
                   Reduce Output Operator
@@ -163,6 +189,7 @@ STAGE PLANS:
         Group By Operator
           aggregations:
                 expr: count(VALUE._col0)
+          bucketGroup: false
           mode: partial1
           outputColumnNames: _col0
           File Output Operator
@@ -175,7 +202,7 @@ STAGE PLANS:
   Stage: Stage-2
     Map Reduce
       Alias -> Map Operator Tree:
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1577457021/10002 
+        file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1175734472/10002 
             Reduce Output Operator
               sort order: 
               tag: -1
@@ -186,6 +213,7 @@ STAGE PLANS:
         Group By Operator
           aggregations:
                 expr: count(VALUE._col0)
+          bucketGroup: false
           mode: final
           outputColumnNames: _col0
           Select Operator
@@ -205,12 +233,21 @@ STAGE PLANS:
       limit: -1
 
 
-query: select count(1) from src x where x.key > 9999
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1185327154/10000
+PREHOOK: query: select count(1) from src x where x.key > 9999
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1110622860/10000
+POSTHOOK: query: select count(1) from src x where x.key > 9999
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1110622860/10000
 0
-query: explain
+PREHOOK: query: explain
 select count(1) from src x where x.key > 9999
+PREHOOK: type: QUERY
+POSTHOOK: query: explain
+select count(1) from src x where x.key > 9999
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src x)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_FUNCTION count 1))) (TOK_WHERE (> (. (TOK_TABLE_OR_COL x) key) 9999))))
 
@@ -227,11 +264,11 @@ STAGE PLANS:
             alias: x
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) > UDFToDouble(9999))
+                  expr: (key > 9999)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) > UDFToDouble(9999))
+                    expr: (key > 9999)
                     type: boolean
                 Select Operator
                   Reduce Output Operator
@@ -244,6 +281,7 @@ STAGE PLANS:
         Group By Operator
           aggregations:
                 expr: count(VALUE._col0)
+          bucketGroup: false
           mode: complete
           outputColumnNames: _col0
           Select Operator
@@ -263,7 +301,12 @@ STAGE PLANS:
       limit: -1
 
 
-query: select count(1) from src x where x.key > 9999
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/858984614/10000
+PREHOOK: query: select count(1) from src x where x.key > 9999
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1442417263/10000
+POSTHOOK: query: select count(1) from src x where x.key > 9999
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1442417263/10000
 0

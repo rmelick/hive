@@ -35,14 +35,20 @@ import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.parse.ParseException;
 import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.parse.SemanticAnalyzerFactory;
+import org.apache.hadoop.hive.ql.parse.ErrorMsg;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.session.SessionState.LogHelper;
 import org.apache.hadoop.hive.ql.exec.ExecDriver;
+import org.apache.hadoop.hive.ql.exec.Operator;
 import org.apache.hadoop.hive.ql.exec.Task;
+import org.apache.hadoop.hive.ql.exec.TaskRunner;
+import org.apache.hadoop.hive.ql.exec.TaskResult;
 import org.apache.hadoop.hive.ql.exec.FetchTask;
 import org.apache.hadoop.hive.ql.exec.TaskFactory;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.hooks.PreExecute;
+import org.apache.hadoop.hive.ql.hooks.PostExecute;
+
 import org.apache.hadoop.hive.ql.history.HiveHistory.Keys;
 import org.apache.hadoop.hive.ql.processors.CommandProcessor;
 import org.apache.hadoop.hive.ql.plan.tableDesc;
@@ -52,7 +58,7 @@ import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.mapred.ClusterStatus;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.UnixUserGroupInformation;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -69,7 +75,17 @@ public class Driver implements CommandProcessor {
   private DataInput resStream;
   private Context ctx;
   private QueryPlan plan;
+  private String errorMessage;
+  private String SQLState;
 
+  // A limit on the number of threads that can be launched
+  private int maxthreads = 8;
+  private int sleeptime = 2000;
+
+  public void init() {
+    Operator.resetId();
+  }
+  
   public int countJobs(List<Task<? extends Serializable>> tasks) {
     return countJobs(tasks, new ArrayList<Task<? extends Serializable>>());
   }
@@ -107,7 +123,7 @@ public class Driver implements CommandProcessor {
     LOG.info("Returning cluster status: " + cs.toString());
     return cs;
   }
-  
+
   /**
    * Get a Schema with fields represented with native Hive types
    */
@@ -119,7 +135,7 @@ public class Driver implements CommandProcessor {
 
         if (!sem.getFetchTaskInit()) {
           sem.setFetchTaskInit(true);
-          sem.getFetchTask().initialize(conf);
+          sem.getFetchTask().initialize(conf, plan);
         }
         FetchTask ft = (FetchTask) sem.getFetchTask();
 
@@ -136,7 +152,7 @@ public class Driver implements CommandProcessor {
         if (td == null) {
           throw new Exception("No table description found for fetch task: " + ft);
         }
- 
+
         String tableName = "result";
         List<FieldSchema> lst = MetaStoreUtils.getFieldsFromDeserializer(
             tableName, td.getDeserializer());
@@ -153,12 +169,12 @@ public class Driver implements CommandProcessor {
     LOG.info("Returning Hive schema: " + schema);
     return schema;
   }
-  
+
   /**
    * Get a Schema with fields represented with Thrift DDL types
    */
   public Schema getThriftSchema() throws Exception {
-    Schema schema;    
+    Schema schema;
     try {
       schema = this.getSchema();
       if (schema != null) {
@@ -166,8 +182,8 @@ public class Driver implements CommandProcessor {
 	    // Go over the schema and convert type to thrift type
 	    if (lst != null) {
 	      for (FieldSchema f : lst) {
-	        f.setType(MetaStoreUtils.typeToThriftType(f.getType()));  
-          }     
+	        f.setType(MetaStoreUtils.typeToThriftType(f.getType()));
+          }
 	    }
       }
     }
@@ -213,11 +229,21 @@ public class Driver implements CommandProcessor {
    */
   public Driver(HiveConf conf) {
     this.conf = conf;
+    try {
+      UnixUserGroupInformation.login(conf, true);
+    } catch (Exception e) {
+      LOG.warn("Ignoring " + e.getMessage());
+    }
   }
 
   public Driver() {
     if (SessionState.get() != null) {
       conf = SessionState.get().getConf();
+      try {
+        UnixUserGroupInformation.login(conf, true);
+      } catch (Exception e) {
+        LOG.warn("Ignoring " + e.getMessage());
+      }
     }
   }
 
@@ -248,23 +274,28 @@ public class Driver implements CommandProcessor {
       // Do semantic analysis and plan generation
       sem.analyze(tree, ctx);
       LOG.info("Semantic Analysis Completed");
-      
+
       // validate the plan
       sem.validate();
 
       plan = new QueryPlan(command, sem);
       return (0);
     } catch (SemanticException e) {
-      console.printError("FAILED: Error in semantic analysis: "
-          + e.getMessage(), "\n"
+      errorMessage = "FAILED: Error in semantic analysis: " + e.getMessage();
+      SQLState = ErrorMsg.findSQLState(e.getMessage());
+      console.printError(errorMessage, "\n"
           + org.apache.hadoop.util.StringUtils.stringifyException(e));
       return (10);
     } catch (ParseException e) {
-      console.printError("FAILED: Parse Error: " + e.getMessage(), "\n"
+      errorMessage = "FAILED: Parse Error: " + e.getMessage();
+      SQLState = ErrorMsg.findSQLState(e.getMessage());
+      console.printError(errorMessage, "\n"
           + org.apache.hadoop.util.StringUtils.stringifyException(e));
       return (11);
     } catch (Exception e) {
-      console.printError("FAILED: Unknown exception : " + e.getMessage(), "\n"
+      errorMessage = "FAILED: Unknown exception: " + e.getMessage();
+      SQLState = ErrorMsg.findSQLState(e.getMessage());
+      console.printError(errorMessage, "\n"
           + org.apache.hadoop.util.StringUtils.stringifyException(e));
       return (12);
     }
@@ -278,11 +309,48 @@ public class Driver implements CommandProcessor {
   }
 
   public int run(String command) {
+    DriverResponse response = runCommand(command);
+    return response.getResponseCode();
+  }
+
+  public DriverResponse runCommand(String command) {
+    errorMessage = null;
+    SQLState = null;
+
     int ret = compile(command);
     if (ret != 0)
-      return (ret);
+      return new DriverResponse(ret, errorMessage, SQLState);
 
-    return execute();
+    ret = execute();
+    if (ret != 0)
+      return new DriverResponse(ret, errorMessage, SQLState);
+
+    return new DriverResponse(ret);
+  }
+
+  /**
+   * Encapsulates the basic response info returned by the Driver. Typically
+   * <code>errorMessage</code> and <code>SQLState</code> will only be set if
+   * the <code>responseCode</code> is not 0.
+   */
+  public class DriverResponse {
+    private int responseCode;
+    private String errorMessage;
+    private String SQLState;
+
+    public DriverResponse(int responseCode) {
+      this(responseCode, null, null);
+    }
+
+    public DriverResponse(int responseCode, String errorMessage, String SQLState) {
+      this.responseCode = responseCode;
+      this.errorMessage = errorMessage;
+      this.SQLState = SQLState;
+    }
+
+    public int getResponseCode() { return responseCode; }
+    public String getErrorMessage() { return errorMessage; }
+    public String getSQLState() { return SQLState; }
   }
 
   private List<PreExecute> getPreExecHooks() throws Exception {
@@ -293,7 +361,7 @@ public class Driver implements CommandProcessor {
       return pehooks;
 
     String[] peClasses = pestr.split(",");
-    
+
     for(String peClass: peClasses) {
       try {
         pehooks.add((PreExecute)Class.forName(peClass.trim(), true, JavaUtils.getClassLoader()).newInstance());
@@ -302,14 +370,37 @@ public class Driver implements CommandProcessor {
         throw e;
       }
     }
-    
+
     return pehooks;
   }
-  
+
+  private List<PostExecute> getPostExecHooks() throws Exception {
+    ArrayList<PostExecute> pehooks = new ArrayList<PostExecute>();
+    String pestr = conf.getVar(HiveConf.ConfVars.POSTEXECHOOKS);
+    pestr = pestr.trim();
+    if (pestr.equals(""))
+      return pehooks;
+
+    String[] peClasses = pestr.split(",");
+
+    for(String peClass: peClasses) {
+      try {
+        pehooks.add((PostExecute)Class.forName(peClass.trim(), true, JavaUtils.getClassLoader()).newInstance());
+      } catch (ClassNotFoundException e) {
+        console.printError("Post Exec Hook Class not found:" + e.getMessage());
+        throw e;
+      }
+    }
+
+    return pehooks;
+  }
+
   public int execute() {
     boolean noName = StringUtils.isEmpty(conf
         .getVar(HiveConf.ConfVars.HADOOPJOBNAME));
     int maxlen = conf.getIntVar(HiveConf.ConfVars.HIVEJOBNAMELENGTH);
+
+    int curJobNo=0;
 
     String queryId = plan.getQueryId();
     String queryStr = plan.getQueryStr();
@@ -317,23 +408,26 @@ public class Driver implements CommandProcessor {
     conf.setVar(HiveConf.ConfVars.HIVEQUERYID, queryId);
     conf.setVar(HiveConf.ConfVars.HIVEQUERYSTRING, queryStr);
 
-    try {      
+    try {
       LOG.info("Starting command: " + queryStr);
 
-      if (SessionState.get() != null)
-        SessionState.get().getHiveHistory().startQuery(queryStr, conf.getVar(HiveConf.ConfVars.HIVEQUERYID) );
+      plan.setStarted();
 
+      if (SessionState.get() != null) {
+        SessionState.get().getHiveHistory().startQuery(queryStr, conf.getVar(HiveConf.ConfVars.HIVEQUERYID) );
+        SessionState.get().getHiveHistory().logPlanProgress(plan);
+      }
       resStream = null;
 
       BaseSemanticAnalyzer sem = plan.getPlan();
 
       // Get all the pre execution hooks and execute them.
       for(PreExecute peh: getPreExecHooks()) {
-        peh.run(SessionState.get(), 
+        peh.run(SessionState.get(),
                 sem.getInputs(), sem.getOutputs(),
-                UserGroupInformation.getCurrentUGI());        
+                UnixUserGroupInformation.readFromConf(conf, UnixUserGroupInformation.UGI_PROPERTY_NAME));
       }
-      
+
       int jobs = countJobs(sem.getRootTasks());
       if (jobs > 0) {
         console.printInfo("Total MapReduce jobs = " + jobs);
@@ -345,65 +439,69 @@ public class Driver implements CommandProcessor {
       }
       String jobname = Utilities.abbreviate(queryStr, maxlen - 6);
 
-      int curJobNo = 0;
+      // A runtime that launches runnable tasks as separate Threads through TaskRunners
+      // As soon as a task isRunnable, it is put in a queue
+      // At any time, at most maxthreads tasks can be running
+      // The main thread polls the TaskRunners to check if they have finished.
 
-      // A very simple runtime that keeps putting runnable tasks on a list and
-      // when a job completes, it puts the children at the back of the list
-      // while taking the job to run from the front of the list
       Queue<Task<? extends Serializable>> runnable = new LinkedList<Task<? extends Serializable>>();
+      Map<TaskResult, TaskRunner> running = new HashMap<TaskResult, TaskRunner> ();
 
-      for (Task<? extends Serializable> rootTask : sem.getRootTasks()) {
-        if (runnable.offer(rootTask) == false) {
-          LOG.error("Could not insert the first task into the queue");
-          return (1);
-        }
+      //Add root Tasks to runnable
+
+      for (Task<? extends Serializable> tsk : sem.getRootTasks()) {
+        addToRunnable(runnable,tsk);
       }
 
-      while (runnable.peek() != null) {
-        Task<? extends Serializable> tsk = runnable.remove();
+      // Loop while you either have tasks running, or tasks queued up
 
-        if (SessionState.get() != null)
-          SessionState.get().getHiveHistory().startTask(queryId, tsk,
-              tsk.getClass().getName());
-
-        if (tsk.isMapRedTask()) {
-          curJobNo++;
-          if (noName) {
-            conf.setVar(HiveConf.ConfVars.HADOOPJOBNAME, jobname + "(" + curJobNo
-                        + "/" + jobs + ")");
-          }
+      while (running.size() != 0 || runnable.peek()!=null) {
+        // Launch upto maxthreads tasks
+        while(runnable.peek() != null && running.size() < maxthreads) {
+          Task<? extends Serializable> tsk = runnable.remove();
+          curJobNo = launchTask(tsk, queryId, noName,running, jobname, jobs, curJobNo);
         }
 
-        tsk.initialize(conf);
+        // poll the Tasks to see which one completed
+        TaskResult tskRes = pollTasks(running.keySet());
+        TaskRunner tskRun = running.remove(tskRes);
+        Task<? extends Serializable> tsk = tskRun.getTask();
 
-        int exitVal = tsk.execute();
+        int exitVal = tskRes.getExitVal();
+        if(exitVal != 0) {
+          //TODO: This error messaging is not very informative. Fix that.
+          errorMessage = "FAILED: Execution Error, return code " + exitVal
+                         + " from " + tsk.getClass().getName();
+          SQLState = "08S01";
+          console.printError(errorMessage);
+          if(running.size() !=0) {
+            taskCleanup();
+          }
+          return 9;
+        }
+
         if (SessionState.get() != null) {
           SessionState.get().getHiveHistory().setTaskProperty(queryId,
               tsk.getId(), Keys.TASK_RET_CODE, String.valueOf(exitVal));
           SessionState.get().getHiveHistory().endTask(queryId, tsk);
         }
-        if (exitVal != 0) {
-          console.printError("FAILED: Execution Error, return code " + exitVal
-              + " from " + tsk.getClass().getName());
-          return 9;
-        }
-        tsk.setDone();
 
-        if (tsk.getChildTasks() == null) {
-          continue;
-        }
-
-        for (Task<? extends Serializable> child : tsk.getChildTasks()) {          
-          // Check if the child is runnable
-          if (!child.isRunnable()) {
-            continue;
-          }
-
-          if (runnable.offer(child) == false) {
-            LOG.error("Could not add child task to queue");
+        if (tsk.getChildTasks() != null) {
+          for (Task<? extends Serializable> child : tsk.getChildTasks()) {
+            if(isLaunchable(child)) { 
+              addToRunnable(runnable,child);
+            }
           }
         }
       }
+
+      // Get all the post execution hooks and execute them.
+      for(PostExecute peh: getPostExecHooks()) {
+        peh.run(SessionState.get(),
+                sem.getInputs(), sem.getOutputs(),
+                UnixUserGroupInformation.readFromConf(conf, UnixUserGroupInformation.UGI_PROPERTY_NAME));
+      }
+
       if (SessionState.get() != null){
         SessionState.get().getHiveHistory().setQueryProperty(queryId,
             Keys.QUERY_RET_CODE, String.valueOf(0));
@@ -413,27 +511,146 @@ public class Driver implements CommandProcessor {
       if (SessionState.get() != null)
         SessionState.get().getHiveHistory().setQueryProperty(queryId,
             Keys.QUERY_RET_CODE, String.valueOf(12));
-      console.printError("FAILED: Unknown exception : " + e.getMessage(), "\n"
+      //TODO: do better with handling types of Exception here
+      errorMessage = "FAILED: Unknown exception : " + e.getMessage();
+      SQLState = "08S01";
+      console.printError(errorMessage, "\n"
           + org.apache.hadoop.util.StringUtils.stringifyException(e));
       return (12);
     } finally {
-      if (SessionState.get() != null)
+      if (SessionState.get() != null) {
         SessionState.get().getHiveHistory().endQuery(queryId);
+      }
       if (noName) {
         conf.setVar(HiveConf.ConfVars.HADOOPJOBNAME, "");
       }
     }
+    plan.setDone();
 
+    if (SessionState.get() != null) {
+      try {
+        SessionState.get().getHiveHistory().logPlanProgress(plan);
+      } catch (Exception e) {
+      }
+    }
     console.printInfo("OK");
     return (0);
   }
+
+  /**
+   * Launches a new task
+   * 
+   * @param tsk      task being launched
+   * @param queryId  Id of the query containing the task
+   * @param noName   whether the task has a name set
+   * @param running map from taskresults to taskrunners
+   * @param jobname  name of the task, if it is a map-reduce job
+   * @param jobs     number of map-reduce jobs
+   * @param curJobNo the sequential number of the next map-reduce job
+   * @return         the updated number of last the map-reduce job launched
+   */
+
+
+
+  public int launchTask(Task<? extends Serializable> tsk, String queryId, 
+    boolean noName, Map<TaskResult,TaskRunner> running, String jobname, 
+    int jobs, int curJobNo) {
+    
+    if (SessionState.get() != null) {
+      SessionState.get().getHiveHistory().startTask(queryId, tsk,
+        tsk.getClass().getName());
+    }
+    if (tsk.isMapRedTask()) {
+      if (noName) {
+        conf.setVar(HiveConf.ConfVars.HADOOPJOBNAME, jobname + "(" 
+          + tsk.getId() + ")");
+      }
+      curJobNo++;
+      console.printInfo("Launching Job " + curJobNo + " out of "+jobs);
+    }
+    tsk.initialize(conf, plan);
+    TaskResult tskRes = new TaskResult();
+    TaskRunner tskRun = new TaskRunner(tsk,tskRes);
+
+    //Launch Task
+    if(HiveConf.getBoolVar(conf, HiveConf.ConfVars.EXECPARALLEL) && tsk.isMapRedTask()) {
+      // Launch it in the parallel mode, as a separate thread only for MR tasks
+      tskRun.start();
+    }
+    else
+    {
+      tskRun.runSequential();
+    }
+    running.put(tskRes,tskRun);        
+    return curJobNo;
+  }
+
+
+  /**
+   * Cleans up remaining tasks in case of failure
+   */
+   
+  public void taskCleanup() {
+    // The currently existing Shutdown hooks will be automatically called, 
+    // killing the map-reduce processes. 
+    // The non MR processes will be killed as well.
+    System.exit(9);
+  }
+
+  /**
+   * Polls running tasks to see if a task has ended.
+   * 
+   * @param results  Set of result objects for running tasks
+   * @return         The result object for any completed/failed task
+   */
+
+  public TaskResult pollTasks(Set<TaskResult> results) {
+    Iterator<TaskResult> resultIterator = results.iterator();
+    while(true) {
+      while(resultIterator.hasNext()) {
+        TaskResult tskRes = resultIterator.next();
+        if(tskRes.isRunning() == false) {
+          return tskRes;
+        }
+      }
+
+      // In this loop, nothing was found
+      // Sleep 10 seconds and restart
+      try {
+        Thread.sleep(sleeptime);
+      }
+      catch (InterruptedException ie) {
+        //Do Nothing
+        ;
+      }
+      resultIterator = results.iterator();
+    }
+  }
+
+  /**
+   * Checks if a task can be launched
+   * 
+   * @param tsk the task to be checked 
+   * @return    true if the task is launchable, false otherwise
+   */
+
+  public boolean isLaunchable(Task<? extends Serializable> tsk) {
+    // A launchable task is one that hasn't been queued, hasn't been initialized, and is runnable.
+    return !tsk.getQueued() && !tsk.getInitialized() && tsk.isRunnable();
+  }
+
+  public void addToRunnable(Queue<Task<? extends Serializable>> runnable,
+    Task<? extends Serializable> tsk) {
+    runnable.add(tsk);
+    tsk.setQueued();
+ }
 
   public boolean getResults(Vector<String> res) throws IOException {
     if (plan != null && plan.getPlan().getFetchTask() != null) {
       BaseSemanticAnalyzer sem = plan.getPlan();
       if (!sem.getFetchTaskInit()) {
         sem.setFetchTaskInit(true);
-        sem.getFetchTask().initialize(conf);
+        sem.getFetchTask().initialize(conf, plan);
       }
       FetchTask ft = (FetchTask) sem.getFetchTask();
       ft.setMaxRows(maxRows);
@@ -492,5 +709,9 @@ public class Driver implements CommandProcessor {
     }
 
     return (0);
+  }
+
+  public org.apache.hadoop.hive.ql.plan.api.Query getQueryPlan() throws IOException {
+    return plan.getQueryPlan();
   }
 }

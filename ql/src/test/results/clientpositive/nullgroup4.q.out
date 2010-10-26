@@ -1,5 +1,9 @@
-query: explain
+PREHOOK: query: explain
 select count(1), count(distinct x.value) from src x where x.key = 9999
+PREHOOK: type: QUERY
+POSTHOOK: query: explain
+select count(1), count(distinct x.value) from src x where x.key = 9999
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src x)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_FUNCTION count 1)) (TOK_SELEXPR (TOK_FUNCTIONDI count (. (TOK_TABLE_OR_COL x) value)))) (TOK_WHERE (= (. (TOK_TABLE_OR_COL x) key) 9999))))
 
@@ -17,11 +21,11 @@ STAGE PLANS:
             alias: x
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) = UDFToDouble(9999))
+                  expr: (key = 9999)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) = UDFToDouble(9999))
+                    expr: (key = 9999)
                     type: boolean
                 Select Operator
                   expressions:
@@ -32,6 +36,7 @@ STAGE PLANS:
                     aggregations:
                           expr: count(1)
                           expr: count(DISTINCT value)
+                    bucketGroup: false
                     keys:
                           expr: value
                           type: string
@@ -56,6 +61,7 @@ STAGE PLANS:
           aggregations:
                 expr: count(VALUE._col0)
                 expr: count(DISTINCT KEY._col0)
+          bucketGroup: false
           mode: partials
           outputColumnNames: _col0, _col1
           File Output Operator
@@ -68,7 +74,7 @@ STAGE PLANS:
   Stage: Stage-2
     Map Reduce
       Alias -> Map Operator Tree:
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1232529310/10002 
+        file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1078244463/10002 
             Reduce Output Operator
               sort order: 
               tag: -1
@@ -82,6 +88,7 @@ STAGE PLANS:
           aggregations:
                 expr: count(VALUE._col0)
                 expr: count(VALUE._col1)
+          bucketGroup: false
           mode: final
           outputColumnNames: _col0, _col1
           Select Operator
@@ -103,12 +110,21 @@ STAGE PLANS:
       limit: -1
 
 
-query: select count(1), count(distinct x.value) from src x where x.key = 9999
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1706398248/10000
+PREHOOK: query: select count(1), count(distinct x.value) from src x where x.key = 9999
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1320116542/10000
+POSTHOOK: query: select count(1), count(distinct x.value) from src x where x.key = 9999
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1320116542/10000
 0	0
-query: explain
+PREHOOK: query: explain
 select count(1), count(distinct x.value) from src x where x.key = 9999
+PREHOOK: type: QUERY
+POSTHOOK: query: explain
+select count(1), count(distinct x.value) from src x where x.key = 9999
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src x)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_FUNCTION count 1)) (TOK_SELEXPR (TOK_FUNCTIONDI count (. (TOK_TABLE_OR_COL x) value)))) (TOK_WHERE (= (. (TOK_TABLE_OR_COL x) key) 9999))))
 
@@ -125,11 +141,11 @@ STAGE PLANS:
             alias: x
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) = UDFToDouble(9999))
+                  expr: (key = 9999)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) = UDFToDouble(9999))
+                    expr: (key = 9999)
                     type: boolean
                 Select Operator
                   expressions:
@@ -140,6 +156,7 @@ STAGE PLANS:
                     aggregations:
                           expr: count(1)
                           expr: count(DISTINCT value)
+                    bucketGroup: false
                     keys:
                           expr: value
                           type: string
@@ -161,6 +178,7 @@ STAGE PLANS:
           aggregations:
                 expr: count(VALUE._col0)
                 expr: count(DISTINCT KEY._col0)
+          bucketGroup: false
           mode: mergepartial
           outputColumnNames: _col0, _col1
           Select Operator
@@ -182,12 +200,21 @@ STAGE PLANS:
       limit: -1
 
 
-query: select count(1), count(distinct x.value) from src x where x.key = 9999
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/2036729644/10000
+PREHOOK: query: select count(1), count(distinct x.value) from src x where x.key = 9999
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1581992443/10000
+POSTHOOK: query: select count(1), count(distinct x.value) from src x where x.key = 9999
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/1581992443/10000
 0	0
-query: explain
+PREHOOK: query: explain
 select count(1), count(distinct x.value) from src x where x.key = 9999
+PREHOOK: type: QUERY
+POSTHOOK: query: explain
+select count(1), count(distinct x.value) from src x where x.key = 9999
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src x)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_FUNCTION count 1)) (TOK_SELEXPR (TOK_FUNCTIONDI count (. (TOK_TABLE_OR_COL x) value)))) (TOK_WHERE (= (. (TOK_TABLE_OR_COL x) key) 9999))))
 
@@ -205,11 +232,11 @@ STAGE PLANS:
             alias: x
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) = UDFToDouble(9999))
+                  expr: (key = 9999)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) = UDFToDouble(9999))
+                    expr: (key = 9999)
                     type: boolean
                 Select Operator
                   expressions:
@@ -233,6 +260,7 @@ STAGE PLANS:
           aggregations:
                 expr: count(VALUE._col0)
                 expr: count(DISTINCT KEY._col0)
+          bucketGroup: false
           mode: partial1
           outputColumnNames: _col0, _col1
           File Output Operator
@@ -245,7 +273,7 @@ STAGE PLANS:
   Stage: Stage-2
     Map Reduce
       Alias -> Map Operator Tree:
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/441797798/10002 
+        file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/2079943303/10002 
             Reduce Output Operator
               sort order: 
               tag: -1
@@ -259,6 +287,7 @@ STAGE PLANS:
           aggregations:
                 expr: count(VALUE._col0)
                 expr: count(VALUE._col1)
+          bucketGroup: false
           mode: final
           outputColumnNames: _col0, _col1
           Select Operator
@@ -280,12 +309,21 @@ STAGE PLANS:
       limit: -1
 
 
-query: select count(1), count(distinct x.value) from src x where x.key = 9999
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1197695098/10000
+PREHOOK: query: select count(1), count(distinct x.value) from src x where x.key = 9999
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/467050607/10000
+POSTHOOK: query: select count(1), count(distinct x.value) from src x where x.key = 9999
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/467050607/10000
 0	0
-query: explain
+PREHOOK: query: explain
 select count(1), count(distinct x.value) from src x where x.key = 9999
+PREHOOK: type: QUERY
+POSTHOOK: query: explain
+select count(1), count(distinct x.value) from src x where x.key = 9999
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src x)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (TOK_FUNCTION count 1)) (TOK_SELEXPR (TOK_FUNCTIONDI count (. (TOK_TABLE_OR_COL x) value)))) (TOK_WHERE (= (. (TOK_TABLE_OR_COL x) key) 9999))))
 
@@ -302,11 +340,11 @@ STAGE PLANS:
             alias: x
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) = UDFToDouble(9999))
+                  expr: (key = 9999)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) = UDFToDouble(9999))
+                    expr: (key = 9999)
                     type: boolean
                 Select Operator
                   expressions:
@@ -327,6 +365,7 @@ STAGE PLANS:
           aggregations:
                 expr: count(VALUE._col0)
                 expr: count(DISTINCT KEY._col0)
+          bucketGroup: false
           mode: complete
           outputColumnNames: _col0, _col1
           Select Operator
@@ -348,7 +387,12 @@ STAGE PLANS:
       limit: -1
 
 
-query: select count(1), count(distinct x.value) from src x where x.key = 9999
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1769543362/10000
+PREHOOK: query: select count(1), count(distinct x.value) from src x where x.key = 9999
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/681114349/10000
+POSTHOOK: query: select count(1), count(distinct x.value) from src x where x.key = 9999
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/heyongqiang/hive-trunk-commit/build/ql/tmp/681114349/10000
 0	0

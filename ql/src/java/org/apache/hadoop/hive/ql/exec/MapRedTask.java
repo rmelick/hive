@@ -21,18 +21,18 @@ package org.apache.hadoop.hive.ql.exec;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.hadoop.mapred.JobConf;
-
-import org.apache.hadoop.hive.ql.plan.mapredWork;
-import org.apache.hadoop.hive.ql.exec.Utilities.*;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
-import org.apache.hadoop.hive.ql.session.SessionState;
-import org.apache.hadoop.hive.shims.ShimLoader;
+import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
+import org.apache.hadoop.hive.ql.exec.Utilities.StreamPrinter;
+import org.apache.hadoop.hive.ql.plan.mapredWork;
+import org.apache.hadoop.hive.ql.plan.api.StageType;
+import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.hive.shims.ShimLoader;
 
 /**
  * Alternate implementation (to ExecDriver) of spawning a mapreduce task that runs it from
@@ -43,6 +43,14 @@ public class MapRedTask extends Task<mapredWork> implements Serializable {
     
   private static final long serialVersionUID = 1L;
 
+  final static String hadoopMemKey = "HADOOP_HEAPSIZE";
+  final static String hadoopOptsKey = "HADOOP_OPTS";
+  final static String HIVE_SYS_PROP[] = {"build.dir", "build.dir.hive"}; 
+  
+  public MapRedTask() {
+    super();
+  }
+  
   public int execute() {
 
     try {
@@ -74,10 +82,11 @@ public class MapRedTask extends Task<mapredWork> implements Serializable {
 
       // Generate the hiveConfArgs after potentially adding the jars
       String hiveConfArgs = ExecDriver.generateCmdLine(conf);
+      File scratchDir = new File(conf.getVar(HiveConf.ConfVars.SCRATCHDIR));
       
       mapredWork plan = getWork();
 
-      File planFile = File.createTempFile("plan", ".xml");
+      File planFile = File.createTempFile("plan", ".xml", scratchDir);
       LOG.info("Generating plan file " + planFile.toString());
       FileOutputStream out = new FileOutputStream(planFile);
       Utilities.serializeMapRedWork(plan, out);
@@ -103,27 +112,50 @@ public class MapRedTask extends Task<mapredWork> implements Serializable {
       LOG.info("Executing: " + cmdLine);
       Process executor = null;
 
-      // The user can specify the hadoop memory
-      int hadoopMem = conf.getIntVar(HiveConf.ConfVars.HIVEHADOOPMAXMEM);
-
-      if (hadoopMem == 0) 
-        executor = Runtime.getRuntime().exec(cmdLine);
-      // user specified the memory - only applicable for local mode
-      else {
-        Map<String, String> variables = System.getenv();
-        String[] env = new String[variables.size() + 1];
-        int pos = 0;
+      // Inherit Java system variables
+      String hadoopOpts;
+      {
+        StringBuilder sb = new StringBuilder();
+        Properties p = System.getProperties();
+        for (int k = 0; k < HIVE_SYS_PROP.length; k++) {
+          if (p.containsKey(HIVE_SYS_PROP[k])) {
+            sb.append(" -D" + HIVE_SYS_PROP[k] + "=" + p.getProperty(HIVE_SYS_PROP[k]));
+          }
+        }
+        hadoopOpts = sb.toString();
+      }
+      
+      // Inherit the environment variables
+      String[] env;
+      {
+        Map<String, String> variables = new HashMap(System.getenv());
+        // The user can specify the hadoop memory
+        int hadoopMem = conf.getIntVar(HiveConf.ConfVars.HIVEHADOOPMAXMEM);
         
-        for (Map.Entry<String, String> entry : variables.entrySet())  
-        {  
+        if (hadoopMem == 0) {
+          variables.remove(hadoopMemKey);
+        } else {
+          // user specified the memory - only applicable for local mode
+          variables.put(hadoopMemKey, String.valueOf(hadoopMem));
+        }
+        
+        if (variables.containsKey(hadoopOptsKey)) {
+          variables.put(hadoopOptsKey, variables.get(hadoopOptsKey) + hadoopOpts);
+        } else {
+          variables.put(hadoopOptsKey, hadoopOpts);
+        }
+        
+        env = new String[variables.size()];
+        int pos = 0;
+        for (Map.Entry<String, String> entry : variables.entrySet()) {  
           String name = entry.getKey();  
           String value = entry.getValue();  
           env[pos++] = name + "=" + value;  
         }  
-        
-        env[pos] = new String("HADOOP_HEAPSIZE=" + hadoopMem);
-        executor = Runtime.getRuntime().exec(cmdLine, env);
       }
+      
+      // Run ExecDriver in another JVM
+      executor = Runtime.getRuntime().exec(cmdLine, env);
 
       StreamPrinter outPrinter = new StreamPrinter(executor.getInputStream(), null, System.out);
       StreamPrinter errPrinter = new StreamPrinter(executor.getErrorStream(), null, System.err);
@@ -157,5 +189,9 @@ public class MapRedTask extends Task<mapredWork> implements Serializable {
   public boolean hasReduce() {
     mapredWork w = getWork();
     return w.getReducer() != null;
+  }
+  
+  public int getType() {
+    return StageType.MAPREDLOCAL;
   }
 }

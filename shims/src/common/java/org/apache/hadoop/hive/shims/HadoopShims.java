@@ -18,14 +18,22 @@
 package org.apache.hadoop.hive.shims;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
-import java.io.IOException;
+import org.apache.hadoop.mapred.InputSplit;
+import org.apache.hadoop.mapred.RecordReader;
+import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.TaskCompletionEvent;
 
+import java.io.IOException;
+import java.io.DataInput;
+import java.io.DataOutput;
 
 /**
  * In order to be compatible with multiple versions of Hadoop, all parts
@@ -62,6 +70,13 @@ public interface HadoopShims {
    * This applies for Hadoop 0.17 through 0.19
    */
   public void setTmpFiles(String prop, String files);
+  
+  /**
+   * return the last access time of the given file.
+   * @param file
+   * @return last access time. -1 if not supported.
+   */
+  public long getAccessTime(FileStatus file);
 
   /**
    * Returns a shim to wrap MiniDFSCluster. This is necessary since this class
@@ -91,4 +106,57 @@ public interface HadoopShims {
    */
   public int compareText(Text a, Text b);
 
+  public CombineFileInputFormatShim getCombineFileInputFormat();
+
+  public String getInputFormatClassName();
+  
+  /**
+   * getTaskJobIDs returns an array of String with two elements. The first
+   * element is a string representing the task id and the second is a string
+   * representing the job id. This is necessary as TaskID and TaskAttemptID 
+   * are not supported in Haddop 0.17
+   */
+  public String [] getTaskJobIDs(TaskCompletionEvent t);
+
+  public interface InputSplitShim extends InputSplit {
+    public JobConf getJob();
+    public long getLength();
+
+    /** Returns an array containing the startoffsets of the files in the split*/ 
+    public long[] getStartOffsets();
+    
+    /** Returns an array containing the lengths of the files in the split*/ 
+    public long[] getLengths();
+    
+    /** Returns the start offset of the i<sup>th</sup> Path */
+    public long getOffset(int i);
+    
+    /** Returns the length of the i<sup>th</sup> Path */
+    public long getLength(int i);
+  
+    /** Returns the number of Paths in the split */
+    public int getNumPaths();
+
+    /** Returns the i<sup>th</sup> Path */
+    public Path getPath(int i);
+    
+    /** Returns all the Paths in the split */
+    public Path[] getPaths();
+    
+    /** Returns all the Paths where this input-split resides */
+    public String[] getLocations() throws IOException;
+
+    public String toString();
+    public void readFields(DataInput in) throws IOException;
+    public void write(DataOutput out) throws IOException;
+  }
+
+  public interface CombineFileInputFormatShim<K, V> {
+    public Path[] getInputPathsShim(JobConf conf);
+    public void createPool(JobConf conf, PathFilter... filters);
+    public InputSplitShim[] getSplits(JobConf job, int numSplits) throws IOException;
+    public InputSplitShim getInputSplitShim() throws IOException;
+    public RecordReader getRecordReader(JobConf job, InputSplitShim split, Reporter reporter, 
+                                        Class<RecordReader<K, V>> rrClass) throws IOException;
+  }
 }

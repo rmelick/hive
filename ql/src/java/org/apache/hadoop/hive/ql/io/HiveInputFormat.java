@@ -55,6 +55,8 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
+
 /**
  * HiveInputFormat is a parameterized InputFormat which looks at the path name and determine
  * the correct InputFormat for that path name from mapredPlan.pathToPartitionInfo().
@@ -147,7 +149,7 @@ public class HiveInputFormat<K extends WritableComparable,
     }
 
     Configuration conf;
-    
+
     @Override
     public Configuration getConf() {
       return conf;
@@ -201,43 +203,17 @@ public class HiveInputFormat<K extends WritableComparable,
       throw new IOException("cannot find class " + inputFormatClassName);
     }
 
-    InputFormat inputFormat = getInputFormatFromCache(inputFormatClass, job);
+    //clone a jobConf for setting needed columns for reading
+    JobConf cloneJobConf = new JobConf(job);
+    initColumnsNeeded(cloneJobConf, inputFormatClass, hsplit.getPath().toString(),
+                      hsplit.getPath().toUri().getPath());
 
-    
-    if (this.mrwork == null)
-      init(job);
-    JobConf jobConf = new JobConf(job);
-    ArrayList<String> aliases = new ArrayList<String>();
-    Iterator<Entry<String, ArrayList<String>>> iterator = this.mrwork
-        .getPathToAliases().entrySet().iterator();
-    String splitPath = hsplit.getPath().toString();
-    String splitPathWithNoSchema = hsplit.getPath().toUri().getPath();
-    while (iterator.hasNext()) {
-      Entry<String, ArrayList<String>> entry = iterator.next();
-      String key = entry.getKey();
-      if (splitPath.startsWith(key) || splitPathWithNoSchema.startsWith(key)) {
-        ArrayList<String> list = entry.getValue();
-        for (String val : list)
-          aliases.add(val);
-      }
-    }
-    for (String alias : aliases) {
-      Operator<? extends Serializable> op = this.mrwork.getAliasToWork().get(
-          alias);
-      if (op instanceof TableScanOperator) {
-        TableScanOperator tableScan = (TableScanOperator) op;
-        ArrayList<Integer> list = tableScan.getNeededColumnIDs();
-        if (list != null)
-          HiveFileFormatUtils.setReadColumnIDs(jobConf, list);
-        else
-          HiveFileFormatUtils.setFullyReadColumns(jobConf);
-      }
-    }
+    InputFormat inputFormat = getInputFormatFromCache(inputFormatClass, cloneJobConf);
     return new HiveRecordReader(inputFormat.getRecordReader(inputSplit,
-        jobConf, reporter));
+    		cloneJobConf, reporter));
   }
 
-  private Map<String, partitionDesc> pathToPartitionInfo;
+  protected Map<String, partitionDesc> pathToPartitionInfo;
   mapredWork mrwork = null;
 
   protected void init(JobConf job) {
@@ -258,9 +234,9 @@ public class HiveInputFormat<K extends WritableComparable,
 
     // for each dir, get the InputFormat, and do getSplits.
     for(Path dir: dirs) {
-      tableDesc table = getTableDescFromPath(dir);
+    	partitionDesc part = getPartitionDescFromPath(pathToPartitionInfo, dir);
       // create a new InputFormat instance if this is the first time to see this class
-      Class inputFormatClass = table.getInputFileFormatClass();
+      Class inputFormatClass = part.getInputFileFormatClass();
       InputFormat inputFormat = getInputFormatFromCache(inputFormatClass, job);
 
       FileInputFormat.setInputPaths(newjob, dir);
@@ -285,9 +261,9 @@ public class HiveInputFormat<K extends WritableComparable,
 
     // for each dir, get the InputFormat, and do validateInput.
     for (Path dir: dirs) {
-      tableDesc table = getTableDescFromPath(dir);
+      partitionDesc part = getPartitionDescFromPath(pathToPartitionInfo, dir);
       // create a new InputFormat instance if this is the first time to see this class
-      InputFormat inputFormat = getInputFormatFromCache(table.getInputFileFormatClass(), job);
+      InputFormat inputFormat = getInputFormatFromCache(part.getInputFileFormatClass(), job);
 
       FileInputFormat.setInputPaths(newjob, dir);
       newjob.setInputFormat(inputFormat.getClass());
@@ -295,8 +271,8 @@ public class HiveInputFormat<K extends WritableComparable,
     }
   }
 
-  private tableDesc getTableDescFromPath(Path dir) throws IOException {
-
+	protected static partitionDesc getPartitionDescFromPath(Map<String, partitionDesc> pathToPartitionInfo,
+                                                  Path dir) throws IOException {
     partitionDesc partDesc = pathToPartitionInfo.get(dir.toString());
     if (partDesc == null) {
       partDesc = pathToPartitionInfo.get(dir.toUri().getPath());
@@ -305,14 +281,38 @@ public class HiveInputFormat<K extends WritableComparable,
       throw new IOException("cannot find dir = " + dir.toString() + " in partToPartitionInfo!");
     }
 
-    tableDesc table = partDesc.getTableDesc();
-    if (table == null) {
-      throw new IOException("Input " + dir.toString() +
-          " does not have associated InputFormat in mapredWork!");
-    }
-
-    return table;
+    return partDesc;
   }
 
+  protected void initColumnsNeeded(JobConf jobConf, Class inputFormatClass,
+                                   String splitPath, String splitPathWithNoSchema) {
+    if (this.mrwork == null)
+      init(job);
 
+    ArrayList<String> aliases = new ArrayList<String>();
+    Iterator<Entry<String, ArrayList<String>>> iterator =
+      this.mrwork.getPathToAliases().entrySet().iterator();
+
+    while (iterator.hasNext()) {
+      Entry<String, ArrayList<String>> entry = iterator.next();
+      String key = entry.getKey();
+      if (splitPath.startsWith(key) || splitPathWithNoSchema.startsWith(key)) {
+        ArrayList<String> list = entry.getValue();
+        for (String val : list)
+          aliases.add(val);
+      }
+    }
+
+    for (String alias : aliases) {
+      Operator<? extends Serializable> op = this.mrwork.getAliasToWork().get(alias);
+      if (op instanceof TableScanOperator) {
+        TableScanOperator tableScan = (TableScanOperator) op;
+        ArrayList<Integer> list = tableScan.getNeededColumnIDs();
+        if (list != null)
+        	ColumnProjectionUtils.appendReadColumnIDs(jobConf, list);
+        else
+        	ColumnProjectionUtils.setFullyReadColumns(jobConf);
+      }
+    }
+  }
 }

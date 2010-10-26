@@ -1,4 +1,4 @@
-query: EXPLAIN EXTENDED
+PREHOOK: query: EXPLAIN EXTENDED
  FROM 
   src a
  FULL OUTER JOIN 
@@ -6,6 +6,16 @@ query: EXPLAIN EXTENDED
  ON (a.key = b.key AND b.ds = '2008-04-08')
  SELECT a.key, a.value, b.key, b.value
  WHERE a.key > 10 AND a.key < 20 AND b.key > 15 AND b.key < 25
+PREHOOK: type: QUERY
+POSTHOOK: query: EXPLAIN EXTENDED
+ FROM 
+  src a
+ FULL OUTER JOIN 
+  srcpart b 
+ ON (a.key = b.key AND b.ds = '2008-04-08')
+ SELECT a.key, a.value, b.key, b.value
+ WHERE a.key > 10 AND a.key < 20 AND b.key > 15 AND b.key < 25
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_FULLOUTERJOIN (TOK_TABREF src a) (TOK_TABREF srcpart b) (AND (= (. (TOK_TABLE_OR_COL a) key) (. (TOK_TABLE_OR_COL b) key)) (= (. (TOK_TABLE_OR_COL b) ds) '2008-04-08')))) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (. (TOK_TABLE_OR_COL a) key)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL a) value)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL b) key)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL b) value))) (TOK_WHERE (AND (AND (AND (> (. (TOK_TABLE_OR_COL a) key) 10) (< (. (TOK_TABLE_OR_COL a) key) 20)) (> (. (TOK_TABLE_OR_COL b) key) 15)) (< (. (TOK_TABLE_OR_COL b) key) 25)))))
 
@@ -63,15 +73,32 @@ STAGE PLANS:
                     type: string
       Needs Tagging: true
       Path -> Alias:
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11 
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=12 
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/src 
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11 [b]
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=12 [b]
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/src [a]
       Path -> Partition:
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11 
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11 
           Partition
+            base file name: hr=11
+            input format: org.apache.hadoop.mapred.TextInputFormat
+            output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
             partition values:
               ds 2008-04-08
               hr 11
+            properties:
+              name srcpart
+              columns.types string:string
+              serialization.ddl struct srcpart { string key, string value}
+              serialization.format 1
+              columns key,value
+              partition_columns ds/hr
+              bucket_count -1
+              serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+              file.inputformat org.apache.hadoop.mapred.TextInputFormat
+              file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+              location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+              transient_lastDdlTime 1262137126
+            serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -86,14 +113,33 @@ STAGE PLANS:
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart
+                location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+                transient_lastDdlTime 1262137126
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: srcpart
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=12 
+            name: srcpart
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=12 
           Partition
+            base file name: hr=12
+            input format: org.apache.hadoop.mapred.TextInputFormat
+            output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
             partition values:
               ds 2008-04-08
               hr 12
+            properties:
+              name srcpart
+              columns.types string:string
+              serialization.ddl struct srcpart { string key, string value}
+              serialization.format 1
+              columns key,value
+              partition_columns ds/hr
+              bucket_count -1
+              serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+              file.inputformat org.apache.hadoop.mapred.TextInputFormat
+              file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+              location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+              transient_lastDdlTime 1262137126
+            serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -108,11 +154,29 @@ STAGE PLANS:
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart
+                location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+                transient_lastDdlTime 1262137126
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: srcpart
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/src 
+            name: srcpart
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/src 
           Partition
+            base file name: src
+            input format: org.apache.hadoop.mapred.TextInputFormat
+            output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            properties:
+              name src
+              columns.types string:string
+              serialization.ddl struct src { string key, string value}
+              serialization.format 1
+              columns key,value
+              bucket_count -1
+              serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+              file.inputformat org.apache.hadoop.mapred.TextInputFormat
+              file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+              location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/src
+              transient_lastDdlTime 1262137127
+            serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -126,9 +190,11 @@ STAGE PLANS:
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/src
+                location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/src
+                transient_lastDdlTime 1262137127
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: src
+            name: src
       Reduce Operator Tree:
         Join Operator
           condition map:
@@ -140,7 +206,7 @@ STAGE PLANS:
           Filter Operator
             isSamplingPred: false
             predicate:
-                expr: ((((UDFToDouble(_col0) > UDFToDouble(10)) and (UDFToDouble(_col0) < UDFToDouble(20))) and (UDFToDouble(_col2) > UDFToDouble(15))) and (UDFToDouble(_col2) < UDFToDouble(25)))
+                expr: ((((_col0 > 10) and (_col0 < 20)) and (_col2 > 15)) and (_col2 < 25))
                 type: boolean
             Select Operator
               expressions:
@@ -156,7 +222,7 @@ STAGE PLANS:
               File Output Operator
                 compressed: false
                 GlobalTableId: 0
-                directory: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/520891215/10001
+                directory: file:/data/users/jsichi/open/hive-trunk/build/ql/tmp/565780770/10001
                 table:
                     input format: org.apache.hadoop.mapred.TextInputFormat
                     output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -170,17 +236,30 @@ STAGE PLANS:
       limit: -1
 
 
-query: FROM 
+PREHOOK: query: FROM 
   src a
  FULL OUTER JOIN 
   srcpart b 
  ON (a.key = b.key AND b.ds = '2008-04-08')
  SELECT a.key, a.value, b.key, b.value
  WHERE a.key > 10 AND a.key < 20 AND b.key > 15 AND b.key < 25
-Input: default/srcpart/ds=2008-04-08/hr=11
-Input: default/srcpart/ds=2008-04-08/hr=12
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/630976667/10000
+PREHOOK: type: QUERY
+PREHOOK: Input: default@srcpart@ds=2008-04-08/hr=11
+PREHOOK: Input: default@srcpart@ds=2008-04-08/hr=12
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/jsichi/open/hive-trunk/build/ql/tmp/891786455/10000
+POSTHOOK: query: FROM 
+  src a
+ FULL OUTER JOIN 
+  srcpart b 
+ ON (a.key = b.key AND b.ds = '2008-04-08')
+ SELECT a.key, a.value, b.key, b.value
+ WHERE a.key > 10 AND a.key < 20 AND b.key > 15 AND b.key < 25
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@srcpart@ds=2008-04-08/hr=11
+POSTHOOK: Input: default@srcpart@ds=2008-04-08/hr=12
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/jsichi/open/hive-trunk/build/ql/tmp/891786455/10000
 17	val_17	17	val_17
 17	val_17	17	val_17
 18	val_18	18	val_18
@@ -193,7 +272,7 @@ Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/630976667/1
 18	val_18	18	val_18
 19	val_19	19	val_19
 19	val_19	19	val_19
-query: EXPLAIN EXTENDED
+PREHOOK: query: EXPLAIN EXTENDED
  FROM 
   src a
  FULL OUTER JOIN 
@@ -201,6 +280,16 @@ query: EXPLAIN EXTENDED
  ON (a.key = b.key)
  SELECT a.key, a.value, b.key, b.value
  WHERE a.key > 10 AND a.key < 20 AND b.key > 15 AND b.key < 25 AND b.ds = '2008-04-08'
+PREHOOK: type: QUERY
+POSTHOOK: query: EXPLAIN EXTENDED
+ FROM 
+  src a
+ FULL OUTER JOIN 
+  srcpart b 
+ ON (a.key = b.key)
+ SELECT a.key, a.value, b.key, b.value
+ WHERE a.key > 10 AND a.key < 20 AND b.key > 15 AND b.key < 25 AND b.ds = '2008-04-08'
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_FULLOUTERJOIN (TOK_TABREF src a) (TOK_TABREF srcpart b) (= (. (TOK_TABLE_OR_COL a) key) (. (TOK_TABLE_OR_COL b) key)))) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (. (TOK_TABLE_OR_COL a) key)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL a) value)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL b) key)) (TOK_SELEXPR (. (TOK_TABLE_OR_COL b) value))) (TOK_WHERE (AND (AND (AND (AND (> (. (TOK_TABLE_OR_COL a) key) 10) (< (. (TOK_TABLE_OR_COL a) key) 20)) (> (. (TOK_TABLE_OR_COL b) key) 15)) (< (. (TOK_TABLE_OR_COL b) key) 25)) (= (. (TOK_TABLE_OR_COL b) ds) '2008-04-08')))))
 
@@ -250,17 +339,34 @@ STAGE PLANS:
                     type: string
       Needs Tagging: true
       Path -> Alias:
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11 
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=12 
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-09/hr=11 
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-09/hr=12 
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/src 
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11 [b]
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=12 [b]
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-09/hr=11 [b]
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-09/hr=12 [b]
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/src [a]
       Path -> Partition:
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11 
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=11 
           Partition
+            base file name: hr=11
+            input format: org.apache.hadoop.mapred.TextInputFormat
+            output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
             partition values:
               ds 2008-04-08
               hr 11
+            properties:
+              name srcpart
+              columns.types string:string
+              serialization.ddl struct srcpart { string key, string value}
+              serialization.format 1
+              columns key,value
+              partition_columns ds/hr
+              bucket_count -1
+              serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+              file.inputformat org.apache.hadoop.mapred.TextInputFormat
+              file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+              location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+              transient_lastDdlTime 1262137126
+            serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -275,14 +381,33 @@ STAGE PLANS:
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart
+                location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+                transient_lastDdlTime 1262137126
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: srcpart
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=12 
+            name: srcpart
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-08/hr=12 
           Partition
+            base file name: hr=12
+            input format: org.apache.hadoop.mapred.TextInputFormat
+            output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
             partition values:
               ds 2008-04-08
               hr 12
+            properties:
+              name srcpart
+              columns.types string:string
+              serialization.ddl struct srcpart { string key, string value}
+              serialization.format 1
+              columns key,value
+              partition_columns ds/hr
+              bucket_count -1
+              serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+              file.inputformat org.apache.hadoop.mapred.TextInputFormat
+              file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+              location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+              transient_lastDdlTime 1262137126
+            serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -297,14 +422,33 @@ STAGE PLANS:
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart
+                location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+                transient_lastDdlTime 1262137126
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: srcpart
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-09/hr=11 
+            name: srcpart
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-09/hr=11 
           Partition
+            base file name: hr=11
+            input format: org.apache.hadoop.mapred.TextInputFormat
+            output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
             partition values:
               ds 2008-04-09
               hr 11
+            properties:
+              name srcpart
+              columns.types string:string
+              serialization.ddl struct srcpart { string key, string value}
+              serialization.format 1
+              columns key,value
+              partition_columns ds/hr
+              bucket_count -1
+              serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+              file.inputformat org.apache.hadoop.mapred.TextInputFormat
+              file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+              location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+              transient_lastDdlTime 1262137126
+            serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -319,14 +463,33 @@ STAGE PLANS:
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart
+                location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+                transient_lastDdlTime 1262137126
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: srcpart
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart/ds=2008-04-09/hr=12 
+            name: srcpart
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart/ds=2008-04-09/hr=12 
           Partition
+            base file name: hr=12
+            input format: org.apache.hadoop.mapred.TextInputFormat
+            output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
             partition values:
               ds 2008-04-09
               hr 12
+            properties:
+              name srcpart
+              columns.types string:string
+              serialization.ddl struct srcpart { string key, string value}
+              serialization.format 1
+              columns key,value
+              partition_columns ds/hr
+              bucket_count -1
+              serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+              file.inputformat org.apache.hadoop.mapred.TextInputFormat
+              file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+              location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+              transient_lastDdlTime 1262137126
+            serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -341,11 +504,29 @@ STAGE PLANS:
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/srcpart
+                location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/srcpart
+                transient_lastDdlTime 1262137126
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: srcpart
-        file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/src 
+            name: srcpart
+        file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/src 
           Partition
+            base file name: src
+            input format: org.apache.hadoop.mapred.TextInputFormat
+            output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+            properties:
+              name src
+              columns.types string:string
+              serialization.ddl struct src { string key, string value}
+              serialization.format 1
+              columns key,value
+              bucket_count -1
+              serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+              file.inputformat org.apache.hadoop.mapred.TextInputFormat
+              file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+              location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/src
+              transient_lastDdlTime 1262137127
+            serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           
               input format: org.apache.hadoop.mapred.TextInputFormat
               output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -359,9 +540,11 @@ STAGE PLANS:
                 serialization.lib org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
                 file.inputformat org.apache.hadoop.mapred.TextInputFormat
                 file.outputformat org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
-                location file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/test/data/warehouse/src
+                location file:/data/users/jsichi/open/hive-trunk/build/ql/test/data/warehouse/src
+                transient_lastDdlTime 1262137127
               serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
               name: src
+            name: src
       Reduce Operator Tree:
         Join Operator
           condition map:
@@ -373,7 +556,7 @@ STAGE PLANS:
           Filter Operator
             isSamplingPred: false
             predicate:
-                expr: (((((UDFToDouble(_col0) > UDFToDouble(10)) and (UDFToDouble(_col0) < UDFToDouble(20))) and (UDFToDouble(_col2) > UDFToDouble(15))) and (UDFToDouble(_col2) < UDFToDouble(25))) and (_col4 = '2008-04-08'))
+                expr: (((((_col0 > 10) and (_col0 < 20)) and (_col2 > 15)) and (_col2 < 25)) and (_col4 = '2008-04-08'))
                 type: boolean
             Select Operator
               expressions:
@@ -389,7 +572,7 @@ STAGE PLANS:
               File Output Operator
                 compressed: false
                 GlobalTableId: 0
-                directory: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/1312771848/10001
+                directory: file:/data/users/jsichi/open/hive-trunk/build/ql/tmp/354390874/10001
                 table:
                     input format: org.apache.hadoop.mapred.TextInputFormat
                     output format: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
@@ -403,19 +586,34 @@ STAGE PLANS:
       limit: -1
 
 
-query: FROM 
+PREHOOK: query: FROM 
   src a
  FULL OUTER JOIN 
   srcpart b 
  ON (a.key = b.key)
  SELECT a.key, a.value, b.key, b.value
  WHERE a.key > 10 AND a.key < 20 AND b.key > 15 AND b.key < 25 AND b.ds = '2008-04-08'
-Input: default/srcpart/ds=2008-04-08/hr=11
-Input: default/srcpart/ds=2008-04-08/hr=12
-Input: default/srcpart/ds=2008-04-09/hr=11
-Input: default/srcpart/ds=2008-04-09/hr=12
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/2067779225/10000
+PREHOOK: type: QUERY
+PREHOOK: Input: default@srcpart@ds=2008-04-08/hr=11
+PREHOOK: Input: default@srcpart@ds=2008-04-08/hr=12
+PREHOOK: Input: default@srcpart@ds=2008-04-09/hr=11
+PREHOOK: Input: default@srcpart@ds=2008-04-09/hr=12
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/data/users/jsichi/open/hive-trunk/build/ql/tmp/187422782/10000
+POSTHOOK: query: FROM 
+  src a
+ FULL OUTER JOIN 
+  srcpart b 
+ ON (a.key = b.key)
+ SELECT a.key, a.value, b.key, b.value
+ WHERE a.key > 10 AND a.key < 20 AND b.key > 15 AND b.key < 25 AND b.ds = '2008-04-08'
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@srcpart@ds=2008-04-08/hr=11
+POSTHOOK: Input: default@srcpart@ds=2008-04-08/hr=12
+POSTHOOK: Input: default@srcpart@ds=2008-04-09/hr=11
+POSTHOOK: Input: default@srcpart@ds=2008-04-09/hr=12
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/data/users/jsichi/open/hive-trunk/build/ql/tmp/187422782/10000
 17	val_17	17	val_17
 17	val_17	17	val_17
 18	val_18	18	val_18

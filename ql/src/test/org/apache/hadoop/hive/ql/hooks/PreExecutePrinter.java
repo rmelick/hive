@@ -31,22 +31,24 @@ public class PreExecutePrinter implements PreExecute {
 
   @Override
   public void run(SessionState sess, Set<ReadEntity> inputs,
-      Set<WriteEntity> outputs, UserGroupInformation ugi) 
+      Set<WriteEntity> outputs, UserGroupInformation ugi)
     throws Exception {
 
     LogHelper console = SessionState.getConsole();
 
     if (console == null)
       return;
-    
-    if (sess != null)
-      console.printError("query: " + sess.getCmd().trim());
+
+    if (sess != null) {
+      console.printError("PREHOOK: query: " + sess.getCmd().trim());
+      console.printError("PREHOOK: type: " + sess.getCommandType());
+    }
 
     for(ReadEntity re: inputs) {
-      console.printError("Input: " + re.toString());
+      console.printError("PREHOOK: Input: " + re.toString());
     }
     for(WriteEntity we: outputs) {
-      console.printError("Output: " + we.toString());
+      console.printError("PREHOOK: Output: " + we.toString());
     }
   }
 

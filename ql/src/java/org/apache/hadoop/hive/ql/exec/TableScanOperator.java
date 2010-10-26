@@ -22,6 +22,7 @@ import java.io.Serializable;
 
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.tableScanDesc;
+import org.apache.hadoop.hive.ql.plan.api.OperatorType;
 
 /**
  * Table Scan Operator
@@ -37,7 +38,7 @@ public class TableScanOperator extends Operator<tableScanDesc> implements Serial
    * i.e table data is not only read by the mapper, this operator will be enhanced to read the table.
    **/
   @Override
-  public void process(Object row, int tag)
+  public void processOp(Object row, int tag)
       throws HiveException {
     forward(row, inputObjInspectors[tag]);    
   }
@@ -64,4 +65,7 @@ public class TableScanOperator extends Operator<tableScanDesc> implements Serial
     return neededColumnIDs;
   }
 
+  public int getType() {
+    return OperatorType.TABLESCAN;
+  }
 }

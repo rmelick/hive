@@ -18,21 +18,21 @@
 
 package org.apache.hadoop.hive.ql.exec;
 
-import java.net.URLClassLoader;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.common.JavaUtils;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.FunctionWork;
 import org.apache.hadoop.hive.ql.plan.createFunctionDesc;
 import org.apache.hadoop.hive.ql.plan.dropFunctionDesc;
+import org.apache.hadoop.hive.ql.plan.api.StageType;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
-import org.apache.hadoop.hive.ql.exec.FunctionInfo.OperatorType;
 
 public class FunctionTask extends Task<FunctionWork> {
   private static final long serialVersionUID = 1L;
@@ -40,8 +40,12 @@ public class FunctionTask extends Task<FunctionWork> {
 
   transient HiveConf conf;
   
-  public void initialize(HiveConf conf) {
-    super.initialize(conf);
+  public FunctionTask() {
+    super();
+  }
+  
+  public void initialize(HiveConf conf, QueryPlan queryPlan) {
+    super.initialize(conf, queryPlan);
     this.conf = conf;
   }
   
@@ -64,12 +68,15 @@ public class FunctionTask extends Task<FunctionWork> {
       Class<?> udfClass = getUdfClass(createFunctionDesc);
       if(UDF.class.isAssignableFrom(udfClass)) {
         FunctionRegistry.registerTemporaryUDF(createFunctionDesc.getFunctionName(), 
-                                     (Class<? extends UDF>) udfClass,
-                                     OperatorType.PREFIX, false);
+                                     (Class<? extends UDF>) udfClass, false);
         return 0;
       } else if(GenericUDF.class.isAssignableFrom(udfClass)) {
         FunctionRegistry.registerTemporaryGenericUDF(createFunctionDesc.getFunctionName(), 
                                             (Class<? extends GenericUDF>) udfClass);
+        return 0;
+      } else if(GenericUDTF.class.isAssignableFrom(udfClass)) {
+        FunctionRegistry.registerTemporaryGenericUDTF(createFunctionDesc.getFunctionName(), 
+            (Class<? extends GenericUDTF>) udfClass);
         return 0;
       } else if(UDAF.class.isAssignableFrom(udfClass)) {
         FunctionRegistry.registerTemporaryUDAF(createFunctionDesc.getFunctionName(),
@@ -102,5 +109,9 @@ public class FunctionTask extends Task<FunctionWork> {
   private Class<?> getUdfClass(createFunctionDesc desc)
       throws ClassNotFoundException {
     return Class.forName(desc.getClassName(), true, JavaUtils.getClassLoader());
+  }
+  
+  public int getType() {
+    return StageType.FUNC;
   }
 }

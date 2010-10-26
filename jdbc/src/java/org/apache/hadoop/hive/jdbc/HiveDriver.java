@@ -100,16 +100,12 @@ public class HiveDriver implements java.sql.Driver {
    */
 
   public boolean acceptsURL(String url) throws SQLException {
-    return Pattern.matches(URL_PREFIX, url);
+    return Pattern.matches(URL_PREFIX+".*", url);
   }
 
 
   public Connection connect(String url, Properties info) throws SQLException {
-    try {
-      return new HiveConnection(url, info);
-    } catch (Exception ex) {
-      throw new SQLException(ex.toString());
-    }
+    return new HiveConnection(url, info);
   }
 
   /**

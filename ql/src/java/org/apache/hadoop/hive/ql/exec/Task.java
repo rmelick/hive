@@ -21,6 +21,7 @@ package org.apache.hadoop.hive.ql.exec;
 import java.io.*;
 import java.util.*;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.session.SessionState;
@@ -38,11 +39,17 @@ import org.apache.commons.logging.LogFactory;
 public abstract class Task <T extends Serializable> implements Serializable {
 
   private static final long serialVersionUID = 1L;
-  transient boolean isdone;
+  transient protected boolean started;
+  transient protected boolean initialized;
+  transient protected boolean isdone;
+  transient protected boolean queued;
   transient protected HiveConf conf;
   transient protected Hive db;
   transient protected Log LOG;
   transient protected LogHelper console;
+  transient protected QueryPlan queryPlan;
+  transient protected TaskHandle taskHandle;
+  transient protected Map<String, Long> taskCounters;
 
   // Bean methods
 
@@ -51,22 +58,22 @@ public abstract class Task <T extends Serializable> implements Serializable {
 
   public Task() {
     isdone = false;
+    started = false;
+    initialized = false;
+    queued = false;
     LOG = LogFactory.getLog(this.getClass().getName());
+    this.taskCounters = new HashMap<String, Long>();
   }
 
-  public void initialize (HiveConf conf) {
+  public void initialize (HiveConf conf, QueryPlan queryPlan) {
+    this.queryPlan = queryPlan;
     isdone = false;
+    started = false;
+    setInitialized();
     this.conf = conf;
-    
-    SessionState ss = SessionState.get();
+
     try {
-      if (ss == null) {
-        // test case - no session setup perhaps
         db = Hive.get(conf);
-      } else {
-        // normal case - session has handle to db
-        db = ss.getDb();
-      }
     } catch (HiveException e) {
       // Bail out ungracefully - we should never hit
       // this here - but would have hit it in SemanticAnalyzer
@@ -77,7 +84,45 @@ public abstract class Task <T extends Serializable> implements Serializable {
     console = new LogHelper(LOG);
   }
 
-  public abstract int execute();
+  /**
+   * This method is called in the Driver on every task. It updates counters
+   * and calls execute(), which is overridden in each task
+   * @return return value of execute()
+   */
+  public int executeTask() {
+    try {
+      SessionState ss = SessionState.get();
+      this.setStarted();
+      if (ss != null) {
+        ss.getHiveHistory().logPlanProgress(queryPlan);
+      }
+      int retval = execute();
+      this.setDone();
+      if (ss != null) {
+        ss.getHiveHistory().logPlanProgress(queryPlan);
+      }
+      return retval;
+    } catch (IOException e) {
+      throw new RuntimeException(e.getMessage());
+    }
+  }
+
+  /**
+   * This method is overridden in each Task.
+   * TODO execute should return a TaskHandle.
+   * @return status of executing the task
+   */
+  protected abstract int execute();
+  
+  /**
+   * Update the progress of the task within taskHandle and also
+   * dump the progress information to the history file
+   * @param taskHandle task handle returned by execute
+   * @throws IOException 
+   */
+  public void progress(TaskHandle taskHandle) throws IOException {
+    // do nothing by default
+  }
   
   // dummy method - FetchTask overwrites this
   public boolean fetch(Vector<String> res) throws IOException { 
@@ -135,12 +180,36 @@ public abstract class Task <T extends Serializable> implements Serializable {
     }
   }
 
+  public void setStarted() {
+    this.started = true;
+  }
+
+  public boolean started() {
+    return started;
+  }
+
   public boolean done() {
     return isdone;
   }
 
   public void setDone() {
     isdone = true;
+  }
+
+  public void setQueued() {
+    queued = true;
+  }
+
+  public boolean getQueued() {
+    return queued;
+  }
+
+  public void setInitialized() {
+    initialized = true;
+  }
+
+  public boolean getInitialized() {
+    return initialized;
   }
 
   public boolean isRunnable() {
@@ -181,5 +250,24 @@ public abstract class Task <T extends Serializable> implements Serializable {
 
   public boolean hasReduce() {
     return false;
+  }
+
+  public void updateCounters(TaskHandle th) throws IOException {
+    // default, do nothing
+  }
+
+  public Map<String, Long> getCounters() {
+    return taskCounters;
+  }
+
+  /**
+   * Should be overridden to return the type of the specific task among
+   * the types in TaskType
+   * 
+   * @return TaskTypeType.* or -1 if not overridden
+   */
+  public int getType() {
+    assert false;
+    return -1;
   }
 }

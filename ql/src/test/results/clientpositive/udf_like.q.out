@@ -1,8 +1,28 @@
-query: EXPLAIN
+PREHOOK: query: DESCRIBE FUNCTION like
+PREHOOK: type: DESCFUNCTION
+POSTHOOK: query: DESCRIBE FUNCTION like
+POSTHOOK: type: DESCFUNCTION
+like(str, pattern) - Checks if str matches pattern
+PREHOOK: query: DESCRIBE FUNCTION EXTENDED like
+PREHOOK: type: DESCFUNCTION
+POSTHOOK: query: DESCRIBE FUNCTION EXTENDED like
+POSTHOOK: type: DESCFUNCTION
+like(str, pattern) - Checks if str matches pattern
+Example:
+  > SELECT a.* FROM srcpart a WHERE a.hr like '%2' LIMIT 1;
+  27      val_27  2008-04-08      12
+PREHOOK: query: EXPLAIN
 SELECT '_%_' LIKE '%\_\%\_%', '__' LIKE '%\_\%\_%', '%%_%_' LIKE '%\_\%\_%', '%_%_%' LIKE '%\%\_\%',
   '_%_' LIKE '\%\_%', '%__' LIKE '__\%%', '_%' LIKE '\_\%\_\%%', '_%' LIKE '\_\%_%',
   '%_' LIKE '\%\_', 'ab' LIKE '\%\_', 'ab' LIKE '_a%', 'ab' LIKE 'a'
 FROM src WHERE src.key = 86
+PREHOOK: type: QUERY
+POSTHOOK: query: EXPLAIN
+SELECT '_%_' LIKE '%\_\%\_%', '__' LIKE '%\_\%\_%', '%%_%_' LIKE '%\_\%\_%', '%_%_%' LIKE '%\%\_\%',
+  '_%_' LIKE '\%\_%', '%__' LIKE '__\%%', '_%' LIKE '\_\%\_\%%', '_%' LIKE '\_\%_%',
+  '%_' LIKE '\%\_', 'ab' LIKE '\%\_', 'ab' LIKE '_a%', 'ab' LIKE 'a'
+FROM src WHERE src.key = 86
+POSTHOOK: type: QUERY
 ABSTRACT SYNTAX TREE:
   (TOK_QUERY (TOK_FROM (TOK_TABREF src)) (TOK_INSERT (TOK_DESTINATION (TOK_DIR TOK_TMP_FILE)) (TOK_SELECT (TOK_SELEXPR (LIKE '_%_' '%\_\%\_%')) (TOK_SELEXPR (LIKE '__' '%\_\%\_%')) (TOK_SELEXPR (LIKE '%%_%_' '%\_\%\_%')) (TOK_SELEXPR (LIKE '%_%_%' '%\%\_\%')) (TOK_SELEXPR (LIKE '_%_' '\%\_%')) (TOK_SELEXPR (LIKE '%__' '__\%%')) (TOK_SELEXPR (LIKE '_%' '\_\%\_\%%')) (TOK_SELEXPR (LIKE '_%' '\_\%_%')) (TOK_SELEXPR (LIKE '%_' '\%\_')) (TOK_SELEXPR (LIKE 'ab' '\%\_')) (TOK_SELEXPR (LIKE 'ab' '_a%')) (TOK_SELEXPR (LIKE 'ab' 'a'))) (TOK_WHERE (= (. (TOK_TABLE_OR_COL src) key) 86))))
 
@@ -19,11 +39,11 @@ STAGE PLANS:
             alias: src
             Filter Operator
               predicate:
-                  expr: (UDFToDouble(key) = UDFToDouble(86))
+                  expr: (key = 86)
                   type: boolean
               Filter Operator
                 predicate:
-                    expr: (UDFToDouble(key) = UDFToDouble(86))
+                    expr: (key = 86)
                     type: boolean
                 Select Operator
                   expressions:
@@ -64,10 +84,18 @@ STAGE PLANS:
       limit: -1
 
 
-query: SELECT '_%_' LIKE '%\_\%\_%', '__' LIKE '%\_\%\_%', '%%_%_' LIKE '%\_\%\_%', '%_%_%' LIKE '%\%\_\%',
+PREHOOK: query: SELECT '_%_' LIKE '%\_\%\_%', '__' LIKE '%\_\%\_%', '%%_%_' LIKE '%\_\%\_%', '%_%_%' LIKE '%\%\_\%',
   '_%_' LIKE '\%\_%', '%__' LIKE '__\%%', '_%' LIKE '\_\%\_\%%', '_%' LIKE '\_\%_%',
   '%_' LIKE '\%\_', 'ab' LIKE '\%\_', 'ab' LIKE '_a%', 'ab' LIKE 'a'
 FROM src WHERE src.key = 86
-Input: default/src
-Output: file:/data/users/athusoo/commits/hive_trunk_ws1/build/ql/tmp/380805800/10000
+PREHOOK: type: QUERY
+PREHOOK: Input: default@src
+PREHOOK: Output: file:/Users/carl/Projects/hd9/hive-trunk/build/ql/tmp/1557896001/10000
+POSTHOOK: query: SELECT '_%_' LIKE '%\_\%\_%', '__' LIKE '%\_\%\_%', '%%_%_' LIKE '%\_\%\_%', '%_%_%' LIKE '%\%\_\%',
+  '_%_' LIKE '\%\_%', '%__' LIKE '__\%%', '_%' LIKE '\_\%\_\%%', '_%' LIKE '\_\%_%',
+  '%_' LIKE '\%\_', 'ab' LIKE '\%\_', 'ab' LIKE '_a%', 'ab' LIKE 'a'
+FROM src WHERE src.key = 86
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@src
+POSTHOOK: Output: file:/Users/carl/Projects/hd9/hive-trunk/build/ql/tmp/1557896001/10000
 true	false	true	true	false	false	false	false	true	false	false	false

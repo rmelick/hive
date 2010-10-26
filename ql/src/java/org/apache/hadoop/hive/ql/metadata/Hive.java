@@ -66,24 +66,25 @@ import org.apache.thrift.TException;
 public class Hive {
 
   static final private Log LOG = LogFactory.getLog("hive.ql.metadata.Hive");
-  static Hive db = null;
-  
+
   private HiveConf conf = null;
-  private ThreadLocal<IMetaStoreClient> threadLocalMSC = new ThreadLocal() {
+  private IMetaStoreClient metaStoreClient;
+
+  private static ThreadLocal<Hive> hiveDB = new ThreadLocal() {
     protected synchronized Object initialValue() {
         return null;
     }
-    
+
     public synchronized void remove() {
       if( this.get() != null ) {
-        ((IMetaStoreClient)this.get()).close();
+        ((Hive)this.get()).close();
       }
       super.remove();
     }
   };
-  
+
   /**
-   * Gets hive object for the current thread. If one is not initialized then a new one is created 
+   * Gets hive object for the current thread. If one is not initialized then a new one is created
    * If the new configuration is different in metadata conf vars then a new one is created.
    * @param c new Hive Configuration
    * @return Hive object for current thread
@@ -92,7 +93,7 @@ public class Hive {
    */
   public static Hive get(HiveConf c) throws HiveException {
     boolean needsRefresh = false;
-
+    Hive db = hiveDB.get();
     if(db != null) {
       for(HiveConf.ConfVars oneVar: HiveConf.metaVars) {
         String oldVar = db.getConf().getVar(oneVar);
@@ -114,27 +115,29 @@ public class Hive {
    * @throws HiveException
    */
   public static Hive get(HiveConf c, boolean needsRefresh) throws HiveException {
+    Hive db = hiveDB.get();
     if(db == null || needsRefresh) {
       closeCurrent();
       c.set("fs.scheme.class","dfs");
       db = new Hive(c);
+      hiveDB.set(db);
     }
     return db;
   }
 
   public static Hive get() throws HiveException {
+    Hive db = hiveDB.get();
     if(db == null) {
       db = new Hive(new HiveConf(Hive.class));
+      hiveDB.set(db);
     }
     return db;
   }
-  
+
   public static void closeCurrent() {
-    if(db != null) {
-      db.close();
-    }
+    hiveDB.remove();
   }
-  
+
   /**
    * Hive
    *
@@ -145,15 +148,15 @@ public class Hive {
   private Hive(HiveConf c) throws  HiveException {
     this.conf = c;
   }
-  
+
   /**
    * closes the connection to metastore for the calling thread
    */
   private void close() {
     LOG.info("Closing current thread's connection to Hive Metastore.");
-    db.threadLocalMSC.remove();
+    metaStoreClient.close();
   }
-  
+
   /**
    * Creates a table metdata and the directory for the table data
    * @param tableName name of the table
@@ -209,7 +212,7 @@ public class Hive {
 
 
   /**
-   * Updates the existing table metadata with the new metadata. 
+   * Updates the existing table metadata with the new metadata.
    * @param tblName name of the existing table
    * @param newTbl new name of the table. could be the old name
    * @throws InvalidOperationException if the changes in metadata is not acceptable
@@ -228,6 +231,26 @@ public class Hive {
   }
 
   /**
+   * Updates the existing table metadata with the new metadata.
+   * @param tblName name of the existing table
+   * @param newTbl new name of the table. could be the old name
+   * @throws InvalidOperationException if the changes in metadata is not acceptable
+   * @throws TException
+   */
+  public void alterPartition(String tblName, Partition newPart)
+    throws InvalidOperationException, HiveException {
+    try {
+      getMSC().alter_partition(MetaStoreUtils.DEFAULT_DATABASE_NAME, tblName,
+                               newPart.getTPartition());
+
+    } catch (MetaException e) {
+      throw new HiveException("Unable to alter partition.", e);
+    } catch (TException e) {
+      throw new HiveException("Unable to alter partition.", e);
+    }
+  }
+
+  /**
    * Creates the table with the give objects
    * @param tbl a table object
    * @throws HiveException
@@ -235,7 +258,7 @@ public class Hive {
   public void createTable(Table tbl) throws HiveException {
     createTable(tbl, false);
   }
-  
+
   /**
    * Creates the table with the give objects
    * @param tbl a table object
@@ -268,10 +291,10 @@ public class Hive {
    */
   public void dropTable(String dbName, String tableName) throws HiveException {
     dropTable(dbName, tableName, true, true);
-  }  
-  
+  }
+
   /**
-   * Drops the table. 
+   * Drops the table.
    * @param tableName
    * @param deleteData deletes the underlying data along with metadata
    * @param ignoreUnknownTab an exception if thrown if this is falser and
@@ -280,7 +303,7 @@ public class Hive {
    */
   public void dropTable(String dbName, String tableName, boolean deleteData,
       boolean ignoreUnknownTab) throws HiveException {
-    
+
     try {
       getMSC().dropTable(dbName, tableName, deleteData, ignoreUnknownTab);
     } catch (NoSuchObjectException e) {
@@ -289,37 +312,37 @@ public class Hive {
       }
     } catch (Exception e) {
       throw new HiveException(e);
-    } 
+    }
   }
 
   public HiveConf getConf() {
     return (conf);
   }
-  
+
   /**
-   * Returns metadata of the table. 
+   * Returns metadata of the table.
    * @param dbName the name of the database
    * @param tableName the name of the table
    * @return the table
-   * @exception HiveException if there's an internal error or if the 
-   * table doesn't exist 
+   * @exception HiveException if there's an internal error or if the
+   * table doesn't exist
    */
-  public Table getTable(final String dbName, final String tableName) 
+  public Table getTable(final String dbName, final String tableName)
     throws HiveException {
-    
+
     return this.getTable(dbName, tableName, true);
-  }  
-  
+  }
+
   /**
    * Returns metadata of the table
    * @param dbName the name of the database
    * @param tableName the name of the table
-   * @param throwException controls whether an exception is thrown 
+   * @param throwException controls whether an exception is thrown
    * or a returns a null
    * @return the table or if throwException is false a null value.
    * @throws HiveException
    */
-  public Table getTable(final String dbName, final String tableName, 
+  public Table getTable(final String dbName, final String tableName,
       boolean throwException) throws HiveException {
 
     if(tableName == null || tableName.equals("")) {
@@ -341,14 +364,14 @@ public class Hive {
     // just a sanity check
     assert(tTable != null);
     try {
-      
+
       // Use LazySimpleSerDe for MetadataTypedColumnsetSerDe.
       // NOTE: LazySimpleSerDe does not support tables with a single column of col
       // of type "array<string>".  This happens when the table is created using an
       // earlier version of Hive.
       if (tTable.getSd().getSerdeInfo().getSerializationLib().equals(
           org.apache.hadoop.hive.serde2.MetadataTypedColumnsetSerDe.class.getName())
-          && tTable.getSd().getColsSize() > 0 
+          && tTable.getSd().getColsSize() > 0
           && tTable.getSd().getCols().get(0).getType().indexOf('<') == -1 ) {
         tTable.getSd().getSerdeInfo().setSerializationLib(
             org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe.class.getName());
@@ -382,34 +405,43 @@ public class Hive {
     table.checkValidity();
     return table;
   }
-  
+
   public List<String> getAllTables() throws HiveException {
     return getTablesByPattern(".*");
   }
-  
+
   /**
-   * returns all existing tables that match the given pattern. The matching occurs as per Java regular expressions
-   * @param tablePattern java re pattern
+   * returns all existing tables from default database which match the given
+   * pattern. The matching occurs as per Java regular expressions
+   *
+   * @param tablePattern
+   *          java re pattern
    * @return list of table names
    * @throws HiveException
    */
   public List<String> getTablesByPattern(String tablePattern) throws HiveException {
-    try {
-      return getMSC().getTables(MetaStoreUtils.DEFAULT_DATABASE_NAME, tablePattern);
-    } catch(Exception e) {
-      throw new HiveException(e);
-    }
+    return getTablesForDb(MetaStoreUtils.DEFAULT_DATABASE_NAME, tablePattern);
   }
-  
-  // for testing purposes
-  protected List<String> getTablesForDb(String database, String tablePattern) throws HiveException {
+
+  /**
+   * returns all existing tables from the given database which match the given
+   * pattern. The matching occurs as per Java regular expressions
+   *
+   * @param database
+   *          the database name
+   * @param tablePattern
+   *          java re pattern
+   * @return list of table names
+   * @throws HiveException
+   */
+  public List<String> getTablesForDb(String database, String tablePattern) throws HiveException {
     try {
       return getMSC().getTables(database, tablePattern);
     } catch(Exception e) {
       throw new HiveException(e);
     }
   }
-  
+
   /**
    * @param name
    * @param locationUri
@@ -453,7 +485,7 @@ public class Hive {
   throws HiveException {
     Table tbl = getTable(MetaStoreUtils.DEFAULT_DATABASE_NAME, tableName);
     try {
-      /** Move files before creating the partition since down stream processes check 
+      /** Move files before creating the partition since down stream processes check
        *  for existence of partition in metadata before accessing the data. If partition
        *  is created before data is moved, downstream waiting processes might move forward
        *  with partial data
@@ -484,7 +516,7 @@ public class Hive {
 
       if (part == null) {
         // create the partition if it didn't exist before
-        getPartition(tbl, partSpec, true);
+        part = getPartition(tbl, partSpec, true);
       }
     } catch (IOException e) {
       LOG.error(StringUtils.stringifyException(e));
@@ -493,7 +525,8 @@ public class Hive {
       LOG.error(StringUtils.stringifyException(e));
       throw new HiveException(e);
     }
-}
+
+  }
 
   /**
    * Load a directory into a Hive Table.
@@ -506,10 +539,11 @@ public class Hive {
    * @param replace if true - replace files in the table, otherwise add files to table
    * @param tmpDirPath The temporary directory.
    */
-  public void loadTable(Path loadPath, String tableName, 
+  public void loadTable(Path loadPath, String tableName,
        boolean replace,
        Path tmpDirPath) throws HiveException {
     Table tbl = getTable(MetaStoreUtils.DEFAULT_DATABASE_NAME, tableName);
+
     if(replace) {
       tbl.replaceFiles(loadPath, tmpDirPath);
     } else {
@@ -528,9 +562,9 @@ public class Hive {
     throws HiveException {
       return createPartition(tbl, partSpec, null);
   }
-  
+
   /**
-   * Creates a partition 
+   * Creates a partition
    * @param tbl table for which partition needs to be created
    * @param partSpec partition keys and their values
    * @param location location of this partition
@@ -539,9 +573,16 @@ public class Hive {
    */
   public Partition createPartition(Table tbl, Map<String, String> partSpec,
       Path location) throws HiveException {
-        
+
     org.apache.hadoop.hive.metastore.api.Partition partition = null;
-    
+
+    for (FieldSchema field : tbl.getPartCols()) {
+      String val = partSpec.get(field.getName());
+      if(val == null || val.length() == 0) {
+        throw new HiveException("add partition: Value for key " + field.getName() + " is null or empty");
+      }
+    }
+
     try {
       Partition tmpPart = new Partition(tbl, partSpec, location);
       partition = getMSC().add_partition(tmpPart.getTPartition());
@@ -549,7 +590,7 @@ public class Hive {
       LOG.error(StringUtils.stringifyException(e));
       throw new HiveException(e);
     }
-    
+
     return new Partition(tbl, partition);
   }
 
@@ -570,7 +611,7 @@ public class Hive {
     for (FieldSchema field : tbl.getPartCols()) {
       String val = partSpec.get(field.getName());
       if(val == null || val.length() == 0) {
-        throw new HiveException("Value for key " + field.getName() + " is null or empty");
+        throw new HiveException("get partition: Value for key " + field.getName() + " is null or empty");
       }
       pvals.add(val);
     }
@@ -590,7 +631,7 @@ public class Hive {
     }
     return new Partition(tbl, tpart);
   }
-  
+
   public boolean dropPartition(String db_name, String tbl_name, List<String> part_vals,
       boolean deleteData) throws HiveException {
     try {
@@ -634,7 +675,7 @@ public class Hive {
       }
       return parts;
     } else {
-      // create an empty partition. 
+      // create an empty partition.
       // HACK, HACK. SemanticAnalyzer code requires that an empty partition when the table is not partitioned
       org.apache.hadoop.hive.metastore.api.Partition tPart = new org.apache.hadoop.hive.metastore.api.Partition();
       tPart.setSd(tbl.getTTable().getSd()); // TODO: get a copy
@@ -701,7 +742,11 @@ public class Hive {
       for(int i=0; i<srcs.length; i++) {
         FileStatus [] items = fs.listStatus(srcs[i].getPath());
         for(int j=0; j<items.length; j++) {
-          fs.rename(items[j].getPath(), new Path(destf, items[j].getPath().getName()));
+          Path source = items[j].getPath();
+          Path target = new Path(destf, items[j].getPath().getName());
+          if (!fs.rename(source, target)) {
+            throw new IOException("Cannot move " + source + " to " + target);
+          }
         }
       }
     } catch (IOException e) {
@@ -751,13 +796,13 @@ public class Hive {
 
           // create the parent directory otherwise rename can fail if the parent doesn't exist
           if (!fs.mkdirs(destf.getParent())) {
-            throw new HiveException("Unable to create destination directory: " 
+            throw new HiveException("Unable to create destination directory: "
                   + destf.getParent().toString());
           }
-          
+
           b = fs.rename(tmppath, destf);
           if (!b) {
-            throw new HiveException("Unable to move results to destination directory: " 
+            throw new HiveException("Unable to move results to destination directory: "
                 + destf.getParent().toString());
           }
           LOG.debug("Renaming:"+tmppath.toString()+",Status:"+b);
@@ -782,19 +827,17 @@ public class Hive {
   private IMetaStoreClient createMetaStoreClient() throws MetaException {
       return new HiveMetaStoreClient(this.conf);
   }
-  
+
   /**
-   * 
+   *
    * @return the metastore client for the current thread
    * @throws MetaException
    */
   private IMetaStoreClient getMSC() throws MetaException {
-    IMetaStoreClient msc = threadLocalMSC.get();
-    if(msc == null) {
-      msc = this.createMetaStoreClient();
-      threadLocalMSC.set(msc);
+    if(metaStoreClient == null) {
+      metaStoreClient = this.createMetaStoreClient();
     }
-    return msc;
+    return metaStoreClient;
   }
 
   public static List<FieldSchema> getFieldsFromDeserializer(String name, Deserializer serde) throws HiveException {

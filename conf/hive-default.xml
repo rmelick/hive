@@ -199,6 +199,12 @@
 </property>
 
 <property>
+  <name>hive.fileformat.check</name>
+  <value>true</value>
+  <description>Whether to check file format or not when loading data files</description>
+</property>
+
+<property>
   <name>hive.map.aggr</name>
   <value>true</value>
   <description>Whether to use map-side aggregation in Hive Group By queries</description>
@@ -256,9 +262,39 @@
 </property>
 
 <property>
+  <name>hive.optimize.groupby</name>
+  <value>true</value>
+  <description>Whether to enable the bucketed group by from bucketed partitions/tables.</description>
+</property>
+
+<property>
   <name>hive.join.emit.interval</name>
   <value>1000</value>
   <description>How many rows in the right-most join operand Hive should buffer before emitting the join result. </description>
+</property>
+
+<property>
+  <name>hive.join.cache.size</name>
+  <value>25000</value>
+  <description>How many rows in the joining tables (except the streaming table) should be cached in memory. </description>
+</property>
+
+<property>
+  <name>hive.mapjoin.bucket.cache.size</name>
+  <value>100</value>
+  <description>How many values in each keys in the map-joined table should be cached in memory. </description>
+</property>
+
+<property>
+  <name>hive.mapjoin.maxsize</name>
+  <value>100000</value>
+  <description>Maximum # of rows of the small table that can be handled by map-side join. If the size is reached and hive.task.progress is set, a fatal error counter is set and the job will be killed.</description>
+</property>
+
+<property>
+  <name>hive.mapjoin.cache.numrows</name>
+  <value>25000</value>
+  <description>How many rows should be cached by jdbm for map join. </description>
 </property>
 
 <property>
@@ -274,6 +310,20 @@
 </property>
 
 <property>
+  <name>hive.exec.script.allow.partial.consumption</name>
+  <value>false</value>
+  <description> When enabled, this option allows a user script to exit successfully without consuming all the data from the standard input.
+  </description>
+</property>
+
+<property>
+  <name>hive.script.operator.id.env.var</name>
+  <value>HIVE_SCRIPT_OPERATOR_ID</value>
+  <description> Name of the environment variable that holds the unique script operator ID in the user's transform function (the custom mapper/reducer that the user has specified in the query)
+  </description>
+</property>
+
+<property>
   <name>hive.exec.compress.output</name>
   <value>false</value>
   <description> This controls whether the final outputs of a query (to a local/hdfs file or a hive table) is compressed. The compression codec and other options are determined from hadoop config variables mapred.output.compress* </description>
@@ -286,6 +336,18 @@
 </property>
 
 <property>
+  <name>hive.exec.parallel</name>
+  <value>false</value>
+  <description>Whether to execute jobs in parallel</description>
+</property>
+
+<property>
+  <name>hive.hwi.war.file</name>
+  <value>lib/hive-hwi-@VERSION@.war</value>
+  <description>This sets the path to the HWI war file, relative to ${HIVE_HOME}. </description>
+</property>
+
+<property>
   <name>hive.hwi.listen.host</name>
   <value>0.0.0.0</value>
   <description>This is the host address the Hive Web Interface will listen on</description>
@@ -295,12 +357,6 @@
   <name>hive.hwi.listen.port</name>
   <value>9999</value>
   <description>This is the port the Hive Web Interface will listen on</description>
-</property>
-
-<property>
-  <name>hive.hwi.war.file</name>
-  <value>${HIVE_HOME}/lib/hive-hwi.war</value>
-  <description>This is the WAR file with the jsp content for Hive Web Interface</description>
 </property>
 
 <property>
@@ -349,6 +405,30 @@
   <name>hive.script.recordreader</name>
   <value>org.apache.hadoop.hive.ql.exec.TextRecordReader</value>
   <description>The default record reader for reading data from the user scripts. </description>
+</property>
+
+<property>
+  <name>hive.script.recordwriter</name>
+  <value>org.apache.hadoop.hive.ql.exec.TextRecordWriter</value>
+  <description>The default record writer for writing data to the user scripts. </description>
+</property>
+
+<property>
+  <name>hive.input.format</name>
+  <value>org.apache.hadoop.hive.ql.io.HiveInputFormat</value>
+  <description>The default input format, if it is not specified, the system assigns it. It is set to HiveInputFormat for hadoop versions 17, 18 and 19, whereas it is set to CombinedHiveInputFormat for hadoop 20. The user can always overwrite it - if there is a bug in CombinedHiveInputFormat, it can always be manually set to HiveInputFormat. </description>
+</property>
+
+<property>
+  <name>hive.udtf.auto.progress</name>
+  <value>false</value>
+  <description>Whether Hive should automatically send progress information to TaskTracker when using UDTF's to prevent the task getting killed because of inactivity.  Users should be cautious because this may prevent TaskTracker from killing tasks with infinte loops.  </description>
+</property>
+
+<property>
+  <name>hive.mapred.reduce.tasks.speculative.execution</name>
+  <value>true</value>
+  <description>Whether speculative execution for reducers should be turned on. </description>
 </property>
 
 </configuration>

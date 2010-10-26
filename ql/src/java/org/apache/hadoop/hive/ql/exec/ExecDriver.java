@@ -24,8 +24,6 @@ import java.util.*;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.URLDecoder;
-import java.net.URL;
-import java.net.URLClassLoader;
 
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.lang.StringUtils;
@@ -34,34 +32,44 @@ import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.*;
-import org.apache.hadoop.mapred.*;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.mapred.Counters;
+import org.apache.hadoop.mapred.FileOutputFormat;
+import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.RunningJob;
+import org.apache.hadoop.mapred.TaskCompletionEvent;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.shims.ShimLoader;
 import org.apache.hadoop.hive.ql.plan.mapredWork;
-import org.apache.hadoop.hive.ql.plan.exprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.partitionDesc;
-import org.apache.hadoop.hive.ql.plan.tableDesc;
+import org.apache.hadoop.hive.ql.plan.api.StageType;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter;
 import org.apache.hadoop.hive.ql.history.HiveHistory.Keys;
 import org.apache.hadoop.hive.ql.io.*;
+import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.session.SessionState.LogHelper;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.varia.NullAppender;
-import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
+import java.lang.ClassNotFoundException;
+import org.apache.hadoop.hive.common.FileUtils;
 
 public class ExecDriver extends Task<mapredWork> implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
   transient protected JobConf job;
-
+  transient protected int mapProgress = 0;
+  transient protected int reduceProgress = 0;
+  transient protected boolean success = false; // if job execution is successful
+  
+  public static Random randGen = new Random();
   /**
    * Constructor when invoked from QL
    */
@@ -99,8 +107,8 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
   /**
    * Initialization when invoked from QL
    */
-  public void initialize(HiveConf conf) {
-    super.initialize(conf);
+  public void initialize(HiveConf conf, QueryPlan queryPlan) {
+    super.initialize(conf, queryPlan);
     job = new JobConf(conf, ExecDriver.class);
     // NOTE: initialize is only called if it is in non-local mode.
     // In case it's in non-local mode, we need to move the SessionState files
@@ -116,6 +124,10 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
     String addedJars = getResourceFiles(job, SessionState.ResourceType.JAR);
     if (StringUtils.isNotBlank(addedJars)) {
       HiveConf.setVar(job, ConfVars.HIVEADDEDJARS, addedJars);
+    }
+    String addedArchives = getResourceFiles(job, SessionState.ResourceType.ARCHIVE);
+    if (StringUtils.isNotBlank(addedArchives)) {
+      HiveConf.setVar(job, ConfVars.HIVEADDEDARCHIVES, addedArchives);
     }
   }
 
@@ -135,7 +147,8 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
    * used to kill all running jobs in the event of an unexpected shutdown -
    * i.e., the JVM shuts down while there are still jobs running.
    */
-  public static HashMap<String, String> runningJobKillURIs = new HashMap<String, String>();
+  public static Map<String, String> runningJobKillURIs
+    = Collections.synchronizedMap(new HashMap<String, String>());
 
   /**
    * In Hive, when the user control-c's the command line, any running jobs
@@ -150,22 +163,24 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
         "webinterface.private.actions", false)) {
       Runtime.getRuntime().addShutdownHook(new Thread() {
         public void run() {
-          for (Iterator<String> elems = runningJobKillURIs.values().iterator(); elems
-              .hasNext();) {
-            String uri = elems.next();
-            try {
-              System.err.println("killing job with: " + uri);
-              java.net.HttpURLConnection conn = (java.net.HttpURLConnection) 
-                new java.net.URL(uri).openConnection();
-              conn.setRequestMethod("POST");
-              int retCode = conn.getResponseCode();
-              if (retCode != 200) {
-                System.err.println("Got an error trying to kill job with URI: "
-                    + uri + " = " + retCode);
+          synchronized(runningJobKillURIs) {
+            for (Iterator<String> elems = runningJobKillURIs.values().iterator(); elems
+                .hasNext();) {
+              String uri = elems.next();
+              try {
+                System.err.println("killing job with: " + uri);
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection)
+                  new java.net.URL(uri).openConnection();
+                conn.setRequestMethod("POST");
+                int retCode = conn.getResponseCode();
+                if (retCode != 200) {
+                  System.err.println("Got an error trying to kill job with URI: "
+                      + uri + " = " + retCode);
+                }
+              } catch (Exception e) {
+                System.err.println("trying to kill job, caught: " + e);
+                // do nothing
               }
-            } catch (Exception e) {
-              System.err.println("trying to kill job, caught: " + e);
-              // do nothing
             }
           }
         }
@@ -195,26 +210,98 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
   }
 
   /**
-   * from StreamJob.java
+   * This class contains the state of the running task
+   * Going forward, we will return this handle from execute
+   * and Driver can split execute into start, monitorProgess and postProcess
    */
-  public RunningJob jobProgress(JobClient jc, RunningJob rj) throws IOException {
+  public static class ExecDriverTaskHandle extends TaskHandle {
+    JobClient jc;
+    RunningJob rj;
+    JobClient getJobClient() {
+      return jc;
+    }
+    RunningJob getRunningJob() {
+      return rj;
+    }
+    public ExecDriverTaskHandle(JobClient jc, RunningJob rj) {
+      this.jc = jc;
+      this.rj = rj;
+    }
+    public void setRunningJob(RunningJob job) {
+      this.rj = job;
+    }
+    public Counters getCounters() throws IOException {
+      return rj.getCounters();
+    }
+  }
+  
+  /**
+   * Fatal errors are those errors that cannot be recovered by retries. These
+   * are application dependent. Examples of fatal errors include:
+   *  - the small table in the map-side joins is too large to be feasible to be
+   *    handled by one mapper. The job should fail and the user should be warned
+   *    to use regular joins rather than map-side joins.
+   * Fatal errors are indicated by counters that are set at execution time. 
+   * If the counter is non-zero, a fatal error occurred. The value of the counter
+   * indicates the error type. 
+   * @return true if fatal errors happened during job execution, false otherwise.
+   */
+  protected boolean checkFatalErrors(TaskHandle t, StringBuffer errMsg) {
+    ExecDriverTaskHandle th = (ExecDriverTaskHandle) t;
+    RunningJob rj = th.getRunningJob();
+    try {
+      Counters ctrs = th.getCounters();
+      for (Operator<? extends Serializable> op: work.getAliasToWork().values()) {
+        if (op.checkFatalErrors(ctrs, errMsg))
+          return true;
+      }
+      return false;
+     } catch (IOException e) {
+      // this exception can be tolerated
+      e.printStackTrace();
+      return false;
+    }
+  }
+  
+  public void progress(TaskHandle taskHandle) throws IOException {
+    ExecDriverTaskHandle th = (ExecDriverTaskHandle)taskHandle;
+    JobClient jc = th.getJobClient();
+    RunningJob rj = th.getRunningJob();
     String lastReport = "";
     SimpleDateFormat dateFormat
-        = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
+        = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss,SSS");
     long reportTime = System.currentTimeMillis();
     long maxReportInterval = 60 * 1000; // One minute
+    boolean fatal = false;
+    StringBuffer errMsg = new StringBuffer();
     while (!rj.isComplete()) {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
       }
-      rj = jc.getJob(rj.getJobID());
-      String report = " map = " + Math.round(rj.mapProgress() * 100) + "%,  reduce ="
-          + Math.round(rj.reduceProgress() * 100) + "%";
+      th.setRunningJob(jc.getJob(rj.getJobID()));
+      
+      // If fatal errors happen we should kill the job immediately rather than
+      // let the job retry several times, which eventually lead to failure.
+      if (fatal)
+        continue;  // wait until rj.isComplete
+      if ( fatal = checkFatalErrors(th, errMsg)) {
+        success = false;
+        console.printError("[Fatal Error] " + errMsg.toString() + ". Killing the job.");
+        rj.killJob();
+        continue;
+      }
+      errMsg.setLength(0);
+      
+      updateCounters(th);
 
+      String report = " "+getId()+" map = " + this.mapProgress + "%,  reduce = " + this.reduceProgress + "%";
+      
       if (!report.equals(lastReport)
           || System.currentTimeMillis() >= reportTime + maxReportInterval) {
 
+        // write out serialized plan with counters to log file
+        // LOG.info(queryPlan);
         String output = dateFormat.format(Calendar.getInstance().getTime()) + report;
         SessionState ss = SessionState.get();
         if (ss != null) {
@@ -225,13 +312,28 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
               Keys.TASK_HADOOP_PROGRESS, output);
           ss.getHiveHistory().progressTask(
               SessionState.get().getQueryId(), this);
+          ss.getHiveHistory().logPlanProgress(queryPlan);
         }
         console.printInfo(output);
         lastReport = report;
         reportTime = System.currentTimeMillis();
       }
     }
-    return rj;
+    // check for fatal error again in case it occurred after the last check before the job is completed
+    if ( !fatal && (fatal = checkFatalErrors(th, errMsg))) {
+      console.printError("[Fatal Error] " + errMsg.toString());
+      success = false;
+    } else 
+      success = rj.isSuccessful();
+ 
+    setDone();
+    th.setRunningJob(jc.getJob(rj.getJobID()));
+    updateCounters(th);
+    SessionState ss = SessionState.get();
+    if (ss != null) {
+      ss.getHiveHistory().logPlanProgress(queryPlan);
+    }
+    //LOG.info(queryPlan);
   }
 
   /**
@@ -311,10 +413,46 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
   }
 
   /**
+   * update counters relevant to this task
+   */
+  @Override
+  public void updateCounters(TaskHandle t) throws IOException {
+    ExecDriverTaskHandle th = (ExecDriverTaskHandle)t;
+    RunningJob rj = th.getRunningJob();
+    this.mapProgress = Math.round(rj.mapProgress() * 100);
+    this.reduceProgress = Math.round(rj.reduceProgress() * 100);
+    taskCounters.put("CNTR_NAME_" + getId() + "_MAP_PROGRESS", Long.valueOf(this.mapProgress));
+    taskCounters.put("CNTR_NAME_" + getId() + "_REDUCE_PROGRESS", Long.valueOf(this.reduceProgress));
+    Counters ctrs = th.getCounters();
+    for (Operator<? extends Serializable> op: work.getAliasToWork().values()) {
+      op.updateCounters(ctrs);
+    }
+    if (work.getReducer() != null) {
+      work.getReducer().updateCounters(ctrs);
+    }
+  }
+
+  public boolean mapStarted() {
+    return mapProgress > 0;
+  }
+
+  public boolean reduceStarted() {
+    return reduceProgress > 0;
+  }
+
+  public boolean mapDone() {
+    return mapProgress == 100;
+  }
+
+  public boolean reduceDone() {
+    return reduceProgress == 100;
+  }
+
+
+  /**
    * Execute a query plan using Hadoop
    */
   public int execute() {
-
     try {
       setNumberOfReducers();
     } catch(IOException e) {
@@ -332,7 +470,7 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
 
 
     String hiveScratchDir = HiveConf.getVar(job, HiveConf.ConfVars.SCRATCHDIR);
-    String jobScratchDirStr = hiveScratchDir + File.separator + Utilities.randGen.nextInt();
+    String jobScratchDirStr = hiveScratchDir + File.separator+ Utilities.randGen.nextInt();
     Path   jobScratchDir = new Path(jobScratchDirStr);
     String emptyScratchDirStr = null;
     Path   emptyScratchDir    = null;
@@ -358,12 +496,26 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
     job.setMapperClass(ExecMapper.class);
 
     job.setMapOutputKeyClass(HiveKey.class);
-    job.setMapOutputValueClass(Text.class);
+    job.setMapOutputValueClass(BytesWritable.class);
 
     job.setNumReduceTasks(work.getNumReduceTasks().intValue());
     job.setReducerClass(ExecReducer.class);
 
-    job.setInputFormat(org.apache.hadoop.hive.ql.io.HiveInputFormat.class);
+    // Turn on speculative execution for reducers
+    HiveConf.setVar(job,HiveConf.ConfVars.HADOOPSPECULATIVEEXECREDUCERS,
+                    HiveConf.getVar(job, HiveConf.ConfVars.HIVESPECULATIVEEXECREDUCERS));
+
+    String inpFormat = HiveConf.getVar(job, HiveConf.ConfVars.HIVEINPUTFORMAT);
+    if ((inpFormat == null) || (!StringUtils.isNotBlank(inpFormat)))
+      inpFormat = ShimLoader.getHadoopShims().getInputFormatClassName();
+
+    LOG.info("Using " + inpFormat);
+
+    try {
+      job.setInputFormat((Class<? extends InputFormat>)(Class.forName(inpFormat)));
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(e.getMessage());
+    }
 
     // No-Op - we don't really write anything here ..
     job.setOutputKeyClass(Text.class);
@@ -386,13 +538,26 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
     if (StringUtils.isNotBlank(addedFiles)) {
       initializeFiles("tmpfiles", addedFiles);
     }
+    // Transfer HIVEADDEDARCHIVES to "tmparchives" so hadoop understands it
+    String addedArchives = HiveConf.getVar(job, HiveConf.ConfVars.HIVEADDEDARCHIVES);
+    if (StringUtils.isNotBlank(addedArchives)) {
+      initializeFiles("tmparchives", addedArchives);
+    }
 
     int returnVal = 0;
     RunningJob rj = null, orig_rj = null;
-    boolean success = false;
+
+    boolean noName = StringUtils.isEmpty(HiveConf.
+      getVar(job,HiveConf.ConfVars.HADOOPJOBNAME));
+
+    if(noName) {
+      // This is for a special case to ensure unit tests pass
+      HiveConf.setVar(job,HiveConf.ConfVars.HADOOPJOBNAME, "JOB"+randGen.nextInt());
+    }
 
     try {
       addInputPaths(job, work, emptyScratchDirStr);
+
       Utilities.setMapRedWork(job, work);
 
       // remove the pwd from conf file so that job tracker doesn't show this logs
@@ -400,6 +565,7 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
       if (pwd != null)
         job.set(HiveConf.ConfVars.METASTOREPWD.varname, "HIVE");
       JobClient jc = new JobClient(job);
+
 
       // make this client wait if job trcker is not behaving well.
       Throttle.checkJobTracker(job, LOG);
@@ -414,27 +580,28 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
       runningJobKillURIs.put(rj.getJobID(), rj.getTrackingURL()
           + "&action=kill");
 
+      TaskHandle th = new ExecDriverTaskHandle(jc, rj);
       jobInfo(rj);
-      rj = jobProgress(jc, rj);
+      progress(th); // success status will be setup inside progress
 
-      if(rj == null) {
+      if (rj == null) {
         // in the corner case where the running job has disappeared from JT memory
         // remember that we did actually submit the job.
         rj = orig_rj;
         success = false;
-      } else {
-        success = rj.isSuccessful();
-      }
+      } 
 
       String statusMesg = "Ended Job = " + rj.getJobID();
       if (!success) {
         statusMesg += " with errors";
         returnVal = 2;
         console.printError(statusMesg);
+        showJobFailDebugInfo(job, rj);
       } else {
         console.printInfo(statusMesg);
       }
     } catch (Exception e) {
+      e.printStackTrace();
       String mesg = " with exception '" + Utilities.getNameMessage(e) + "'";
       if (rj != null) {
         mesg = "Ended Job = " + rj.getJobID() + mesg;
@@ -486,6 +653,86 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
     }
 
     return (returnVal);
+  }
+
+  private void showJobFailDebugInfo(JobConf conf, RunningJob rj) throws IOException {
+
+    Map<String, Integer> failures = new HashMap<String, Integer>();
+    Set<String> successes = new HashSet<String> ();
+    Map<String, String> taskToJob = new HashMap<String,String>();
+
+    int startIndex = 0;
+
+    while(true) {
+      TaskCompletionEvent[] taskCompletions = rj.getTaskCompletionEvents(startIndex);
+
+      if(taskCompletions == null || taskCompletions.length == 0) {
+        break;
+      }
+
+      boolean more = true;
+      for(TaskCompletionEvent t : taskCompletions) {
+        // getTaskJobIDs return Strings for compatibility with Hadoop version without
+        // TaskID or TaskAttemptID
+        String [] taskJobIds = ShimLoader.getHadoopShims().getTaskJobIDs(t);
+
+        if(taskJobIds == null) {
+          console.printError("Task attempt info is unavailable in this Hadoop version");
+          more = false;
+          break;
+        }
+
+        String taskId = taskJobIds[0];
+        String jobId = taskJobIds[1];
+        taskToJob.put(taskId, jobId);
+
+        if(t.getTaskStatus() != TaskCompletionEvent.Status.SUCCEEDED) {
+          Integer failAttempts = failures.get(taskId);
+          if(failAttempts == null) {
+            failAttempts = Integer.valueOf(0);
+          }
+          failAttempts = Integer.valueOf(failAttempts.intValue() + 1);
+          failures.put(taskId, failAttempts);
+        } else {
+          successes.add(taskId);
+        }
+      }
+      if(!more) {
+        break;
+      }
+      startIndex += taskCompletions.length;
+    }
+    // Remove failures for tasks that succeeded
+    for(String task : successes) {
+      failures.remove(task);
+    }
+
+    if(failures.keySet().size() == 0) {
+      return;
+    }
+
+    // Find the highest failure count
+    int maxFailures = 0;
+    for(Integer failCount : failures.values()) {
+      if(maxFailures < failCount.intValue())
+        maxFailures = failCount.intValue();
+    }
+
+    // Display Error Message for tasks with the highest failure count
+    console.printError("\nFailed tasks with most" + "(" + maxFailures + ")" + " failures " + ": ");
+    String jtUrl = JobTrackerURLResolver.getURL(conf);
+
+    for(String task : failures.keySet()) {
+      if(failures.get(task).intValue() == maxFailures) {
+        String jobId = taskToJob.get(task);
+        String taskUrl = jtUrl + "/taskdetails.jsp?jobid=" + jobId + "&tipid=" + task.toString();
+        console.printError("Task URL: " + taskUrl +"\n");
+        // Only print out one task because that's good enough for debugging.
+        break;
+      }
+    }
+    return;
+
   }
 
   private static void printUsage() {
@@ -592,6 +839,7 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
 
     mapredWork plan = Utilities.deserializeMapRedWork(pathData, conf);
     ExecDriver ed = new ExecDriver(plan, conf, isSilent);
+
     int ret = ed.execute();
     if (ret != 0) {
       System.out.println("Job Failed");
@@ -679,9 +927,8 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
   /**
    * Handle a empty/null path for a given alias
    */
-  private int addInputPath(String path, JobConf job, mapredWork work, String hiveScratchDir, int numEmptyPaths, boolean isEmptyPath,
-                           String alias)
-    throws Exception {
+  private int addInputPath(String path, JobConf job, mapredWork work, String hiveScratchDir, int numEmptyPaths,
+                           boolean isEmptyPath, String alias) throws Exception {
     // either the directory does not exist or it is empty
     assert path == null || isEmptyPath;
 
@@ -691,10 +938,16 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
     if (isEmptyPath)
       outFileFormat = work.getPathToPartitionInfo().get(path).getTableDesc().getOutputFileFormatClass();
     else
-      outFileFormat = (Class<? extends HiveOutputFormat>)(HiveSequenceFileOutputFormat.class);
+      outFileFormat = work.getAliasToPartnInfo().get(alias).getTableDesc().getOutputFileFormatClass();
 
-    String newFile = hiveScratchDir + File.separator + (++numEmptyPaths);
-    Path newPath = new Path(newFile);
+    // create a dummy empty file in a new directory
+    String newDir = hiveScratchDir + File.separator + (++numEmptyPaths);
+    Path newPath = new Path(newDir);
+    FileSystem fs = newPath.getFileSystem(job);
+    fs.mkdirs(newPath);
+    String newFile = newDir + File.separator + "emptyFile";
+    Path newFilePath = new Path(newFile);
+
     LOG.info("Changed input file to " + newPath.toString());
 
     // toggle the work
@@ -720,14 +973,12 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
     }
     else {
       partitionDesc pDesc = work.getAliasToPartnInfo().get(alias).clone();
-      Class<? extends InputFormat>      inputFormat = SequenceFileInputFormat.class;
-      pDesc.getTableDesc().setInputFileFormatClass(inputFormat);
       pathToPartitionInfo.put(newPath.toUri().toString(), pDesc);
     }
     work.setPathToPartitionInfo(pathToPartitionInfo);
 
     String onefile = newPath.toString();
-    RecordWriter recWriter = outFileFormat.newInstance().getHiveRecordWriter(job, newPath, Text.class, false, new Properties(), null);
+    RecordWriter recWriter = outFileFormat.newInstance().getHiveRecordWriter(job, newFilePath, Text.class, false, new Properties(), null);
     recWriter.close(false);
     FileInputFormat.addInputPaths(job, onefile);
     return numEmptyPaths;
@@ -776,5 +1027,9 @@ public class ExecDriver extends Task<mapredWork> implements Serializable {
       if (path == null)
         numEmptyPaths = addInputPath(null, job, work, hiveScratchDir, numEmptyPaths, false, oneAlias);
     }
+  }
+
+  public int getType() {
+    return StageType.MAPRED;
   }
 }

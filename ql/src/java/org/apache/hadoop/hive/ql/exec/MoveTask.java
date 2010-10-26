@@ -28,12 +28,17 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
+import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.plan.loadFileDesc;
 import org.apache.hadoop.hive.ql.plan.loadTableDesc;
 import org.apache.hadoop.hive.ql.plan.moveWork;
+import org.apache.hadoop.hive.ql.plan.api.StageType;
 import org.apache.hadoop.util.StringUtils;
 
 /**
@@ -42,6 +47,10 @@ import org.apache.hadoop.util.StringUtils;
 public class MoveTask extends Task<moveWork> implements Serializable {
 
   private static final long serialVersionUID = 1L;
+
+  public MoveTask() {
+    super();
+  }
 
   public int execute() {
 
@@ -84,7 +93,7 @@ public class MoveTask extends Task<moveWork> implements Serializable {
             if (fs.exists(sourcePath))
               fs.copyToLocalFile(sourcePath, targetPath);
             else {
-              if (!dstFs.mkdirs(targetPath)) 
+              if (!dstFs.mkdirs(targetPath))
                 throw new HiveException ("Unable to make local directory: " + targetPath);
             }
           } else {
@@ -97,20 +106,19 @@ public class MoveTask extends Task<moveWork> implements Serializable {
       loadTableDesc tbd = work.getLoadTableWork();
       if (tbd != null) {
         String mesg = "Loading data to table " + tbd.getTable().getTableName() +
-        ((tbd.getPartitionSpec().size() > 0) ? 
+        ((tbd.getPartitionSpec().size() > 0) ?
             " partition " + tbd.getPartitionSpec().toString() : "");
         String mesg_detail = " from " + tbd.getSourceDir();
         console.printInfo(mesg, mesg_detail);
+        Table table = db.getTable(MetaStoreUtils.DEFAULT_DATABASE_NAME, tbd.getTable().getTableName());
 
         if (work.getCheckFileFormat()) {
-
           // Get all files from the src directory
           FileStatus [] dirs;
           ArrayList<FileStatus> files;
           FileSystem fs;
           try {
-            fs = FileSystem.get
-              (db.getTable(MetaStoreUtils.DEFAULT_DATABASE_NAME, tbd.getTable().getTableName()).getDataLocation(),conf);
+            fs = FileSystem.get(table.getDataLocation(),conf);
             dirs = fs.globStatus(new Path(tbd.getSourceDir()));
             files = new ArrayList<FileStatus>();
             for (int i=0; (dirs != null && i<dirs.length); i++) {
@@ -122,18 +130,27 @@ public class MoveTask extends Task<moveWork> implements Serializable {
             throw new HiveException("addFiles: filesystem error in check phase", e);
           }
 
-          // Check if the file format of the file matches that of the table.
-          boolean flag = HiveFileFormatUtils.checkInputFormat(fs, conf, tbd.getTable().getInputFileFormatClass(), files);
-          if(!flag)
-            throw new HiveException("Wrong file format. Please check the file's format.");
+          if (HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVECHECKFILEFORMAT)) {
+            // Check if the file format of the file matches that of the table.
+            boolean flag = HiveFileFormatUtils.checkInputFormat(fs, conf, tbd.getTable().getInputFileFormatClass(), files);
+            if (!flag) {
+              throw new HiveException(
+                  "Wrong file format. Please check the file's format.");
+            }
+          }
         }
 
         if(tbd.getPartitionSpec().size() == 0) {
           db.loadTable(new Path(tbd.getSourceDir()), tbd.getTable().getTableName(), tbd.getReplace(), new Path(tbd.getTmpDir()));
+          if (work.getOutputs() != null)
+            work.getOutputs().add(new WriteEntity(table));
         } else {
           LOG.info("Partition is: " + tbd.getPartitionSpec().toString());
           db.loadPartition(new Path(tbd.getSourceDir()), tbd.getTable().getTableName(),
               tbd.getPartitionSpec(), tbd.getReplace(), new Path(tbd.getTmpDir()));
+          Partition partn = db.getPartition(table, tbd.getPartitionSpec(), false);
+          if (work.getOutputs() != null)
+            work.getOutputs().add(new WriteEntity(partn));
         }
       }
 
@@ -144,7 +161,7 @@ public class MoveTask extends Task<moveWork> implements Serializable {
       return (1);
     }
   }
- 
+
   /*
    * Does the move task involve moving to a local file system
    */
@@ -152,7 +169,7 @@ public class MoveTask extends Task<moveWork> implements Serializable {
     loadTableDesc tbd = work.getLoadTableWork();
     if (tbd != null)
       return false;
-    
+
     loadFileDesc lfd = work.getLoadFileWork();
     if (lfd != null) {
       if (lfd.getIsDfsDir()) {
@@ -161,7 +178,11 @@ public class MoveTask extends Task<moveWork> implements Serializable {
       else
         return true;
     }
-    
+
     return false;
+  }
+
+  public int getType() {
+    return StageType.MOVE;
   }
 }

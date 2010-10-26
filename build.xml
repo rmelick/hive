@@ -28,7 +28,7 @@
   <!-- This is the version added to the manifest, which must be manually rev'ed
   whenever a branch version is created. The non-numberic/dot characters are
   silently dropped from the Implementation-Version when added to the manifest. -->
-  <property name="version" value="0.4.2-dev"/>
+  <property name="version" value="0.5.1-dev"/>
 
   <property name="target.dir" location="${build.dir.hive}/dist"/>
   <property name="target.lib.dir" location="${target.dir}/lib"/>
@@ -68,6 +68,7 @@
     <sequential>
       <subant target="@{target}">
 	<property name="thrift.home" value="${thrift.home}"/>
+        <property name="build.dir.hive" location="${build.dir.hive}"/>
         <!-- TODO filelist dir="." files="metastore/build.xml,serde/build.xml,service/build.xml,odbc/build.xml"/-->
         <filelist dir="." files="odbc/build.xml"/>
       </subant>
@@ -78,6 +79,7 @@
     <attribute name="target"/>
     <sequential>
       <subant target="@{target}">
+        <property name="build.dir.hive" location="${build.dir.hive}"/>
         <filelist dir="." files="ant/build.xml,shims/build.xml,common/build.xml,serde/build.xml,metastore/build.xml,ql/build.xml,cli/build.xml,contrib/build.xml,service/build.xml,jdbc/build.xml,hwi/build.xml,ant/build.xml"/>
       </subant>
     </sequential>
@@ -87,6 +89,7 @@
     <attribute name="target"/>
     <sequential>
       <subant target="@{target}">
+        <property name="build.dir.hive" location="${build.dir.hive}"/>
         <filelist dir="." files="shims/build.xml,common/build.xml,serde/build.xml,metastore/build.xml,ql/build.xml,cli/build.xml,contrib/build.xml,service/build.xml,jdbc/build.xml,hwi/build.xml"/>
       </subant>
     </sequential>
@@ -96,7 +99,7 @@
   <path id="common-classpath">
     <pathelement location="${hadoop.jar}"/>
     <pathelement location="${build.dir.hive}/classes"/>
-    <fileset dir="${hive.root}" includes="hive_*.jar"/>
+    <fileset dir="${hive.root}" includes="hive-*.jar"/>
     <fileset dir="${hive.root}/lib" includes="*.jar"/>
     <fileset dir="${hive.root}/ql/lib" includes="*.jar"/>
   </path>
@@ -122,11 +125,14 @@
     <iterate-all target="test-init"/>
   </target>
 
-  <target name="compile-cpp" depends="init">
+  <target name="compile-cpp"
+          depends="init"
+          description="Build CPP artifacts" >
     <iterate-cpp target="compile-cpp"/>
   </target>
 
-  <target name="compile-cpp-clean">
+  <target name="compile-cpp-clean"
+          description="Clean CPP artifacts">
     <iterate-cpp target="clean"/>
   </target>
 
@@ -134,17 +140,21 @@
     <iterate target="compile"/>
   </target>
 
-  <target name="jar">
+  <target name="jar"
+          description="Build JAR artifacts">
     <iterate target="jar"/>
   </target>
 
-  <target name="test" depends="clean-test,jar">
+  <target name="test"
+          depends="clean-test,jar"
+          description="Run tests">
     <iterate target="test"/>
     <iterate-cpp target="test"/>
   </target>
 
   <!-- create an html report from junit output files -->
-  <target name="testreport">
+  <target name="testreport"
+          description="Generate JUnit HTML test report">
     <junitreport todir="${test.build.dir}">
       <fileset dir="${build.dir.hive}">
         <include name="**/TEST-*.xml"/>
@@ -153,12 +163,14 @@
     </junitreport>
   </target>
 
-  <target name="clean-test">
+  <target name="clean-test"
+          description="Clean test results">
     <iterate target="clean-test"/>
     <delete dir="${build.dir.hive}/test"/>
   </target>
 
-  <target name="clean">
+  <target name="clean"
+          description="Clean build artifacts">
     <iterate-all target="clean"/>
     <iterate-cpp target="clean"/>
     <delete dir="${target.dir}"/>
@@ -168,13 +180,18 @@
   <!-- ====================================================== -->
   <!-- Generate some of the test data.                        -->
   <!-- ====================================================== -->
-  <target name="gen-testdata" depends="jar">
+  <target name="gen-testdata"
+          depends="jar"
+          description="Generate test data">
     <subant target="gen-testdata">
+      <property name="build.dir.hive" location="${build.dir.hive}"/>
       <fileset dir="." includes="serde/build.xml"/>
     </subant>
   </target>
 
-  <target name="package-cpp" depends="package,compile-cpp">
+  <target name="package-cpp"
+          depends="package,compile-cpp"
+          description="Deploy CPP artifacts">
     <mkdir dir="${target.dir}/include"/>
     <copy todir="${target.dir}/include" preservelastmodified="true" flatten="true">
       <fileset file="${build.dir.hive}/odbc/include/*"/>
@@ -186,7 +203,9 @@
 
   </target>
 
-  <target name="package" depends="jar">
+  <target name="package"
+          depends="jar"
+          description="Deploy JAR artifacts">
     <echo message="Deploying Hive jars to ${target.dir}"/>
     <mkdir dir="${target.dir}"/>
     <mkdir dir="${target.lib.dir}"/>
@@ -202,12 +221,30 @@
       <fileset dir="${hive.root}/bin/ext" excludes="**/.svn"/>
     </copy>
     <copy file="${hive.root}/bin/hive-config.sh" todir="${target.bin.dir}"/>
-    <copy file="${basedir}/conf/hive-default.xml" todir="${target.conf.dir}"/>
+    <copy file="${basedir}/conf/hive-default.xml" todir="${target.conf.dir}">
+      <filterset>
+        <filter token="VERSION" value="${version}"/>
+      </filterset>
+    </copy>
     <copy file="${basedir}/conf/hive-log4j.properties" todir="${target.conf.dir}"/>
+    <!-- Create php thrift package -->
     <copy todir="${target.lib.dir}/php">
+     <fileset dir="${hive.root}/service/lib/php" excludes="**.svn"/>
+    </copy>
+    <copy todir="${target.lib.dir}/php/packages/serde">
       <fileset dir="${hive.root}/serde/src/gen-php" excludes="**/.svn"/>
+    </copy>
+    <copy todir="${target.lib.dir}/php/packages/hive_metastore">
       <fileset dir="${hive.root}/metastore/src/gen-php" excludes="**/.svn"/>
     </copy>
+    <copy todir="${target.lib.dir}/php/packages/hive_service">
+      <fileset dir="${hive.root}/service/src/gen-php" excludes="**/.svn"/>
+    </copy>
+    <copy todir="${target.lib.dir}/php/packages/queryplan">
+      <fileset dir="${hive.root}/ql/src/gen-php" excludes="**/.svn"/>
+    </copy>
+
+
     <!-- Create the python thrift package -->
     <copy todir="${target.lib.dir}/py">
       <fileset dir="${hive.root}/service/lib/py" excludes="**/.svn"/>
@@ -221,14 +258,19 @@
     <copy todir="${target.lib.dir}/py/hive_service">
       <fileset dir="${hive.root}/service/src/gen-py/hive_service" excludes="**/.svn"/>
     </copy>
+    <copy todir="${target.lib.dir}/py/queryplan">
+      <fileset dir="${hive.root}/ql/src/gen-py/queryplan" excludes="**/.svn"/>
+    </copy>
+
+    <!-- copy jar files -->
     <copy todir="${target.lib.dir}" preservelastmodified="true" flatten="true">
       <fileset dir="${hive.root}" includes="*/*.jar, */*/*.jar" excludes="**/antlr-2*,**/antlr-3*,**/TestSerDe.jar"/>
-      <fileset file="${build.dir.hive}/cli/hive_cli.jar"/>
-      <fileset file="${build.dir.hive}/common/hive_common.jar"/>
-      <fileset file="${build.dir.hive}/ql/hive_exec.jar"/>
-      <fileset file="${build.dir.hive}/metastore/hive_metastore.jar"/>
-      <fileset file="${build.dir.hive}/hive_hwi.war"/>
-      <fileset file="${build.dir.hive}/contrib/hive_contrib.jar"/>
+      <fileset file="${build.dir.hive}/cli/hive-cli-${version}.jar"/>
+      <fileset file="${build.dir.hive}/common/hive-common-${version}.jar"/>
+      <fileset file="${build.dir.hive}/ql/hive-exec-${version}.jar"/>
+      <fileset file="${build.dir.hive}/metastore/hive-metastore-${version}.jar"/>
+      <fileset file="${build.dir.hive}/hwi/hive-hwi-${version}.war"/>
+      <fileset file="${build.dir.hive}/contrib/hive-contrib-${version}.jar"/>
     </copy>
     <copy todir="${target.example.dir}/files" preservelastmodified="true" flatten="true">
       <fileset dir="${test.data.dir}/files" includes="*.*" excludes="**/.svn"/>
@@ -248,7 +290,7 @@
   <target name="eclipse-files" depends="init"
           description="Generate files for Eclipse">
 
-    <condition property="hadoop.version.ant-internal" value="0.19">
+    <condition property="hadoop.version.ant-internal" value="0.20">
       <not>
         <isset property="hadoop.version.ant-internal"/>
       </not>
@@ -256,9 +298,22 @@
     <echo message="Using hadoop version ${hadoop.version.ant-internal}"/>
 
     <taskdef name="getversionpref" classname="org.apache.hadoop.hive.ant.GetVersionPref"
-             classpath="${build.dir.hive}/anttasks/hive_anttasks.jar"/>
+             classpath="${build.dir.hive}/anttasks/hive-anttasks-${version}.jar"/>
 
     <getversionpref property="hadoop.version.ant-internal.prefix" input="${hadoop.version.ant-internal}"/>
+
+    <condition property="jetty.jar" value="jetty-6.1.14.jar" else="jetty-5.1.4.jar">
+      <equals arg1="${hadoop.version.ant-internal.prefix}" arg2="0.20" />
+    </condition>
+
+    <condition property="jetty.util.jar" value="jetty-util-6.1.14.jar" else="jetty-ext/jsp-api.jar">
+      <!-- hadoop 0.19 and earlier does not have jetty-util.jar, so we just load another jar -->
+      <equals arg1="${hadoop.version.ant-internal.prefix}" arg2="0.20" />
+    </condition>
+
+    <condition property="servlet-api.jar" value="servlet-api-2.5-6.1.14.jar" else="servlet-api.jar">
+      <equals arg1="${hadoop.version.ant-internal.prefix}" arg2="0.20" />
+    </condition>
 
     <pathconvert property="eclipse.project">
       <path path="${basedir}"/>
@@ -273,6 +328,9 @@
         <filter token="PROJECT" value="${eclipse.project}"/>
         <filter token="HADOOPVER" value="${hadoop.version.ant-internal}"/>
         <filter token="HADOOPVERPREF" value="${hadoop.version.ant-internal.prefix}"/>
+        <filter token="JETTYJAR" value="${jetty.jar}"/>
+        <filter token="JETTYUTILJAR" value="${jetty.util.jar}"/>
+        <filter token="SERVLETAPIJAR" value="${servlet-api.jar}"/>
       </filterset>
     </copy>
     <move todir="." includeemptydirs="false">
@@ -312,9 +370,10 @@
     </copy>
   </target>
 
-  <target name="javadoc" depends="package" description="Generate javadoc">
+  <target name="javadoc" depends="package" description="Generate Javadoc">
     <mkdir dir="${build.javadoc}"/>
     <javadoc
+      maxmemory="1024m"
       packagenames="org.apache.hadoop.hive.*"
       destdir="${build.javadoc}"
       author="true"

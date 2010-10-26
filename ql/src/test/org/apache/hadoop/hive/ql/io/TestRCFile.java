@@ -19,6 +19,7 @@
 package org.apache.hadoop.hive.ql.io;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Properties;
@@ -28,10 +29,16 @@ import junit.framework.TestCase;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.ql.io.RCFile;
+import org.apache.hadoop.hive.ql.io.RCFileInputFormat;
+import org.apache.hadoop.hive.ql.io.RCFileOutputFormat;
 import org.apache.hadoop.hive.serde.Constants;
 import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.columnar.BytesRefArrayWritable;
 import org.apache.hadoop.hive.serde2.columnar.BytesRefWritable;
 import org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe;
@@ -46,7 +53,12 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
+import org.apache.hadoop.mapred.InputSplit;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RecordReader;
+import org.apache.hadoop.mapred.Reporter;
 
 public class TestRCFile extends TestCase {
 
@@ -96,7 +108,7 @@ public class TestRCFile extends TestCase {
       bytesArray = new byte[][] { "123".getBytes("UTF-8"),
           "456".getBytes("UTF-8"), "789".getBytes("UTF-8"),
           "1000".getBytes("UTF-8"), "5.3".getBytes("UTF-8"),
-          "hive and hadoop".getBytes("UTF-8"), new byte[0], new byte[0] };
+          "hive and hadoop".getBytes("UTF-8"), new byte[0], "NULL".getBytes("UTF-8") };
       s = new BytesRefArrayWritable(bytesArray.length);
       s.set(0, new BytesRefWritable("123".getBytes("UTF-8")));
       s.set(1, new BytesRefWritable("456".getBytes("UTF-8")));
@@ -127,11 +139,11 @@ public class TestRCFile extends TestCase {
     byte[][] record_1 = { "123".getBytes("UTF-8"), "456".getBytes("UTF-8"),
         "789".getBytes("UTF-8"), "1000".getBytes("UTF-8"),
         "5.3".getBytes("UTF-8"), "hive and hadoop".getBytes("UTF-8"),
-        new byte[0], new byte[0] };
+        new byte[0], "NULL".getBytes("UTF-8") };
     byte[][] record_2 = { "100".getBytes("UTF-8"), "200".getBytes("UTF-8"),
         "123".getBytes("UTF-8"), "1000".getBytes("UTF-8"),
         "5.3".getBytes("UTF-8"), "hive and hadoop".getBytes("UTF-8"),
-        new byte[0], new byte[0] };
+        new byte[0], "NULL".getBytes("UTF-8") };
 
     RCFileOutputFormat.setColumnNumber(conf, expectedFieldsData.length);
     RCFile.Writer writer = new RCFile.Writer(fs, conf, file, null,
@@ -170,12 +182,13 @@ public class TestRCFile extends TestCase {
       reader.next(rowID);
       BytesRefArrayWritable cols = new BytesRefArrayWritable();
       reader.getCurrentRow(cols);
+      cols.resetValid(8);
       Object row = serDe.deserialize(cols);
 
       StructObjectInspector oi = (StructObjectInspector) serDe
           .getObjectInspector();
       List<? extends StructField> fieldRefs = oi.getAllStructFieldRefs();
-      assertEquals(8, fieldRefs.size());
+      assertEquals("Field size should be 8", 8, fieldRefs.size());
       for (int j = 0; j < fieldRefs.size(); j++) {
         Object fieldData = oi.getStructFieldData(row, fieldRefs.get(j));
         Object standardWritableData = ObjectInspectorUtils.copyToStandardObject(fieldData, 
@@ -288,7 +301,7 @@ public class TestRCFile extends TestCase {
       throws IOException, SerDeException {
     LOG.debug("reading " + count + " records");
     long start = System.currentTimeMillis();
-    HiveFileFormatUtils.setFullyReadColumns(conf);
+    ColumnProjectionUtils.setFullyReadColumns(conf);
     RCFile.Reader reader = new RCFile.Reader(fs, file, conf);
 
     LongWritable rowID = new LongWritable();
@@ -296,12 +309,13 @@ public class TestRCFile extends TestCase {
     BytesRefArrayWritable cols = new BytesRefArrayWritable();
     while (reader.next(rowID)) {
       reader.getCurrentRow(cols);
+      cols.resetValid(8);
       Object row = serDe.deserialize(cols);
 
       StructObjectInspector oi = (StructObjectInspector) serDe
           .getObjectInspector();
       List<? extends StructField> fieldRefs = oi.getAllStructFieldRefs();
-      assertEquals(8, fieldRefs.size());
+      assertEquals("Field size should be 8", 8, fieldRefs.size());
       for (int i = 0; i < fieldRefs.size(); i++) {
         Object fieldData = oi.getStructFieldData(row, fieldRefs.get(i));
         Object standardWritableData = ObjectInspectorUtils.copyToStandardObject(fieldData, 
@@ -309,7 +323,7 @@ public class TestRCFile extends TestCase {
         assertEquals("Field " + i, standardWritableData, expectedFieldsData[i]);
       }
       // Serialize
-      assertEquals(BytesRefArrayWritable.class, serDe.getSerializedClass());
+      assertEquals("Class of the serialized object should be BytesRefArrayWritable", BytesRefArrayWritable.class, serDe.getSerializedClass());
       BytesRefArrayWritable serializedText = (BytesRefArrayWritable) serDe
           .serialize(row, oi);
       assertEquals("Serialized data", s, serializedText);
@@ -329,28 +343,30 @@ public class TestRCFile extends TestCase {
     java.util.ArrayList<Integer> readCols = new java.util.ArrayList<Integer>();
     readCols.add(Integer.valueOf(2));
     readCols.add(Integer.valueOf(3));
-    HiveFileFormatUtils.setReadColumnIDs(conf, readCols);
+    ColumnProjectionUtils.setReadColumnIDs(conf, readCols);
     RCFile.Reader reader = new RCFile.Reader(fs, file, conf);
 
     LongWritable rowID = new LongWritable();
     BytesRefArrayWritable cols = new BytesRefArrayWritable();
+    
     while (reader.next(rowID)) {
       reader.getCurrentRow(cols);
+      cols.resetValid(8);
       Object row = serDe.deserialize(cols);
 
       StructObjectInspector oi = (StructObjectInspector) serDe
           .getObjectInspector();
       List<? extends StructField> fieldRefs = oi.getAllStructFieldRefs();
-      assertEquals(8, fieldRefs.size());
+      assertEquals("Field size should be 8", 8, fieldRefs.size());
 
-      for (int i = 0; i < fieldRefs.size(); i++) {
+      for (int i : readCols) {
         Object fieldData = oi.getStructFieldData(row, fieldRefs.get(i));
         Object standardWritableData = ObjectInspectorUtils.copyToStandardObject(fieldData, 
             fieldRefs.get(i).getFieldObjectInspector(), ObjectInspectorCopyOption.WRITABLE);
         assertEquals("Field " + i, standardWritableData, expectedPartitalFieldsData[i]);
       }
 
-      assertEquals(BytesRefArrayWritable.class, serDe.getSerializedClass());
+      assertEquals("Class of the serialized object should be BytesRefArrayWritable", BytesRefArrayWritable.class, serDe.getSerializedClass());
       BytesRefArrayWritable serializedBytes = (BytesRefArrayWritable) serDe
           .serialize(row, oi);
       assertEquals("Serialized data", patialS, serializedBytes);
@@ -359,4 +375,127 @@ public class TestRCFile extends TestCase {
     long cost = System.currentTimeMillis() - start;
     LOG.debug("reading fully costs:" + cost + " milliseconds");
   }
+  
+  public void testSynAndSplit() throws IOException {
+    splitBeforeSync();
+    splitRightBeforeSync();
+    splitInMiddleOfSync();
+    splitRightAfterSync();
+    splitAfterSync();
+  }
+
+  private void splitBeforeSync() throws IOException {
+    writeThenReadByRecordReader(600, 1000, 2, 1, null);
+  }
+  
+  private void splitRightBeforeSync() throws IOException {
+    writeThenReadByRecordReader(500, 1000, 2, 17750, null);
+  }
+  
+  private void splitInMiddleOfSync() throws IOException {
+    writeThenReadByRecordReader(500, 1000, 2, 17760, null);
+    
+  }
+  
+  private void splitRightAfterSync() throws IOException {
+    writeThenReadByRecordReader(500, 1000, 2, 17770, null);
+  }
+  
+  private void splitAfterSync() throws IOException {
+    writeThenReadByRecordReader(500, 1000, 2, 19950, null);
+  }
+  
+
+  // adopted Hadoop-5476 (calling new SequenceFile.Reader(...) leaves an
+  // InputStream open, if the given sequence file is broken) to RCFile 
+  private static class TestFSDataInputStream extends FSDataInputStream {
+    private boolean closed = false;
+
+    private TestFSDataInputStream(InputStream in) throws IOException {
+      super(in);
+    }
+
+    public void close() throws IOException {
+      closed = true;
+      super.close();
+    }
+
+    public boolean isClosed() {
+      return closed;
+    }
+  }
+
+  public void testCloseForErroneousRCFile() throws IOException {
+    Configuration conf = new Configuration();
+    LocalFileSystem fs = FileSystem.getLocal(conf);
+    // create an empty file (which is not a valid rcfile)
+    Path path = new Path(System.getProperty("test.build.data", ".")
+        + "/broken.rcfile");
+    fs.create(path).close();
+    // try to create RCFile.Reader
+    final TestFSDataInputStream[] openedFile = new TestFSDataInputStream[1];
+    try {
+      new RCFile.Reader(fs, path, conf) {
+        // this method is called by the RCFile.Reader constructor, overwritten,
+        // so we can access the opened file
+        protected FSDataInputStream openFile(FileSystem fs, Path file,
+            int bufferSize, long length) throws IOException {
+          final InputStream in = super.openFile(fs, file, bufferSize, length);
+          openedFile[0] = new TestFSDataInputStream(in);
+          return openedFile[0];
+        }
+      };
+      fail("IOException expected.");
+    } catch (IOException expected) {
+    }
+    assertNotNull(path + " should have been opened.", openedFile[0]);
+    assertTrue("InputStream for " + path + " should have been closed.",
+        openedFile[0].isClosed());
+  }
+
+  private void writeThenReadByRecordReader(int intervalRecordCount,
+      int writeCount, int splitNumber, long minSplitSize, CompressionCodec codec)
+      throws IOException {
+    Path testDir = new Path(System.getProperty("test.data.dir", ".") + "/mapred/testsmallfirstsplit");
+    Path testFile = new Path(testDir, "test_rcfile");
+    fs.delete(testFile, true);
+    Configuration cloneConf = new Configuration(conf);
+    RCFileOutputFormat.setColumnNumber(cloneConf, bytesArray.length);
+    cloneConf.setInt(RCFile.RECORD_INTERVAL_CONF_STR, intervalRecordCount);
+
+    RCFile.Writer writer = new RCFile.Writer(fs, cloneConf, testFile, null, codec);
+
+    BytesRefArrayWritable bytes = new BytesRefArrayWritable(bytesArray.length);
+    for (int i = 0; i < bytesArray.length; i++) {
+      BytesRefWritable cu = null;
+      cu = new BytesRefWritable(bytesArray[i], 0, bytesArray[i].length);
+      bytes.set(i, cu);
+    }
+    for (int i = 0; i < writeCount; i++) {
+      if(i == intervalRecordCount)
+        System.out.println("write position:" + writer.getLength());
+      writer.append(bytes);
+    }
+    writer.close();
+    
+    RCFileInputFormat inputFormat = new RCFileInputFormat();
+    JobConf jonconf = new JobConf(cloneConf);
+    jonconf.set("mapred.input.dir", testDir.toString());
+    jonconf.setLong("mapred.min.split.size", minSplitSize);
+    InputSplit[] splits = inputFormat.getSplits(jonconf, splitNumber);
+    assertEquals("splits length should be " + splitNumber, splits.length, splitNumber);
+    int readCount = 0;
+    for (int i = 0; i < splits.length; i++) {
+      int previousReadCount = readCount;
+      RecordReader rr = inputFormat.getRecordReader(splits[i], jonconf, Reporter.NULL);
+      Object key = rr.createKey();
+      Object value = rr.createValue();
+      while(rr.next(key, value)) 
+        readCount ++;
+      System.out.println("The " + i + "th split read "
+          + (readCount - previousReadCount));
+    }
+    assertEquals("readCount should be equal to writeCount", readCount, writeCount);
+  }
+  
 }

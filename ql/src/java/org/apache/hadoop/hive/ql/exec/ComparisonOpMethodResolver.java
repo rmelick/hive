@@ -29,11 +29,13 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 /**
- * The class implements the method resolution for overloaded comparison operators. The
- * resolution logic is as follows:
- * 1. The resolver first tries to find an exact parameter match.
- * 2. If 1 fails and any of the parameters is a date, it converts the other to the date.
- * 3. If 1 and 3 fail then it returns the evaluate(Double, Double) method.
+ * The class implements the method resolution for operators like 
+ * (> < <= >= = <>). The resolution logic is as follows:
+ * 1. If one of the parameters is null, then it resolves to
+ *    evaluate(Double, Double)
+ * 2. If both of the parameters are of type T, then it resolves to 
+ *    evaluate(T, T)
+ * 3. If 1 and 2 fails then it resolves to evaluate(Double, Double).
  */
 public class ComparisonOpMethodResolver implements UDFMethodResolver {
 
@@ -79,8 +81,12 @@ public class ComparisonOpMethodResolver implements UDFMethodResolver {
     for(Method m: Arrays.asList(udfClass.getMethods())) {
       if (m.getName().equals("evaluate")) {
 
-        List<TypeInfo> acceptedTypeInfos = TypeInfoUtils.getParameterTypeInfos(m);
-
+        List<TypeInfo> acceptedTypeInfos = TypeInfoUtils.getParameterTypeInfos(m, pTypeInfos.size());
+        if (acceptedTypeInfos == null) {
+          // null means the method does not accept number of arguments passed.
+          continue;
+        }
+        
         boolean match = (acceptedTypeInfos.size() == pTypeInfos.size());
 
         for(int i=0; i<pTypeInfos.size() && match; i++) {

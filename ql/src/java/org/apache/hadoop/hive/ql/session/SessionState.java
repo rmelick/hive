@@ -37,7 +37,7 @@ import org.apache.commons.lang.StringUtils;
 
 /**
  * SessionState encapsulates common data associated with a session
- * 
+ *
  * Also provides support for a thread static session object that can
  * be accessed from any point in the code to interact with the user
  * and to retrieve configuration information
@@ -46,7 +46,7 @@ public class SessionState {
 
   /**
    * current configuration
-   */ 
+   */
   protected HiveConf conf;
 
   /**
@@ -54,13 +54,8 @@ public class SessionState {
    */
   protected boolean isSilent;
 
-  /**
-   * cached current connection to Hive MetaStore
-   */
-  protected Hive db;
-
   /*
-   *  HiveHistory Object 
+   *  HiveHistory Object
    */
   protected HiveHistory hiveHist;
   /**
@@ -69,6 +64,11 @@ public class SessionState {
   public PrintStream out;
   public InputStream in;
   public PrintStream err;
+
+  /**
+   * type of the command
+   */
+  private String commandType;
 
 
   public HiveConf getConf() { return conf; }
@@ -86,43 +86,12 @@ public class SessionState {
   }
 
   public SessionState() {
-    this(null, null);
+    this(null);
   }
 
   public SessionState (HiveConf conf) {
-    this (conf, null);
-  }
-  
-  public SessionState (HiveConf conf, Hive db) {
     this.conf = conf;
-    this.db = db;
 
-    for(HiveConf.ConfVars oneVar: HiveConf.metaVars) {
-      dbOptions.put(oneVar, conf.getVar(oneVar));
-    }
-  }
-
-  /**
-   * cached values of such options
-   */
-  private final HashMap<HiveConf.ConfVars, String> dbOptions =
-    new HashMap<HiveConf.ConfVars, String> ();
-
-  public Hive getDb() throws HiveException {
-    boolean needsRefresh = false;
-
-    for(HiveConf.ConfVars oneVar: HiveConf.metaVars) {
-      if(!StringUtils.isEmpty(StringUtils.difference(dbOptions.get(oneVar), conf.getVar(oneVar)))) {
-        needsRefresh = true;
-        break;
-      }
-    }
-    
-    if((db == null) || needsRefresh) {
-      db = Hive.get(conf, needsRefresh);
-    }
-  
-    return db;
   }
 
   public void setCmd(String cmdString) {
@@ -132,8 +101,8 @@ public class SessionState {
   public String getCmd() {
     return (conf.getVar(HiveConf.ConfVars.HIVEQUERYSTRING));
   }
-  
-  
+
+
   public String getQueryId() {
     return (conf.getVar(HiveConf.ConfVars.HIVEQUERYID));
   }
@@ -165,12 +134,12 @@ public class SessionState {
    * session object when switching from one session to another
    */
   public static SessionState start(SessionState startSs) {
-   
+
     tss.set(startSs);
     if(StringUtils.isEmpty(startSs.getConf().getVar(HiveConf.ConfVars.HIVESESSIONID))) {
       startSs.getConf().setVar(HiveConf.ConfVars.HIVESESSIONID, makeSessionId());
     }
-    
+
     if (startSs.hiveHist == null){
       startSs.hiveHist = new HiveHistory(startSs);
     }
@@ -184,7 +153,7 @@ public class SessionState {
     return tss.get();
   }
 
- 
+
   /**
    * get hiveHitsory object which does structured logging
    * @return The hive history object
@@ -192,8 +161,8 @@ public class SessionState {
   public HiveHistory getHiveHistory(){
     return hiveHist;
   }
-  
-  
+
+
   private static String makeSessionId() {
     GregorianCalendar gc = new GregorianCalendar();
     String userid = System.getProperty("user.name");
@@ -222,10 +191,10 @@ public class SessionState {
   /**
    * This class provides helper routines to emit informational and error messages to the user
    * and log4j files while obeying the current session's verbosity levels.
-   * 
+   *
    * NEVER write directly to the SessionStates standard output other than to emit result data
    * DO use printInfo and printError provided by LogHelper to emit non result data strings
-   * 
+   *
    * It is perfectly acceptable to have global static LogHelper objects (for example - once per module)
    * LogHelper always emits info/error to current session as required.
    */
@@ -233,7 +202,7 @@ public class SessionState {
 
     protected Log LOG;
     protected boolean isSilent;
-    
+
     public LogHelper(Log LOG) {
       this(LOG, false);
     }
@@ -245,7 +214,7 @@ public class SessionState {
 
     public PrintStream getOutStream() {
       SessionState ss = SessionState.get();
-      return ((ss != null) && (ss.out != null)) ? ss.out : System.out;   
+      return ((ss != null) && (ss.out != null)) ? ss.out : System.out;
     }
 
     public PrintStream getErrStream() {
@@ -325,7 +294,7 @@ public class SessionState {
       return false;
     }
   }
-  
+
   public static boolean unregisterJar(String jarsToUnregister) {
     LogHelper console = getConsole();
     try {
@@ -360,6 +329,11 @@ public class SessionState {
           }
         }
         public boolean postHook(Set<String> cur, String s) { return unregisterJar(s); }
+      }),
+
+    ARCHIVE(new ResourceHook () {
+        public String preHook(Set<String> cur, String s) { return validateFile(cur, s); }
+        public boolean postHook(Set<String> cur, String s) { return true; }
       });
 
     public ResourceHook hook;
@@ -370,14 +344,14 @@ public class SessionState {
   };
 
   public static ResourceType find_resource_type(String s) {
-    
+
     s = s.trim().toUpperCase();
-    
+
     try {
       return ResourceType.valueOf(s);
     } catch (IllegalArgumentException e) {
     }
-    
+
     // try singular
     if(s.endsWith("S")) {
       s = s.substring(0, s.length()-1);
@@ -444,5 +418,13 @@ public class SessionState {
       }
       resource_map.remove (t);
     }
+  }
+
+  public String getCommandType() {
+    return commandType;
+  }
+
+  public void setCommandType(String commandType) {
+    this.commandType = commandType;
   }
 }

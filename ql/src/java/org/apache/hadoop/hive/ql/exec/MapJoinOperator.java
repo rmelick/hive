@@ -19,14 +19,11 @@
 package org.apache.hadoop.hive.ql.exec;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
-import java.util.Random;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -35,10 +32,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.plan.mapJoinDesc;
 import org.apache.hadoop.hive.ql.plan.tableDesc;
-import org.apache.hadoop.hive.ql.util.jdbm.RecordManager;
-import org.apache.hadoop.hive.ql.util.jdbm.RecordManagerFactory;
-import org.apache.hadoop.hive.ql.util.jdbm.RecordManagerOptions;
-import org.apache.hadoop.hive.ql.util.jdbm.htree.HTree;
+import org.apache.hadoop.hive.ql.plan.api.OperatorType;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -48,6 +42,10 @@ import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils.ObjectInspectorCopyOption;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.hive.ql.exec.persistence.MapJoinObjectKey;
+import org.apache.hadoop.hive.ql.exec.persistence.MapJoinObjectValue;
+import org.apache.hadoop.hive.ql.exec.persistence.HashMapWrapper;
+import org.apache.hadoop.hive.ql.exec.persistence.RowContainer;
 
 /**
  * Map side Join operator implementation.
@@ -71,22 +69,36 @@ public class MapJoinOperator extends CommonJoinOperator<mapJoinDesc> implements 
 
   transient private int posBigTable;       // one of the tables that is not in memory
   transient int mapJoinRowsKey;            // rows for a given key
-  
-  transient protected Map<Byte, HTree> mapJoinTables;
 
+  transient protected Map<Byte, HashMapWrapper<MapJoinObjectKey, MapJoinObjectValue>> mapJoinTables;
+  
+  transient static final private String[] fatalErrMsg = { 
+    null,  // counter value 0 means no error
+    "Mapside join size exceeds hive.mapjoin.maxsize. Please increase that or remove the mapjoin hint." // counter value 1
+  };
+  
   public static class MapJoinObjectCtx {
     ObjectInspector standardOI;
     SerDe      serde;
+    tableDesc tblDesc;
+    Configuration conf;
     
     /**
      * @param standardOI
      * @param serde
      */
     public MapJoinObjectCtx(ObjectInspector standardOI, SerDe serde) {
-      this.standardOI = standardOI;
-      this.serde = serde;
+      this(standardOI, serde, null, null);
     }
     
+    public MapJoinObjectCtx(ObjectInspector standardOI, SerDe serde,
+        tableDesc tblDesc, Configuration conf) {
+      this.standardOI = standardOI;
+      this.serde = serde;
+      this.tblDesc = tblDesc;
+      this.conf = conf;
+    }
+
     /**
      * @return the standardOI
      */
@@ -101,112 +113,108 @@ public class MapJoinOperator extends CommonJoinOperator<mapJoinDesc> implements 
       return serde;
     }
 
+    public tableDesc getTblDesc() {
+      return tblDesc;
+    }
+
+    public Configuration getConf() {
+      return conf;
+    }
+    
   }
 
   transient static Map<Integer, MapJoinObjectCtx> mapMetadata = new HashMap<Integer, MapJoinObjectCtx>();
   transient static int nextVal = 0;
-  
+
   static public Map<Integer, MapJoinObjectCtx> getMapMetadata() {
     return mapMetadata;
   }
-  
+
   transient boolean firstRow;
-  
+
   transient int   metadataKeyTag;
   transient int[] metadataValueTag;
   transient List<File> hTables;
   transient int      numMapRowsRead;
   transient int      heartbeatInterval;
-  
+  transient int      maxMapJoinSize;
+
   @Override
   protected void initializeOp(Configuration hconf) throws HiveException {
     super.initializeOp(hconf);
     numMapRowsRead = 0;
-  
+
     firstRow = true;
-    try {
-      heartbeatInterval = HiveConf.getIntVar(hconf, HiveConf.ConfVars.HIVESENDHEARTBEAT);
-
-      joinKeys  = new HashMap<Byte, List<ExprNodeEvaluator>>();
+    heartbeatInterval = HiveConf.getIntVar(hconf, HiveConf.ConfVars.HIVESENDHEARTBEAT);
+    maxMapJoinSize = HiveConf.getIntVar(hconf, HiveConf.ConfVars.HIVEMAXMAPJOINSIZE);
+    
+    joinKeys  = new HashMap<Byte, List<ExprNodeEvaluator>>();
+    
+    populateJoinKeyValue(joinKeys, conf.getKeys());
+    joinKeysObjectInspectors = getObjectInspectorsFromEvaluators(joinKeys, inputObjInspectors);
+    joinKeysStandardObjectInspectors = getStandardObjectInspectors(joinKeysObjectInspectors);
+    
+    // all other tables are small, and are cached in the hash table
+    posBigTable = conf.getPosBigTable();
+    
+    metadataValueTag = new int[numAliases];
+    for (int pos = 0; pos < numAliases; pos++)
+      metadataValueTag[pos] = -1;
+    
+    mapJoinTables = new HashMap<Byte, HashMapWrapper<MapJoinObjectKey, MapJoinObjectValue>>();
+    hTables = new ArrayList<File>();
+    
+    // initialize the hash tables for other tables
+    for (int pos = 0; pos < numAliases; pos++) {
+      if (pos == posBigTable)
+        continue;
       
-      populateJoinKeyValue(joinKeys, conf.getKeys());
-      joinKeysObjectInspectors = getObjectInspectorsFromEvaluators(joinKeys, inputObjInspectors);
-      joinKeysStandardObjectInspectors = getStandardObjectInspectors(joinKeysObjectInspectors); 
-        
-      // all other tables are small, and are cached in the hash table
-      posBigTable = conf.getPosBigTable();
-
-      metadataValueTag = new int[numAliases];
-      for (int pos = 0; pos < numAliases; pos++)
-        metadataValueTag[pos] = -1;
+      int cacheSize = HiveConf.getIntVar(hconf, HiveConf.ConfVars.HIVEMAPJOINCACHEROWS);
+      HashMapWrapper<MapJoinObjectKey, MapJoinObjectValue> hashTable = 
+        new HashMapWrapper<MapJoinObjectKey, MapJoinObjectValue>(cacheSize);
       
-      mapJoinTables = new HashMap<Byte, HTree>();
-      hTables = new ArrayList<File>();
-      
-      // initialize the hash tables for other tables
-      for (int pos = 0; pos < numAliases; pos++) {
-        if (pos == posBigTable)
-          continue;
-        
-        Properties props = new Properties();
-        props.setProperty(RecordManagerOptions.CACHE_SIZE, 
-          String.valueOf(HiveConf.getIntVar(hconf, HiveConf.ConfVars.HIVEMAPJOINCACHEROWS)));
-        
-        Random rand = new Random();
-        File newDir = new File("/tmp/" + rand.nextInt());
-        String newDirName = null;
-        while (true) {
-          if (newDir.mkdir()) {
-            newDirName = newDir.getAbsolutePath();
-            hTables.add(newDir);
-            break;
-          }
-          newDir = new File("/tmp" + rand.nextInt());
-        }
-        
-        RecordManager recman = RecordManagerFactory.createRecordManager(newDirName + "/" + pos, props );
-        HTree hashTable = HTree.createInstance(recman);
-        
-        mapJoinTables.put(Byte.valueOf((byte)pos), hashTable);
-      }
-
-      storage.put((byte)posBigTable, new ArrayList<ArrayList<Object>>());
-      
-      mapJoinRowsKey = HiveConf.getIntVar(hconf, HiveConf.ConfVars.HIVEMAPJOINROWSIZE);
-      
-      List<? extends StructField> structFields = ((StructObjectInspector)outputObjInspector).getAllStructFieldRefs();
-      if (conf.getOutputColumnNames().size() < structFields.size()) {
-        List<ObjectInspector> structFieldObjectInspectors = new ArrayList<ObjectInspector>();
-        for (Byte alias : order) {
-          int sz = conf.getExprs().get(alias).size();
-          List<Integer> retained = conf.getRetainList().get(alias);
-          for (int i = 0; i < sz; i++) {
-            int pos = retained.get(i);
-            structFieldObjectInspectors.add(structFields.get(pos)
-                .getFieldObjectInspector());
-          }
-        }
-        outputObjInspector = ObjectInspectorFactory
-            .getStandardStructObjectInspector(conf.getOutputColumnNames(),
-                structFieldObjectInspectors);
-      }
-      initializeChildren(hconf);
-    } catch (IOException e) {
-      throw new HiveException(e);
+      mapJoinTables.put(Byte.valueOf((byte)pos), hashTable);
     }
+    
+    storage.put((byte)posBigTable, new RowContainer());
+    
+    mapJoinRowsKey = HiveConf.getIntVar(hconf, HiveConf.ConfVars.HIVEMAPJOINROWSIZE);
+    
+    List<? extends StructField> structFields = ((StructObjectInspector)outputObjInspector).getAllStructFieldRefs();
+    if (conf.getOutputColumnNames().size() < structFields.size()) {
+      List<ObjectInspector> structFieldObjectInspectors = new ArrayList<ObjectInspector>();
+      for (Byte alias : order) {
+        int sz = conf.getExprs().get(alias).size();
+        List<Integer> retained = conf.getRetainList().get(alias);
+        for (int i = 0; i < sz; i++) {
+          int pos = retained.get(i);
+          structFieldObjectInspectors.add(structFields.get(pos)
+                                          .getFieldObjectInspector());
+        }
+      }
+      outputObjInspector = ObjectInspectorFactory
+        .getStandardStructObjectInspector(conf.getOutputColumnNames(),
+                                          structFieldObjectInspectors);
+    }
+    initializeChildren(hconf);
   }
-
+  
   @Override
-  public void process(Object row, int tag) throws HiveException {
+  protected void fatalErrorMessage(StringBuffer errMsg, long counterCode) {
+    errMsg.append("Operator " + getOperatorId() + " (id=" + id + "): " + 
+        fatalErrMsg[(int)counterCode]);
+  }
+  
+  @Override
+  public void processOp(Object row, int tag) throws HiveException {
     try {
-
       // get alias
       alias = (byte)tag;
-
+      
       if ((lastAlias == null) || (!lastAlias.equals(alias)))
         nextSz = joinEmitInterval;
       
-      // compute keys and values as StandardObjects     
+      // compute keys and values as StandardObjects
       ArrayList<Object> key   = computeValues(row, joinKeys.get(alias), joinKeysObjectInspectors.get(alias));
       ArrayList<Object> value = computeValues(row, joinValues.get(alias), joinValuesObjectInspectors.get(alias));
 
@@ -214,67 +222,86 @@ public class MapJoinOperator extends CommonJoinOperator<mapJoinDesc> implements 
       if (tag != posBigTable) {
         if (firstRow) {
           metadataKeyTag = nextVal++;
-          
+
           tableDesc keyTableDesc = conf.getKeyTblDesc();
           SerDe keySerializer = (SerDe)ReflectionUtils.newInstance(keyTableDesc.getDeserializerClass(), null);
           keySerializer.initialize(null, keyTableDesc.getProperties());
 
-          mapMetadata.put(Integer.valueOf(metadataKeyTag), 
+          mapMetadata.put(Integer.valueOf(metadataKeyTag),
               new MapJoinObjectCtx(
                   ObjectInspectorUtils.getStandardObjectInspector(keySerializer.getObjectInspector(),
                       ObjectInspectorCopyOption.WRITABLE),
-                  keySerializer));
-          
+                  keySerializer, keyTableDesc, hconf));
+
           firstRow = false;
         }
-        
-        // Send some status perodically 
+
+        // Send some status periodically
         numMapRowsRead++;
         if (((numMapRowsRead % heartbeatInterval) == 0) && (reporter != null))
           reporter.progress();
+        
+        if ( (numMapRowsRead > maxMapJoinSize) && (reporter != null) && (counterNameToEnum != null)) {
+          // update counter
+          LOG.warn("Too many rows in map join tables. Fatal error counter will be incremented!!");
+          incrCounter(fatalErrorCntr, 1);
+          fatalError = true;
+          return;
+        }
+          
 
-        HTree hashTable = mapJoinTables.get(alias);
+        HashMapWrapper<MapJoinObjectKey, MapJoinObjectValue> hashTable =  mapJoinTables.get(alias);
         MapJoinObjectKey keyMap = new MapJoinObjectKey(metadataKeyTag, key);
-        MapJoinObjectValue o = (MapJoinObjectValue)hashTable.get(keyMap);
-        ArrayList<ArrayList<Object>> res = null;
-        
+        MapJoinObjectValue o = hashTable.get(keyMap);
+        RowContainer res = null;
+
+        boolean needNewKey = true;
         if (o == null) {
-          res = new ArrayList<ArrayList<Object>>();
-        }
-        else {
+          int bucketSize = HiveConf.getIntVar(hconf, HiveConf.ConfVars.HIVEMAPJOINBUCKETCACHESIZE);
+          res = new RowContainer(bucketSize);
+          res.add(value);
+        } else {
           res = o.getObj();
+          res.add(value);
+          // If key already exists, HashMapWrapper.get() guarantees it is already in main memory HashMap
+          // cache. So just replacing the object value should update the HashMapWrapper. This will save
+          // the cost of constructing the new key/object and deleting old one and inserting the new one.
+          if ( hashTable.cacheSize() > 0) {
+            o.setObj(res);
+            needNewKey = false;
+          } 
         }
         
-        res.add(value);
-  
+        
         if (metadataValueTag[tag] == -1) {
           metadataValueTag[tag] = nextVal++;
-                    
+          
           tableDesc valueTableDesc = conf.getValueTblDescs().get(tag);
           SerDe valueSerDe = (SerDe)ReflectionUtils.newInstance(valueTableDesc.getDeserializerClass(), null);
           valueSerDe.initialize(null, valueTableDesc.getProperties());
- 
+          
           mapMetadata.put(Integer.valueOf(metadataValueTag[tag]),
-              new MapJoinObjectCtx(
-                  ObjectInspectorUtils.getStandardObjectInspector(valueSerDe.getObjectInspector(),
-                      ObjectInspectorCopyOption.WRITABLE),
-              valueSerDe));
+                          new MapJoinObjectCtx(
+                                ObjectInspectorUtils.getStandardObjectInspector(valueSerDe.getObjectInspector(),
+                                  ObjectInspectorCopyOption.WRITABLE),
+                                valueSerDe, valueTableDesc, hconf));
         }
         
         // Construct externalizable objects for key and value
-        MapJoinObjectKey keyObj = new MapJoinObjectKey(metadataKeyTag, key);
-        MapJoinObjectValue valueObj = new MapJoinObjectValue(metadataValueTag[tag], res);
-
-        if (res.size() > 1)
-          hashTable.remove(keyObj);
-
-        // This may potentially increase the size of the hashmap on the mapper
-        if (res.size() > mapJoinRowsKey) {
-          LOG.warn("Number of values for a given key " + keyObj + " are " + res.size());
-          LOG.warn("used memory " + Runtime.getRuntime().totalMemory());
+        if ( needNewKey ) {
+          MapJoinObjectKey keyObj = new MapJoinObjectKey(metadataKeyTag, key);
+          MapJoinObjectValue valueObj = new MapJoinObjectValue(metadataValueTag[tag], res);
+          valueObj.setConf(hconf);
+          
+          // This may potentially increase the size of the hashmap on the mapper
+  	      if (res.size() > mapJoinRowsKey) {
+            if ( res.size() % 100 == 0 ) {
+    	        LOG.warn("Number of values for a given key " + keyObj + " are " + res.size());
+              LOG.warn("used memory " + Runtime.getRuntime().totalMemory());
+      	    }
+          }
+          hashTable.put(keyObj, valueObj);
         }
-        
-        hashTable.put(keyObj, valueObj);
         return;
       }
 
@@ -287,33 +314,35 @@ public class MapJoinOperator extends CommonJoinOperator<mapJoinDesc> implements 
           MapJoinObjectValue o = (MapJoinObjectValue)mapJoinTables.get(pos).get(keyMap);
 
           if (o == null) {
-            storage.put(pos, new ArrayList<ArrayList<Object>>());
+            storage.put(pos, dummyObjVectors[pos.intValue()]);
           }
           else {
             storage.put(pos, o.getObj());
           }
         }
       }
-      
+
       // generate the output records
       checkAndGenObject();
-    
+
       // done with the row
       storage.get(alias).clear();
 
       for (Byte pos : order)
         if (pos.intValue() != tag)
           storage.put(pos, null);
-    
+
     } catch (SerDeException e) {
-      e.printStackTrace();
-      throw new HiveException(e);
-    } catch (IOException e) {
       e.printStackTrace();
       throw new HiveException(e);
     }
   }
   
+  public void closeOp(boolean abort) throws HiveException {
+    for (HashMapWrapper hashTable: mapJoinTables.values()) {
+      hashTable.close();
+    }
+  }
   /**
    * Implements the getName function for the Node Interface.
    * @return the name of the operator
@@ -321,21 +350,8 @@ public class MapJoinOperator extends CommonJoinOperator<mapJoinDesc> implements 
   public String getName() {
     return "MAPJOIN";
   }
-  
-  public void closeOp(boolean abort) throws HiveException {
-    for (File hTbl : hTables) {
-      deleteDir(hTbl);
-    }
-  }
-  
-  private void deleteDir(File dir) {
-    if (dir.isDirectory()) {
-      String[] children = dir.list();
-      for (int i = 0; i < children.length; i++) {
-        deleteDir(new File(dir, children[i]));
-      }
-    }
 
-    dir.delete();
+  public int getType() {
+    return OperatorType.MAPJOIN;
   }
 }

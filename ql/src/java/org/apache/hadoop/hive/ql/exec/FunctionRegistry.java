@@ -25,6 +25,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,14 +34,132 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-import org.apache.hadoop.hive.ql.exec.FunctionInfo.OperatorType;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
-import org.apache.hadoop.hive.ql.plan.groupByDesc;
-import org.apache.hadoop.hive.ql.udf.*;
-import org.apache.hadoop.hive.ql.udf.generic.*;
+import org.apache.hadoop.hive.ql.plan.exprNodeDesc;
+import org.apache.hadoop.hive.ql.plan.exprNodeGenericFuncDesc;
+import org.apache.hadoop.hive.ql.udf.UDAFMax;
+import org.apache.hadoop.hive.ql.udf.UDAFMin;
+import org.apache.hadoop.hive.ql.udf.UDFAbs;
+import org.apache.hadoop.hive.ql.udf.UDFAcos;
+import org.apache.hadoop.hive.ql.udf.UDFAscii;
+import org.apache.hadoop.hive.ql.udf.UDFAsin;
+import org.apache.hadoop.hive.ql.udf.UDFBin;
+import org.apache.hadoop.hive.ql.udf.UDFCeil;
+import org.apache.hadoop.hive.ql.udf.UDFConcat;
+import org.apache.hadoop.hive.ql.udf.UDFConv;
+import org.apache.hadoop.hive.ql.udf.UDFCos;
+import org.apache.hadoop.hive.ql.udf.UDFDate;
+import org.apache.hadoop.hive.ql.udf.UDFDateAdd;
+import org.apache.hadoop.hive.ql.udf.UDFDateDiff;
+import org.apache.hadoop.hive.ql.udf.UDFDateSub;
+import org.apache.hadoop.hive.ql.udf.UDFDayOfMonth;
+import org.apache.hadoop.hive.ql.udf.UDFExp;
+import org.apache.hadoop.hive.ql.udf.UDFFindInSet;
+import org.apache.hadoop.hive.ql.udf.UDFFloor;
+import org.apache.hadoop.hive.ql.udf.UDFFromUnixTime;
+import org.apache.hadoop.hive.ql.udf.UDFHex;
+import org.apache.hadoop.hive.ql.udf.UDFHour;
+import org.apache.hadoop.hive.ql.udf.UDFJson;
+import org.apache.hadoop.hive.ql.udf.UDFLTrim;
+import org.apache.hadoop.hive.ql.udf.UDFLength;
+import org.apache.hadoop.hive.ql.udf.UDFLike;
+import org.apache.hadoop.hive.ql.udf.UDFLn;
+import org.apache.hadoop.hive.ql.udf.UDFLog;
+import org.apache.hadoop.hive.ql.udf.UDFLog10;
+import org.apache.hadoop.hive.ql.udf.UDFLog2;
+import org.apache.hadoop.hive.ql.udf.UDFLower;
+import org.apache.hadoop.hive.ql.udf.UDFLpad;
+import org.apache.hadoop.hive.ql.udf.UDFMinute;
+import org.apache.hadoop.hive.ql.udf.UDFMonth;
+import org.apache.hadoop.hive.ql.udf.UDFOPAnd;
+import org.apache.hadoop.hive.ql.udf.UDFOPBitAnd;
+import org.apache.hadoop.hive.ql.udf.UDFOPBitNot;
+import org.apache.hadoop.hive.ql.udf.UDFOPBitOr;
+import org.apache.hadoop.hive.ql.udf.UDFOPBitXor;
+import org.apache.hadoop.hive.ql.udf.UDFOPDivide;
+import org.apache.hadoop.hive.ql.udf.UDFOPEqual;
+import org.apache.hadoop.hive.ql.udf.UDFOPEqualOrGreaterThan;
+import org.apache.hadoop.hive.ql.udf.UDFOPEqualOrLessThan;
+import org.apache.hadoop.hive.ql.udf.UDFOPGreaterThan;
+import org.apache.hadoop.hive.ql.udf.UDFOPLessThan;
+import org.apache.hadoop.hive.ql.udf.UDFOPLongDivide;
+import org.apache.hadoop.hive.ql.udf.UDFOPMinus;
+import org.apache.hadoop.hive.ql.udf.UDFOPMod;
+import org.apache.hadoop.hive.ql.udf.UDFOPMultiply;
+import org.apache.hadoop.hive.ql.udf.UDFOPNegative;
+import org.apache.hadoop.hive.ql.udf.UDFOPNot;
+import org.apache.hadoop.hive.ql.udf.UDFOPNotEqual;
+import org.apache.hadoop.hive.ql.udf.UDFOPOr;
+import org.apache.hadoop.hive.ql.udf.UDFOPPlus;
+import org.apache.hadoop.hive.ql.udf.UDFOPPositive;
+import org.apache.hadoop.hive.ql.udf.UDFParseUrl;
+import org.apache.hadoop.hive.ql.udf.UDFPosMod;
+import org.apache.hadoop.hive.ql.udf.UDFPower;
+import org.apache.hadoop.hive.ql.udf.UDFRTrim;
+import org.apache.hadoop.hive.ql.udf.UDFRand;
+import org.apache.hadoop.hive.ql.udf.UDFRegExp;
+import org.apache.hadoop.hive.ql.udf.UDFRegExpExtract;
+import org.apache.hadoop.hive.ql.udf.UDFRegExpReplace;
+import org.apache.hadoop.hive.ql.udf.UDFRepeat;
+import org.apache.hadoop.hive.ql.udf.UDFReverse;
+import org.apache.hadoop.hive.ql.udf.UDFRound;
+import org.apache.hadoop.hive.ql.udf.UDFRpad;
+import org.apache.hadoop.hive.ql.udf.UDFSecond;
+import org.apache.hadoop.hive.ql.udf.UDFSin;
+import org.apache.hadoop.hive.ql.udf.UDFSpace;
+import org.apache.hadoop.hive.ql.udf.UDFSqrt;
+import org.apache.hadoop.hive.ql.udf.UDFSubstr;
+import org.apache.hadoop.hive.ql.udf.UDFToBoolean;
+import org.apache.hadoop.hive.ql.udf.UDFToByte;
+import org.apache.hadoop.hive.ql.udf.UDFToDouble;
+import org.apache.hadoop.hive.ql.udf.UDFToFloat;
+import org.apache.hadoop.hive.ql.udf.UDFToInteger;
+import org.apache.hadoop.hive.ql.udf.UDFToLong;
+import org.apache.hadoop.hive.ql.udf.UDFToShort;
+import org.apache.hadoop.hive.ql.udf.UDFToString;
+import org.apache.hadoop.hive.ql.udf.UDFTrim;
+import org.apache.hadoop.hive.ql.udf.UDFType;
+import org.apache.hadoop.hive.ql.udf.UDFUnhex;
+import org.apache.hadoop.hive.ql.udf.UDFUnixTimeStamp;
+import org.apache.hadoop.hive.ql.udf.UDFUpper;
+import org.apache.hadoop.hive.ql.udf.UDFWeekOfYear;
+import org.apache.hadoop.hive.ql.udf.UDFYear;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFAverage;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFBridge;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFStd;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFStdSample;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFSum;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFVariance;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFVarianceSample;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFArray;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCase;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCoalesce;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFConcatWS;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFElt;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFField;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFHash;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIf;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIndex;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFInstr;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFLocate;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFMap;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNotNull;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNull;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFSize;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFSplit;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFWhen;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFExplode;
 import org.apache.hadoop.hive.serde.Constants;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
+import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
@@ -53,129 +172,134 @@ public class FunctionRegistry {
   /**
    * The mapping from expression function names to expression classes.
    */
-  static LinkedHashMap<String, FunctionInfo> mFunctions;
+  static Map<String, FunctionInfo> mFunctions = new LinkedHashMap<String, FunctionInfo>();
   static {
-    mFunctions = new LinkedHashMap<String, FunctionInfo>();
-    registerUDF("concat", UDFConcat.class, OperatorType.PREFIX, false);
-    registerUDF("substr", UDFSubstr.class, OperatorType.PREFIX, false);
-    registerUDF("substring", UDFSubstr.class, OperatorType.PREFIX, false);
-    registerUDF("space", UDFSpace.class, OperatorType.PREFIX, false);
-    registerUDF("repeat", UDFRepeat.class, OperatorType.PREFIX, false);
-    registerUDF("ascii", UDFAscii.class, OperatorType.PREFIX, false);
-    registerUDF("lpad", UDFLpad.class, OperatorType.PREFIX, false);
-    registerUDF("rpad", UDFRpad.class, OperatorType.PREFIX, false);
+    registerUDF("concat", UDFConcat.class, false);
+    registerUDF("substr", UDFSubstr.class, false);
+    registerUDF("substring", UDFSubstr.class, false);
+    registerUDF("space", UDFSpace.class, false);
+    registerUDF("repeat", UDFRepeat.class, false);
+    registerUDF("ascii", UDFAscii.class, false);
+    registerUDF("lpad", UDFLpad.class, false);
+    registerUDF("rpad", UDFRpad.class, false);
     
     registerGenericUDF("size", GenericUDFSize.class);
 
-    registerUDF("round", UDFRound.class, OperatorType.PREFIX, false);
-    registerUDF("floor", UDFFloor.class, OperatorType.PREFIX, false);
-    registerUDF("sqrt", UDFSqrt.class, OperatorType.PREFIX, false);
-    registerUDF("ceil", UDFCeil.class, OperatorType.PREFIX, false);
-    registerUDF("ceiling", UDFCeil.class, OperatorType.PREFIX, false);
-    registerUDF("rand", UDFRand.class, OperatorType.PREFIX, false);
-    registerUDF("abs", UDFAbs.class, OperatorType.PREFIX, false);
-    registerUDF("pmod", UDFPosMod.class, OperatorType.PREFIX, false);
+    registerUDF("round", UDFRound.class, false);
+    registerUDF("floor", UDFFloor.class, false);
+    registerUDF("sqrt", UDFSqrt.class, false);
+    registerUDF("ceil", UDFCeil.class, false);
+    registerUDF("ceiling", UDFCeil.class, false);
+    registerUDF("rand", UDFRand.class, false);
+    registerUDF("abs", UDFAbs.class, false);
+    registerUDF("pmod", UDFPosMod.class, false);
 
-    registerUDF("ln", UDFLn.class, OperatorType.PREFIX, false);
-    registerUDF("log2", UDFLog2.class, OperatorType.PREFIX, false);
-    registerUDF("sin",UDFSin.class, OperatorType.PREFIX, false);
-    registerUDF("asin",UDFAsin.class, OperatorType.PREFIX, false);
-    registerUDF("cos",UDFCos.class, OperatorType.PREFIX, false);
-    registerUDF("acos",UDFAcos.class, OperatorType.PREFIX, false);
-    registerUDF("log10", UDFLog10.class, OperatorType.PREFIX, false);
-    registerUDF("log", UDFLog.class, OperatorType.PREFIX, false);
-    registerUDF("exp", UDFExp.class, OperatorType.PREFIX, false);
-    registerUDF("power", UDFPower.class, OperatorType.PREFIX, false);
-    registerUDF("pow", UDFPower.class, OperatorType.PREFIX, false);
+    registerUDF("ln", UDFLn.class, false);
+    registerUDF("log2", UDFLog2.class, false);
+    registerUDF("sin",UDFSin.class, false);
+    registerUDF("asin",UDFAsin.class, false);
+    registerUDF("cos",UDFCos.class, false);
+    registerUDF("acos",UDFAcos.class, false);
+    registerUDF("log10", UDFLog10.class, false);
+    registerUDF("log", UDFLog.class, false);
+    registerUDF("exp", UDFExp.class, false);
+    registerUDF("power", UDFPower.class, false);
+    registerUDF("pow", UDFPower.class, false);
 
-    registerUDF("conv", UDFConv.class, OperatorType.PREFIX, false);
-    registerUDF("bin", UDFBin.class, OperatorType.PREFIX, false);
-    registerUDF("hex", UDFHex.class, OperatorType.PREFIX, false);
+    registerUDF("conv", UDFConv.class, false);
+    registerUDF("bin", UDFBin.class, false);
+    registerUDF("hex", UDFHex.class, false);
+    registerUDF("unhex", UDFUnhex.class, false);
     
-    registerUDF("upper", UDFUpper.class, OperatorType.PREFIX, false);
-    registerUDF("lower", UDFLower.class, OperatorType.PREFIX, false);
-    registerUDF("ucase", UDFUpper.class, OperatorType.PREFIX, false);
-    registerUDF("lcase", UDFLower.class, OperatorType.PREFIX, false);
-    registerUDF("trim", UDFTrim.class, OperatorType.PREFIX, false);
-    registerUDF("ltrim", UDFLTrim.class, OperatorType.PREFIX, false);
-    registerUDF("rtrim", UDFRTrim.class, OperatorType.PREFIX, false);
-    registerUDF("length", UDFLength.class, OperatorType.PREFIX, false);
-    registerUDF("reverse", UDFReverse.class, OperatorType.PREFIX, false);
-
-    registerUDF("like", UDFLike.class, OperatorType.INFIX, true);
-    registerUDF("rlike", UDFRegExp.class, OperatorType.INFIX, true);
-    registerUDF("regexp", UDFRegExp.class, OperatorType.INFIX, true);
-    registerUDF("regexp_replace", UDFRegExpReplace.class, OperatorType.PREFIX, false);
-    registerUDF("regexp_extract", UDFRegExpExtract.class, OperatorType.PREFIX, false);
-    registerUDF("parse_url", UDFParseUrl.class, OperatorType.PREFIX, false);
+    registerUDF("upper", UDFUpper.class, false);
+    registerUDF("lower", UDFLower.class, false);
+    registerUDF("ucase", UDFUpper.class, false);
+    registerUDF("lcase", UDFLower.class, false);
+    registerUDF("trim", UDFTrim.class, false);
+    registerUDF("ltrim", UDFLTrim.class, false);
+    registerUDF("rtrim", UDFRTrim.class, false);
+    registerUDF("length", UDFLength.class, false);
+    registerUDF("reverse", UDFReverse.class, false);
+    registerGenericUDF("field", GenericUDFField.class);
+    registerUDF("find_in_set", UDFFindInSet.class, false);
+    
+    registerUDF("like", UDFLike.class, true);
+    registerUDF("rlike", UDFRegExp.class, true);
+    registerUDF("regexp", UDFRegExp.class, true);
+    registerUDF("regexp_replace", UDFRegExpReplace.class, false);
+    registerUDF("regexp_extract", UDFRegExpExtract.class, false);
+    registerUDF("parse_url", UDFParseUrl.class, false);
     registerGenericUDF("split", GenericUDFSplit.class);
 
-    registerUDF("positive", UDFOPPositive.class, OperatorType.PREFIX, true, "+");
-    registerUDF("negative", UDFOPNegative.class, OperatorType.PREFIX, true, "-");
+    registerUDF("positive", UDFOPPositive.class, true, "+");
+    registerUDF("negative", UDFOPNegative.class, true, "-");
 
-    registerUDF("day", UDFDayOfMonth.class, OperatorType.PREFIX, false);
-    registerUDF("dayofmonth", UDFDayOfMonth.class, OperatorType.PREFIX, false);
-    registerUDF("month", UDFMonth.class, OperatorType.PREFIX, false);
-    registerUDF("year", UDFYear.class, OperatorType.PREFIX, false);
-    registerUDF("from_unixtime", UDFFromUnixTime.class, OperatorType.PREFIX, false);
-    registerUDF("unix_timestamp", UDFUnixTimeStamp.class, OperatorType.PREFIX, false);
-    registerUDF("to_date", UDFDate.class, OperatorType.PREFIX, false);
+    registerUDF("day", UDFDayOfMonth.class, false);
+    registerUDF("dayofmonth", UDFDayOfMonth.class, false);
+    registerUDF("month", UDFMonth.class, false);
+    registerUDF("year", UDFYear.class, false);
+    registerUDF("hour", UDFHour.class, false);
+    registerUDF("minute", UDFMinute.class, false);
+    registerUDF("second", UDFSecond.class, false);
+    registerUDF("from_unixtime", UDFFromUnixTime.class, false);
+    registerUDF("unix_timestamp", UDFUnixTimeStamp.class, false);
+    registerUDF("to_date", UDFDate.class, false);
+    registerUDF("weekofyear", UDFWeekOfYear.class, false);
+    
+    registerUDF("date_add", UDFDateAdd.class, false);
+    registerUDF("date_sub", UDFDateSub.class, false);
+    registerUDF("datediff", UDFDateDiff.class, false);
 
-    registerUDF("date_add", UDFDateAdd.class, OperatorType.PREFIX, false);
-    registerUDF("date_sub", UDFDateSub.class, OperatorType.PREFIX, false);
-    registerUDF("datediff", UDFDateDiff.class, OperatorType.PREFIX, false);
+    registerUDF("get_json_object", UDFJson.class, false);
 
-    registerUDF("get_json_object", UDFJson.class, OperatorType.PREFIX, false);
+    registerUDF("+", UDFOPPlus.class, true);
+    registerUDF("-", UDFOPMinus.class, true);
+    registerUDF("*", UDFOPMultiply.class, true);
+    registerUDF("/", UDFOPDivide.class, true);
+    registerUDF("%", UDFOPMod.class, true);
+    registerUDF("div", UDFOPLongDivide.class, true);
 
-    registerUDF("+", UDFOPPlus.class, OperatorType.INFIX, true);
-    registerUDF("-", UDFOPMinus.class, OperatorType.INFIX, true);
-    registerUDF("*", UDFOPMultiply.class, OperatorType.INFIX, true);
-    registerUDF("/", UDFOPDivide.class, OperatorType.INFIX, true);
-    registerUDF("%", UDFOPMod.class, OperatorType.INFIX, true);
-    registerUDF("div", UDFOPLongDivide.class, OperatorType.INFIX, true);
+    registerUDF("&", UDFOPBitAnd.class, true);
+    registerUDF("|", UDFOPBitOr.class, true);
+    registerUDF("^", UDFOPBitXor.class, true);
+    registerUDF("~", UDFOPBitNot.class, true);
 
-    registerUDF("&", UDFOPBitAnd.class, OperatorType.INFIX, true);
-    registerUDF("|", UDFOPBitOr.class, OperatorType.INFIX, true);
-    registerUDF("^", UDFOPBitXor.class, OperatorType.INFIX, true);
-    registerUDF("~", UDFOPBitNot.class, OperatorType.PREFIX, true);
+    registerUDF("=", UDFOPEqual.class, true);
+    registerUDF("==", UDFOPEqual.class, true, "=");
+    registerUDF("<>", UDFOPNotEqual.class, true);
+    registerUDF("!=", UDFOPNotEqual.class, true, "<>");
+    registerUDF("<", UDFOPLessThan.class, true);
+    registerUDF("<=", UDFOPEqualOrLessThan.class, true);
+    registerUDF(">", UDFOPGreaterThan.class, true);
+    registerUDF(">=", UDFOPEqualOrGreaterThan.class, true);
 
-    registerUDF("=", UDFOPEqual.class, OperatorType.INFIX, true);
-    registerUDF("==", UDFOPEqual.class, OperatorType.INFIX, true, "=");
-    registerUDF("<>", UDFOPNotEqual.class, OperatorType.INFIX, true);
-    registerUDF("<", UDFOPLessThan.class, OperatorType.INFIX, true);
-    registerUDF("<=", UDFOPEqualOrLessThan.class, OperatorType.INFIX, true);
-    registerUDF(">", UDFOPGreaterThan.class, OperatorType.INFIX, true);
-    registerUDF(">=", UDFOPEqualOrGreaterThan.class, OperatorType.INFIX, true);
-
-    registerUDF("and", UDFOPAnd.class, OperatorType.INFIX, true);
-    registerUDF("&&", UDFOPAnd.class, OperatorType.INFIX, true, "and");
-    registerUDF("or", UDFOPOr.class, OperatorType.INFIX, true);
-    registerUDF("||", UDFOPOr.class, OperatorType.INFIX, true, "or");
-    registerUDF("not", UDFOPNot.class, OperatorType.PREFIX, true);
-    registerUDF("!", UDFOPNot.class, OperatorType.PREFIX, true, "not");
+    registerUDF("and", UDFOPAnd.class, true);
+    registerUDF("or", UDFOPOr.class, true);
+    registerUDF("not", UDFOPNot.class, true);
+    registerUDF("!", UDFOPNot.class, true, "not");
 
     registerGenericUDF("isnull", GenericUDFOPNull.class);
     registerGenericUDF("isnotnull", GenericUDFOPNotNull.class);
 
     registerGenericUDF("if", GenericUDFIf.class);
-
+    
     // Aliases for Java Class Names
     // These are used in getImplicitConvertUDFMethod
-    registerUDF(Constants.BOOLEAN_TYPE_NAME, UDFToBoolean.class, OperatorType.PREFIX, false,
+    registerUDF(Constants.BOOLEAN_TYPE_NAME, UDFToBoolean.class, false,
                 UDFToBoolean.class.getSimpleName());
-    registerUDF(Constants.TINYINT_TYPE_NAME, UDFToByte.class, OperatorType.PREFIX, false,
+    registerUDF(Constants.TINYINT_TYPE_NAME, UDFToByte.class, false,
                 UDFToByte.class.getSimpleName());
-    registerUDF(Constants.SMALLINT_TYPE_NAME, UDFToShort.class, OperatorType.PREFIX, false,
+    registerUDF(Constants.SMALLINT_TYPE_NAME, UDFToShort.class, false,
                 UDFToShort.class.getSimpleName());
-    registerUDF(Constants.INT_TYPE_NAME, UDFToInteger.class, OperatorType.PREFIX, false,
+    registerUDF(Constants.INT_TYPE_NAME, UDFToInteger.class, false,
                 UDFToInteger.class.getSimpleName());
-    registerUDF(Constants.BIGINT_TYPE_NAME, UDFToLong.class, OperatorType.PREFIX, false,
+    registerUDF(Constants.BIGINT_TYPE_NAME, UDFToLong.class, false,
                 UDFToLong.class.getSimpleName());
-    registerUDF(Constants.FLOAT_TYPE_NAME, UDFToFloat.class, OperatorType.PREFIX, false,
+    registerUDF(Constants.FLOAT_TYPE_NAME, UDFToFloat.class, false,
                 UDFToFloat.class.getSimpleName());
-    registerUDF(Constants.DOUBLE_TYPE_NAME, UDFToDouble.class, OperatorType.PREFIX, false,
+    registerUDF(Constants.DOUBLE_TYPE_NAME, UDFToDouble.class, false,
                 UDFToDouble.class.getSimpleName());
-    registerUDF(Constants.STRING_TYPE_NAME, UDFToString.class, OperatorType.PREFIX, false,
+    registerUDF(Constants.STRING_TYPE_NAME, UDFToString.class, false,
                 UDFToString.class.getSimpleName());
 
     // Aggregate functions
@@ -195,6 +319,9 @@ public class FunctionRegistry {
     registerUDAF("min", UDAFMin.class);
     
     // Generic UDFs
+    registerGenericUDF("array", GenericUDFArray.class);
+    registerGenericUDF("map", GenericUDFMap.class);
+
     registerGenericUDF("case", GenericUDFCase.class);
     registerGenericUDF("when", GenericUDFWhen.class);
     registerGenericUDF("hash", GenericUDFHash.class);
@@ -203,51 +330,40 @@ public class FunctionRegistry {
     registerGenericUDF("instr", GenericUDFInstr.class);
     registerGenericUDF("locate", GenericUDFLocate.class);
     registerGenericUDF("elt", GenericUDFElt.class);
-  }
-
-  public static FunctionInfo getUDFInfo(Class<?> fClass) {
-    for(Map.Entry<String, FunctionInfo> ent: mFunctions.entrySet()) {
-      FunctionInfo val = ent.getValue();
-      if (val.getUDFClass() == fClass) {
-        return val;
-      }
-    }
-
-    return null;
+    registerGenericUDF("concat_ws", GenericUDFConcatWS.class);
+    
+    // Generic UDTF's
+    registerGenericUDTF("explode", GenericUDTFExplode.class);
   }
 
   public static void registerTemporaryUDF(String functionName, Class<? extends UDF> UDFClass,
-      FunctionInfo.OperatorType opt, boolean isOperator) {
-    registerUDF(false,functionName, UDFClass, opt, isOperator);
+      boolean isOperator) {
+    registerUDF(false, functionName, UDFClass, isOperator);
   }
 
   static void registerUDF(String functionName, Class<? extends UDF> UDFClass,
-                                 FunctionInfo.OperatorType opt, boolean isOperator) {
-    registerUDF(true,functionName, UDFClass, opt, isOperator);
+                                 boolean isOperator) {
+    registerUDF(true, functionName, UDFClass, isOperator);
   }
 
   public static void registerUDF(boolean isNative, String functionName, Class<? extends UDF> UDFClass,
-      FunctionInfo.OperatorType opt, boolean isOperator) {
-    if (UDF.class.isAssignableFrom(UDFClass)) {
-      FunctionInfo fI = new FunctionInfo(isNative, functionName.toLowerCase(), UDFClass, null);
-      fI.setIsOperator(isOperator);
-      fI.setOpType(opt);
-      mFunctions.put(functionName.toLowerCase(), fI);
-    } else {
-      throw new RuntimeException("Registering UDF Class " + UDFClass + " which does not extends " + UDF.class);
-    }
+      boolean isOperator) {
+    registerUDF(isNative, functionName, UDFClass, isOperator, functionName.toLowerCase());
   }
 
   public static void registerUDF(String functionName, Class<? extends UDF> UDFClass,
-                                 FunctionInfo.OperatorType opt, boolean isOperator,
-                                 String displayName) {
+      boolean isOperator, String displayName) {
+    registerUDF(true, functionName, UDFClass, isOperator, displayName);
+  }
+  
+  public static void registerUDF(boolean isNative, String functionName, Class<? extends UDF> UDFClass,
+                                 boolean isOperator, String displayName) {
     if (UDF.class.isAssignableFrom(UDFClass)) {
-      FunctionInfo fI = new FunctionInfo(displayName, UDFClass, null);
-      fI.setIsOperator(isOperator);
-      fI.setOpType(opt);
+      FunctionInfo fI = new FunctionInfo(isNative, displayName, 
+          new GenericUDFBridge(displayName, isOperator, UDFClass));
       mFunctions.put(functionName.toLowerCase(), fI);
     } else {
-      throw new RuntimeException("Registering UDF Class " + UDFClass + " which does not extends " + UDF.class);
+      throw new RuntimeException("Registering UDF Class " + UDFClass + " which does not extend " + UDF.class);
     }
   }
 
@@ -261,14 +377,33 @@ public class FunctionRegistry {
 
   public static void registerGenericUDF(boolean isNative, String functionName, Class<? extends GenericUDF> genericUDFClass) {
     if (GenericUDF.class.isAssignableFrom(genericUDFClass)) {
-      FunctionInfo fI = new FunctionInfo(isNative, functionName, null, genericUDFClass);
+      FunctionInfo fI = new FunctionInfo(isNative, functionName, 
+          (GenericUDF)ReflectionUtils.newInstance(genericUDFClass, null));
       mFunctions.put(functionName.toLowerCase(), fI);
     } else {
       throw new RuntimeException("Registering GenericUDF Class " + genericUDFClass
-          + " which does not extends " + GenericUDF.class);
+          + " which does not extend " + GenericUDF.class);
     }
   }
 
+  public static void registerTemporaryGenericUDTF(String functionName, Class<? extends GenericUDTF> genericUDTFClass) {
+    registerGenericUDTF(false, functionName, genericUDTFClass);
+  }
+  static void registerGenericUDTF(String functionName, Class<? extends GenericUDTF> genericUDTFClass) {
+    registerGenericUDTF(true, functionName, genericUDTFClass);
+  }
+
+  public static void registerGenericUDTF(boolean isNative, String functionName, Class<? extends GenericUDTF> genericUDTFClass) {
+    if (GenericUDTF.class.isAssignableFrom(genericUDTFClass)) {
+      FunctionInfo fI = new FunctionInfo(isNative, functionName, 
+          (GenericUDTF)ReflectionUtils.newInstance(genericUDTFClass, null));
+      mFunctions.put(functionName.toLowerCase(), fI);
+    } else {
+      throw new RuntimeException("Registering GenericUDTF Class " + genericUDTFClass
+          + " which does not extend " + GenericUDTF.class);
+    }
+  }
+  
   public static FunctionInfo getFunctionInfo(String functionName) {
     return mFunctions.get(functionName.toLowerCase());
   }
@@ -286,11 +421,11 @@ public class FunctionRegistry {
    * Returns a set of registered function names.
    * This is used for the CLI command "SHOW FUNCTIONS 'regular expression';"
    * Returns an empty set when the regular expression is not valid.
-   * @param  funcPatternStr  regular expression of the intersted function names
+   * @param  funcPatternStr  regular expression of the interested function names
    * @return                 set of strings contains function names
    */
   public static Set<String> getFunctionNames(String funcPatternStr) {
-    TreeSet<String> funcNames = new TreeSet<String>();
+    Set<String> funcNames = new TreeSet<String>();
     Pattern funcPattern = null;
     try {
       funcPattern = Pattern.compile(funcPatternStr);
@@ -305,16 +440,33 @@ public class FunctionRegistry {
     return funcNames;
   }
 
-  public static Class<? extends UDF> getUDFClass(String functionName) {
-    LOG.debug("Looking up: " + functionName);
-    FunctionInfo finfo = mFunctions.get(functionName.toLowerCase());
-    if (finfo == null) {
-      return null;
+  /**
+   * Returns the set of synonyms of the supplied function.
+   * @param funcName the name of the function
+   * @return Set of synonyms for funcName
+   */
+  public static Set<String> getFunctionSynonyms(String funcName) {
+    Set<String> synonyms = new HashSet<String>();
+    
+    FunctionInfo funcInfo = getFunctionInfo(funcName);
+    if (null == funcInfo) {
+      return synonyms;
     }
-    Class<? extends UDF> result = finfo.getUDFClass();
-    return result;
+    
+    Class<?> funcClass = funcInfo.getFunctionClass();
+    for (String name : mFunctions.keySet()) {
+      if (name.equals(funcName)) {
+        continue;
+      }
+      if (mFunctions.get(name).getFunctionClass().equals(funcClass)) {
+        synonyms.add(name);
+      }
+    }
+    
+    return synonyms;
   }
 
+  
   static Map<TypeInfo, Integer> numericTypes = new HashMap<TypeInfo, Integer>();
   static List<TypeInfo> numericTypeList = new ArrayList<TypeInfo>();
   static void registerNumericType(String typeName, int level) {
@@ -397,27 +549,6 @@ public class FunctionRegistry {
   }
 
   /**
-   * Get the UDF method for the name and argumentClasses.
-   * @param name the name of the UDF
-   * @param argumentTypeInfos
-   * @return The UDF method
-   */
-  public static Method getUDFMethod(String name, List<TypeInfo> argumentTypeInfos) {
-    Class<? extends UDF> udf = getUDFClass(name);
-    if (udf == null) return null;
-    Method udfMethod = null;
-    try {
-      udfMethod = udf.newInstance().getResolver().getEvalMethod(argumentTypeInfos);
-    }
-    catch (AmbiguousMethodException e) {
-    }
-    catch (Exception e) {
-      throw new RuntimeException("Cannot get UDF for " + name + " " + argumentTypeInfos, e);
-    }
-    return udfMethod;
-  }
-
-  /**
    * Get the GenericUDAF evaluator for the name and argumentClasses.
    * @param name the name of the UDAF
    * @param argumentTypeInfos
@@ -439,9 +570,10 @@ public class FunctionRegistry {
    * This method is shared between UDFRegistry and UDAFRegistry.
    * methodName will be "evaluate" for UDFRegistry, and "aggregate"/"evaluate"/"evaluatePartial" for UDAFRegistry.
    */
-  public static <T> Method getMethodInternal(Class<? extends T> udfClass, String methodName, boolean exact, List<TypeInfo> argumentClasses) {
+  public static <T> Method getMethodInternal(Class<? extends T> udfClass, String methodName, boolean exact, 
+      List<TypeInfo> argumentClasses) {
 
-    ArrayList<Method> mlist = new ArrayList<Method>();
+    List<Method> mlist = new ArrayList<Method>();
 
     for(Method m: Arrays.asList(udfClass.getMethods())) {
       if (m.getName().equals(methodName)) {
@@ -450,10 +582,6 @@ public class FunctionRegistry {
     }
 
     return getMethodInternal(mlist, exact, argumentClasses);
-  }
-
-  public static Method getUDFMethod(String name, TypeInfo ... argumentClasses) {
-    return getUDFMethod(name, Arrays.asList(argumentClasses));
   }
 
   public static void registerTemporaryGenericUDAF(String functionName, GenericUDAFResolver genericUDAFResolver) {
@@ -538,6 +666,51 @@ public class FunctionRegistry {
   }
 
   /**
+   * Returns -1 if passed does not match accepted.
+   * Otherwise return the cost (usually 0 for no conversion and 1 for conversion).
+   */
+  public static int matchCost(TypeInfo argumentPassed, TypeInfo argumentAccepted, boolean exact) {
+    if (argumentAccepted.equals(argumentPassed)) {
+      // matches
+      return 0;
+    }
+    if (argumentPassed.equals(TypeInfoFactory.voidTypeInfo)) {
+      // passing null matches everything
+      return 0;
+    }
+    if (argumentPassed.getCategory().equals(Category.LIST) 
+        && argumentAccepted.getCategory().equals(Category.LIST)) {
+      // lists are compatible if and only-if the elements are compatible
+      TypeInfo argumentPassedElement = ((ListTypeInfo)argumentPassed).getListElementTypeInfo();
+      TypeInfo argumentAcceptedElement = ((ListTypeInfo)argumentAccepted).getListElementTypeInfo();
+      return matchCost(argumentPassedElement, argumentAcceptedElement, exact);
+    }
+    if (argumentPassed.getCategory().equals(Category.MAP) 
+        && argumentAccepted.getCategory().equals(Category.MAP)) {
+      // lists are compatible if and only-if the elements are compatible
+      TypeInfo argumentPassedKey = ((MapTypeInfo)argumentPassed).getMapKeyTypeInfo();
+      TypeInfo argumentAcceptedKey = ((MapTypeInfo)argumentAccepted).getMapKeyTypeInfo();
+      TypeInfo argumentPassedValue = ((MapTypeInfo)argumentPassed).getMapValueTypeInfo();
+      TypeInfo argumentAcceptedValue = ((MapTypeInfo)argumentAccepted).getMapValueTypeInfo();
+      int cost1 = matchCost(argumentPassedKey, argumentAcceptedKey, exact);
+      int cost2 = matchCost(argumentPassedValue, argumentAcceptedValue, exact);
+      if (cost1 < 0 || cost2 < 0) return -1;
+      return Math.max(cost1, cost2);
+    }
+    
+    if (argumentAccepted.equals(TypeInfoFactory.unknownTypeInfo)) {
+      // accepting Object means accepting everything,
+      // but there is a conversion cost.
+      return 1;
+    }
+    if (!exact && implicitConvertable(argumentPassed, argumentAccepted)) {
+      return 1;
+    }
+    
+    return -1;
+  }
+  
+  /**
    * Gets the closest matching method corresponding to the argument list from a list of methods.
    *
    * @param mlist The list of methods to inspect.
@@ -545,58 +718,45 @@ public class FunctionRegistry {
    * @param argumentsPassed The classes for the argument.
    * @return The matching method.
    */
-  public static Method getMethodInternal(ArrayList<Method> mlist, boolean exact,
+  public static Method getMethodInternal(List<Method> mlist, boolean exact,
       List<TypeInfo> argumentsPassed) {
-    int leastImplicitConversions = Integer.MAX_VALUE;
+    int leastConversionCost = Integer.MAX_VALUE;
     Method udfMethod = null;
 
-    for(Method m: mlist) {
-      List<TypeInfo> argumentsAccepted = TypeInfoUtils.getParameterTypeInfos(m);
+    for (Method m: mlist) {
+      List<TypeInfo> argumentsAccepted = TypeInfoUtils.getParameterTypeInfos(m,
+          argumentsPassed.size());
+      if (argumentsAccepted == null) {
+        // null means the method does not accept number of arguments passed.
+        continue;
+      }
       
       boolean match = (argumentsAccepted.size() == argumentsPassed.size());
-      int implicitConversions = 0;
+      int conversionCost = 0;
 
       for(int i=0; i<argumentsPassed.size() && match; i++) {
-        TypeInfo argumentPassed = argumentsPassed.get(i);
-        TypeInfo argumentAccepted = argumentsAccepted.get(i);
-        if (argumentPassed.equals(TypeInfoFactory.voidTypeInfo)) {
-          // passing null matches everything
-          continue;
-        }
-        if (argumentAccepted.equals(TypeInfoFactory.unknownTypeInfo)) {
-          // accepting Object means accepting everything
-          continue;
-        }
-        if (argumentPassed.getCategory().equals(Category.LIST) 
-            && argumentAccepted.equals(TypeInfoFactory.unknownListTypeInfo)) {
-          // accepting List means accepting List of everything
-          continue;
-        }
-        if (argumentPassed.getCategory().equals(Category.MAP) 
-            && argumentAccepted.equals(TypeInfoFactory.unknownMapTypeInfo)) {
-          // accepting Map means accepting Map of everything
-          continue;
-        }
-        TypeInfo accepted = argumentsAccepted.get(i);
-        if (accepted.equals(argumentsPassed.get(i))) {
-          // do nothing if match
-        } else if (!exact && implicitConvertable(argumentsPassed.get(i), accepted)) {
-          implicitConversions ++;
-        } else {
+        int cost = matchCost(argumentsPassed.get(i), argumentsAccepted.get(i), exact);
+        if (cost == -1) {
           match = false;
+        } else {
+          conversionCost += cost;
         }
       }
-
+      LOG.debug("Method " + (match ? "did": "didn't") + " match: passed = " + argumentsPassed
+          + " accepted = " + argumentsAccepted + " method = " + m);
       if (match) {
         // Always choose the function with least implicit conversions.
-        if (implicitConversions < leastImplicitConversions) {
+        if (conversionCost < leastConversionCost) {
           udfMethod = m;
-          leastImplicitConversions = implicitConversions;
+          leastConversionCost = conversionCost;
           // Found an exact match
-          if (leastImplicitConversions == 0) break;
-        } else if (implicitConversions == leastImplicitConversions){
+          if (leastConversionCost == 0) break;
+        } else if (conversionCost == leastConversionCost){
           // Ambiguous call: two methods with the same number of implicit conversions
+          LOG.info("Ambigious methods: passed = " + argumentsPassed
+              + " method 1 = " + udfMethod + " method 2 = " + m);
           udfMethod = null;
+          // Don't break! We might find a better match later. 
         } else {
           // do nothing if implicitConversions > leastImplicitConversions
         }
@@ -606,10 +766,106 @@ public class FunctionRegistry {
   }
   
   /**
-   * A shortcut to get the index GenericUDFClass.
+   * A shortcut to get the "index" GenericUDF.
    * This is used for getting elements out of array and getting values out of map.
    */
-  public static Class<? extends GenericUDF> getGenericUDFClassForIndex() {
-    return FunctionRegistry.getFunctionInfo("index").getGenericUDFClass();
+  public static GenericUDF getGenericUDFForIndex() {
+    return FunctionRegistry.getFunctionInfo("index").getGenericUDF();
   }
+
+  /**
+   * A shortcut to get the "and" GenericUDF.
+   */
+  public static GenericUDF getGenericUDFForAnd() {
+    return FunctionRegistry.getFunctionInfo("and").getGenericUDF();
+  }
+  
+  /**
+   * Create a copy of an existing GenericUDF.
+   */
+  public static GenericUDF cloneGenericUDF(GenericUDF genericUDF) {
+    if (null == genericUDF) {
+      return null;
+    }
+    
+    if (genericUDF instanceof GenericUDFBridge) {
+      GenericUDFBridge bridge = (GenericUDFBridge)genericUDF;
+      return new GenericUDFBridge(bridge.getUdfName(), bridge.isOperator(), bridge.getUdfClass());
+    }
+    
+    return (GenericUDF)ReflectionUtils.newInstance(genericUDF.getClass(), null);
+  }
+
+  /**
+   * Create a copy of an existing GenericUDTF.
+   */
+  public static GenericUDTF cloneGenericUDTF(GenericUDTF genericUDTF) {
+    if (null == genericUDTF) {
+      return null;
+    }
+    return (GenericUDTF)ReflectionUtils.newInstance(genericUDTF.getClass(), null);
+  }
+  
+  /**
+   * Get the UDF class from an exprNodeDesc.
+   * Returns null if the exprNodeDesc does not contain a UDF class.  
+   */
+  private static Class<? extends UDF> getUDFClassFromExprDesc(exprNodeDesc desc) {
+    if (!(desc instanceof exprNodeGenericFuncDesc)) {
+      return null;
+    }
+    exprNodeGenericFuncDesc genericFuncDesc = (exprNodeGenericFuncDesc)desc;
+    if (!(genericFuncDesc.getGenericUDF() instanceof GenericUDFBridge)) {
+      return null;
+    }
+    GenericUDFBridge bridge = (GenericUDFBridge)(genericFuncDesc.getGenericUDF());
+    return bridge.getUdfClass();
+  }
+  
+  /**
+   * Returns whether a GenericUDF is deterministic or not.
+   */
+  public static boolean isDeterministic(GenericUDF genericUDF) {
+    UDFType genericUDFType = genericUDF.getClass().getAnnotation(UDFType.class);
+    if (genericUDFType != null && genericUDFType.deterministic() == false) {
+      return false;
+    }
+    
+    if (genericUDF instanceof GenericUDFBridge) {
+      GenericUDFBridge bridge = (GenericUDFBridge)(genericUDF);
+      UDFType bridgeUDFType = bridge.getUdfClass().getAnnotation(UDFType.class);
+      if (bridgeUDFType != null && bridgeUDFType.deterministic() == false) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  /**
+   * Returns whether the exprNodeDesc is a node of "and", "or", "not".  
+   */
+  public static boolean isOpAndOrNot(exprNodeDesc desc) {
+    Class<? extends UDF> udfClass = getUDFClassFromExprDesc(desc);
+    return UDFOPAnd.class == udfClass
+        || UDFOPOr.class == udfClass
+        || UDFOPNot.class == udfClass;
+  }
+  
+  /**
+   * Returns whether the exprNodeDesc is a node of "and".  
+   */
+  public static boolean isOpAnd(exprNodeDesc desc) {
+    Class<? extends UDF> udfClass = getUDFClassFromExprDesc(desc);
+    return UDFOPAnd.class == udfClass;
+  }
+  
+  /**
+   * Returns whether the exprNodeDesc is a node of "positive".  
+   */
+  public static boolean isOpPositive(exprNodeDesc desc) {
+    Class<? extends UDF> udfClass = getUDFClassFromExprDesc(desc);
+    return UDFOPPositive.class == udfClass;
+  }
+  
 }

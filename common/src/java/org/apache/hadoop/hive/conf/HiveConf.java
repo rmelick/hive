@@ -61,11 +61,17 @@ public class HiveConf extends Configuration {
     SCRATCHDIR("hive.exec.scratchdir", "/tmp/"+System.getProperty("user.name")+"/hive"),
     SUBMITVIACHILD("hive.exec.submitviachild", false),
     SCRIPTERRORLIMIT("hive.exec.script.maxerrsize", 100000),
+    ALLOWPARTIALCONSUMP("hive.exec.script.allow.partial.consumption", false),
     COMPRESSRESULT("hive.exec.compress.output", false),
     COMPRESSINTERMEDIATE("hive.exec.compress.intermediate", false),
+    COMPRESSINTERMEDIATECODEC("hive.intermediate.compression.codec", ""),
+    COMPRESSINTERMEDIATETYPE("hive.intermediate.compression.type", ""),
     BYTESPERREDUCER("hive.exec.reducers.bytes.per.reducer", (long)(1000*1000*1000)),
     MAXREDUCERS("hive.exec.reducers.max", 999),
     PREEXECHOOKS("hive.exec.pre.hooks", ""),
+    POSTEXECHOOKS("hive.exec.post.hooks", ""),
+    EXECPARALLEL("hive.exec.parallel",false), // parallel query launching
+    HIVESPECULATIVEEXECREDUCERS("hive.mapred.reduce.tasks.speculative.execution",true),
 
     // hadoop stuff
     HADOOPBIN("hadoop.bin.path", System.getenv("HADOOP_HOME") + "/bin/hadoop"),
@@ -75,6 +81,7 @@ public class HiveConf extends Configuration {
     HADOOPJT("mapred.job.tracker", "local"),
     HADOOPNUMREDUCERS("mapred.reduce.tasks", 1),
     HADOOPJOBNAME("mapred.job.name", null),
+    HADOOPSPECULATIVEEXECREDUCERS("mapred.reduce.tasks.speculative.execution", false),
 
     // MetaStore stuff.
     METASTOREDIRECTORY("hive.metastore.metadb.dir", ""),
@@ -89,56 +96,65 @@ public class HiveConf extends Configuration {
 
     // session identifier
     HIVESESSIONID("hive.session.id", ""),
-    
+
     // query being executed (multiple per session)
     HIVEQUERYSTRING("hive.query.string", ""),
-    
+
     // id of query being executed (multiple per session)
     HIVEQUERYID("hive.query.id", ""),
-    
+
     // id of the mapred plan being executed (multiple per query)
     HIVEPLANID("hive.query.planid", ""),
     // max jobname length
     HIVEJOBNAMELENGTH("hive.jobname.length", 50),
-    
+
     // hive jar
-    HIVEJAR("hive.jar.path", ""), 
+    HIVEJAR("hive.jar.path", ""),
     HIVEAUXJARS("hive.aux.jars.path", ""),
-    
+
     // hive added files and jars
     HIVEADDEDFILES("hive.added.files.path", ""),
     HIVEADDEDJARS("hive.added.jars.path", ""),
-   
+    HIVEADDEDARCHIVES("hive.added.archives.path", ""),
+
     // for hive script operator
     HIVETABLENAME("hive.table.name", ""),
     HIVEPARTITIONNAME("hive.partition.name", ""),
     HIVESCRIPTAUTOPROGRESS("hive.script.auto.progress", false),
+    HIVESCRIPTIDENVVAR("hive.script.operator.id.env.var", "HIVE_SCRIPT_OPERATOR_ID"),
     HIVEMAPREDMODE("hive.mapred.mode", "nonstrict"),
     HIVEALIAS("hive.alias", ""),
     HIVEMAPSIDEAGGREGATE("hive.map.aggr", "true"),
     HIVEGROUPBYSKEW("hive.groupby.skewindata", "false"),
     HIVEJOINEMITINTERVAL("hive.join.emit.interval", 1000),
+    HIVEJOINCACHESIZE("hive.join.cache.size", 25000),
+    HIVEMAPJOINBUCKETCACHESIZE("hive.mapjoin.bucket.cache.size", 100),
     HIVEMAPJOINROWSIZE("hive.mapjoin.size.key", 10000),
-    HIVEMAPJOINCACHEROWS("hive.mapjoin.cache.numrows", 10000),
+    HIVEMAPJOINCACHEROWS("hive.mapjoin.cache.numrows", 25000),
     HIVEGROUPBYMAPINTERVAL("hive.groupby.mapaggr.checkinterval", 100000),
     HIVEMAPAGGRHASHMEMORY("hive.map.aggr.hash.percentmemory", (float)0.5),
     HIVEMAPAGGRHASHMINREDUCTION("hive.map.aggr.hash.min.reduction", (float)0.5),
-    
+
+    // for hive udtf operator
+    HIVEUDTFAUTOPROGRESS("hive.udtf.auto.progress", false),
+
     // Default file format for CREATE TABLE statement
     // Options: TextFile, SequenceFile
     HIVEDEFAULTFILEFORMAT("hive.default.fileformat", "TextFile"),
-    
+    HIVECHECKFILEFORMAT("hive.fileformat.check", true),
+
     //Location of Hive run time structured log file
     HIVEHISTORYFILELOC("hive.querylog.location",  "/tmp/"+System.getProperty("user.name")),
-    
+
     // Default serde and record reader for user scripts
     HIVESCRIPTSERDE("hive.script.serde", "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"),
     HIVESCRIPTRECORDREADER("hive.script.recordreader", "org.apache.hadoop.hive.ql.exec.TextRecordReader"),
-    
+    HIVESCRIPTRECORDWRITER("hive.script.recordwriter", "org.apache.hadoop.hive.ql.exec.TextRecordWriter"),
+
     // HWI
     HIVEHWILISTENHOST("hive.hwi.listen.host","0.0.0.0"),
     HIVEHWILISTENPORT("hive.hwi.listen.port","9999"),
-    HIVEHWIWARFILE("hive.hwi.war.file",System.getenv("HIVE_HOME")+"/lib/hive_hwi.war"),
+    HIVEHWIWARFILE("hive.hwi.war.file",System.getenv("HWI_WAR_FILE")),
 
     // mapper/reducer memory in local mode
     HIVEHADOOPMAXMEM("hive.mapred.local.mem", 0),
@@ -152,14 +168,20 @@ public class HiveConf extends Configuration {
     HIVEMERGEMAPFILES("hive.merge.mapfiles", true),
     HIVEMERGEMAPREDFILES("hive.merge.mapredfiles", false),
     HIVEMERGEMAPFILESSIZE("hive.merge.size.per.task", (long)(256*1000*1000)),
-      
+    HIVEMERGEMAPFILESAVGSIZE("hive.merge.smallfiles.avgsize", (long)(16*1000*1000)),
+
     HIVESENDHEARTBEAT("hive.heartbeat.interval", 1000),
+    HIVEMAXMAPJOINSIZE("hive.mapjoin.maxsize", 100000),
+
+    HIVEJOBPROGRESS("hive.task.progress", false),
+
+    HIVEINPUTFORMAT("hive.input.format", ""),
 
     // Optimizer
     HIVEOPTCP("hive.optimize.cp", true), // column pruner
     HIVEOPTPPD("hive.optimize.ppd", true), // predicate pushdown
-    HIVEOPTPPR("hive.optimize.pruner", true); // partition pruner
-    
+    HIVEOPTGROUPBY("hive.optimize.groupby", true); // optimize group by
+
     public final String varname;
     public final String defaultVal;
     public final int defaultIntVal;
@@ -227,7 +249,7 @@ public class HiveConf extends Configuration {
     assert(var.valClass == Integer.class);
     return conf.getInt(var.varname, var.defaultIntVal);
   }
-  
+
   public int getIntVar(ConfVars var) {
     return getIntVar(this, var);
   }
@@ -286,7 +308,7 @@ public class HiveConf extends Configuration {
   public HiveConf() {
     super();
   }
-  
+
   public HiveConf(Class<?> cls) {
     super();
     initialize(cls);
@@ -310,11 +332,11 @@ public class HiveConf extends Configuration {
 
   private void initialize(Class<?> cls) {
     hiveJar = (new JobConf(cls)).getJar();
-    
+
     // preserve the original configuration
     origProp = getUnderlyingProps();
-    
-    // let's add the hive configuration 
+
+    // let's add the hive configuration
     URL hconfurl = getClassLoader().getResource("hive-default.xml");
     if(hconfurl == null) {
       l4j.debug("hive-default.xml not found.");
@@ -328,10 +350,10 @@ public class HiveConf extends Configuration {
       addResource(hsiteurl);
     }
 
-    // if hadoop configuration files are already in our path - then define 
+    // if hadoop configuration files are already in our path - then define
     // the containing directory as the configuration directory
     URL hadoopconfurl = getClassLoader().getResource("hadoop-default.xml");
-    if(hadoopconfurl == null) 
+    if(hadoopconfurl == null)
       hadoopconfurl = getClassLoader().getResource("hadoop-site.xml");
     if(hadoopconfurl != null) {
       String conffile = hadoopconfurl.getPath();
@@ -345,7 +367,7 @@ public class HiveConf extends Configuration {
     if(hiveJar == null) {
       hiveJar = this.get(ConfVars.HIVEJAR.varname);
     }
-    
+
     if(auxJars == null) {
       auxJars = this.get(ConfVars.HIVEAUXJARS.varname);
     }
@@ -397,7 +419,7 @@ public class HiveConf extends Configuration {
     this.auxJars = auxJars;
     setVar(this, ConfVars.HIVEAUXJARS, auxJars);
   }
-  
+
   /**
    * @return the user name set in hadoop.job.ugi param or the current user from System
    * @throws IOException
@@ -413,7 +435,7 @@ public class HiveConf extends Configuration {
       throw (IOException)new IOException().initCause(e);
     }
   }
-  
+
   public static String getColumnInternalName(int pos){
     return "_col"+pos;
   }
