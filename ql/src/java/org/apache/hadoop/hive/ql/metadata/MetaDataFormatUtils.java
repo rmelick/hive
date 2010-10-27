@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.hive.ql.metadata;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +65,7 @@ public final class MetaDataFormatUtils {
   }
 
   private static void formatColumnsHeader(StringBuilder columnInformation) {
+    columnInformation.append("# "); // Easy for shell scripts to ignore
     formatOutput(getColumnsHeader(), columnInformation);
     columnInformation.append(LINE_DELIM);
   }
@@ -79,6 +82,7 @@ public final class MetaDataFormatUtils {
       formatFieldSchemas(tableInfo, col);
     }
   }
+
 
   public static String getAllColumnsInformation(Index index) {
     StringBuilder indexInfo = new StringBuilder(DEFAULT_STRINGBUILDER_SIZE);
@@ -103,13 +107,29 @@ public final class MetaDataFormatUtils {
     formatOutput(indexColumns, indexInfo);
 
     return indexInfo.toString();
+}
+
+  /*
+    Displaying columns unformatted for backward compatibility.
+   */
+  public static String displayColsUnformatted(List<FieldSchema> cols) {
+    StringBuilder colBuffer = new StringBuilder(DEFAULT_STRINGBUILDER_SIZE);
+    for (FieldSchema col : cols) {
+      colBuffer.append(col.getName());
+      colBuffer.append(FIELD_DELIM);
+      colBuffer.append(col.getType());
+      colBuffer.append(FIELD_DELIM);
+      colBuffer.append(col.getComment() == null ? "" : col.getComment());
+      colBuffer.append(LINE_DELIM);
+    }
+    return colBuffer.toString();
   }
 
   public static String getPartitionInformation(Partition part) {
     StringBuilder tableInfo = new StringBuilder(DEFAULT_STRINGBUILDER_SIZE);
 
     // Table Metadata
-    tableInfo.append("# Detailed Partition Information").append(LINE_DELIM);
+    tableInfo.append(LINE_DELIM).append("# Detailed Partition Information").append(LINE_DELIM);
     getPartitionMetaDataInformation(tableInfo, part);
 
     // Storage information.
@@ -123,7 +143,7 @@ public final class MetaDataFormatUtils {
     StringBuilder tableInfo = new StringBuilder(DEFAULT_STRINGBUILDER_SIZE);
 
     // Table Metadata
-    tableInfo.append("# Detailed Table Information").append(LINE_DELIM);
+    tableInfo.append(LINE_DELIM).append("# Detailed Table Information").append(LINE_DELIM);
     getTableMetaDataInformation(tableInfo, table);
 
     // Storage information.
@@ -197,10 +217,11 @@ public final class MetaDataFormatUtils {
   }
 
   private static void displayAllParameters(Map<String, String> params, StringBuilder tableInfo) {
-    for (Map.Entry<String, String> parameter: params.entrySet()) {
+    List<String> keys = new ArrayList<String>(params.keySet());
+    Collections.sort(keys);
+    for (String key : keys) {
       tableInfo.append(FIELD_DELIM); // Ensures all params are indented.
-      formatOutput(parameter.getKey(), StringEscapeUtils.escapeJava(parameter.getValue()),
-          tableInfo);
+      formatOutput(key, StringEscapeUtils.escapeJava(params.get(key)), tableInfo);
     }
   }
 
@@ -210,8 +231,11 @@ public final class MetaDataFormatUtils {
   }
 
   private static String formatDate(long timeInSeconds) {
-    Date date = new Date(timeInSeconds * 1000);
-    return date.toString();
+    if (timeInSeconds != 0) {
+      Date date = new Date(timeInSeconds * 1000);
+      return date.toString();
+    }
+    return "UNKNOWN";
   }
 
   private static void formatOutput(String[] fields, StringBuilder tableInfo) {

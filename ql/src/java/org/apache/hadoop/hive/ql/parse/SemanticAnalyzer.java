@@ -29,9 +29,9 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -92,7 +92,6 @@ import org.apache.hadoop.hive.ql.metadata.VirtualColumn;
 import org.apache.hadoop.hive.ql.optimizer.GenMRFileSink1;
 import org.apache.hadoop.hive.ql.optimizer.GenMROperator;
 import org.apache.hadoop.hive.ql.optimizer.GenMRProcContext;
-import org.apache.hadoop.hive.ql.optimizer.GenMRProcContext.GenMapRedCtx;
 import org.apache.hadoop.hive.ql.optimizer.GenMRRedSink1;
 import org.apache.hadoop.hive.ql.optimizer.GenMRRedSink2;
 import org.apache.hadoop.hive.ql.optimizer.GenMRRedSink3;
@@ -102,10 +101,12 @@ import org.apache.hadoop.hive.ql.optimizer.GenMRUnion1;
 import org.apache.hadoop.hive.ql.optimizer.GenMapRedUtils;
 import org.apache.hadoop.hive.ql.optimizer.MapJoinFactory;
 import org.apache.hadoop.hive.ql.optimizer.Optimizer;
+import org.apache.hadoop.hive.ql.optimizer.GenMRProcContext.GenMapRedCtx;
 import org.apache.hadoop.hive.ql.optimizer.physical.PhysicalContext;
 import org.apache.hadoop.hive.ql.optimizer.physical.PhysicalOptimizer;
 import org.apache.hadoop.hive.ql.optimizer.ppr.PartitionPruner;
 import org.apache.hadoop.hive.ql.optimizer.unionproc.UnionProcContext;
+import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer.tableSpec.SpecType;
 import org.apache.hadoop.hive.ql.plan.AggregationDesc;
 import org.apache.hadoop.hive.ql.plan.CreateTableDesc;
 import org.apache.hadoop.hive.ql.plan.CreateTableLikeDesc;
@@ -121,7 +122,6 @@ import org.apache.hadoop.hive.ql.plan.ExtractDesc;
 import org.apache.hadoop.hive.ql.plan.FetchWork;
 import org.apache.hadoop.hive.ql.plan.FileSinkDesc;
 import org.apache.hadoop.hive.ql.plan.FilterDesc;
-import org.apache.hadoop.hive.ql.plan.FilterDesc.sampleDesc;
 import org.apache.hadoop.hive.ql.plan.ForwardDesc;
 import org.apache.hadoop.hive.ql.plan.GroupByDesc;
 import org.apache.hadoop.hive.ql.plan.JoinCondDesc;
@@ -143,12 +143,13 @@ import org.apache.hadoop.hive.ql.plan.TableDesc;
 import org.apache.hadoop.hive.ql.plan.TableScanDesc;
 import org.apache.hadoop.hive.ql.plan.UDTFDesc;
 import org.apache.hadoop.hive.ql.plan.UnionDesc;
+import org.apache.hadoop.hive.ql.plan.FilterDesc.sampleDesc;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.session.SessionState.ResourceType;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator.Mode;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFHash;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator.Mode;
 import org.apache.hadoop.hive.serde.Constants;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.MetadataTypedColumnsetSerDe;
@@ -156,9 +157,9 @@ import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
@@ -702,6 +703,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         // Allow analyze the whole table and dynamic partitions
         HiveConf.setVar(conf, HiveConf.ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
         HiveConf.setVar(conf, HiveConf.ConfVars.HIVEMAPREDMODE, "nonstrict");
+
         break;
 
       case HiveParser.TOK_UNION:
@@ -784,6 +786,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
         if (qb.getParseInfo().isAnalyzeCommand()) {
           tableSpec ts = new tableSpec(db, conf, (ASTNode) ast.getChild(0));
+          if (ts.specType == SpecType.DYNAMIC_PARTITION) { // dynamic partitions
+            try {
+              ts.partitions = db.getPartitionsByNames(ts.tableHandle, ts.partSpec);
+            } catch (HiveException e) {
+              throw new SemanticException("Cannot get partitions for " + ts.partSpec, e);
+            }
+          }
           qb.getParseInfo().addTableSpec(alias, ts);
         }
       }
@@ -818,8 +827,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
           // tableSpec ts is got from the query (user specified),
           // which means the user didn't specify partitions in their query,
           // but whether the table itself is partitioned is not know.
-          if (ts.partHandle == null) {
-            // This is a table
+          if (ts.specType != SpecType.STATIC_PARTITION) {
+            // This is a table or dynamic partition
             qb.getMetaData().setDestForAlias(name, ts.tableHandle);
             // has dynamic as well as static partitions
             if (ts.partSpec != null && ts.partSpec.size() > 0) {
@@ -1373,37 +1382,6 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     return HiveConf.getColumnInternalName(pos);
   }
 
-  /**
-   * If the user script command needs any modifications - do it here.
-   */
-  private String getFixedCmd(String cmd) {
-    SessionState ss = SessionState.get();
-    if (ss == null) {
-      return cmd;
-    }
-
-    // for local mode - replace any references to packaged files by name with
-    // the reference to the original file path
-    if (ss.getConf().get("mapred.job.tracker", "local").equals("local")) {
-      Set<String> files = ss
-          .list_resource(SessionState.ResourceType.FILE, null);
-      if ((files != null) && !files.isEmpty()) {
-        String prog = getScriptProgName(cmd);
-        String args = getScriptArgs(cmd);
-
-        for (String oneFile : files) {
-          Path p = new Path(oneFile);
-          if (p.getName().equals(prog)) {
-            cmd = oneFile + args;
-            break;
-          }
-        }
-      }
-    }
-
-    return cmd;
-  }
-
   private String getScriptProgName(String cmd) {
     int end = cmd.indexOf(" ");
     return (end == -1) ? cmd : cmd.substring(0, end);
@@ -1667,7 +1645,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     Operator output = putOpInsertMap(OperatorFactory.getAndMakeChild(
         new ScriptDesc(
-        getFixedCmd(fetchFilesNotInLocalFilesystem(stripQuotes(trfm.getChild(execPos).getText()))),
+        fetchFilesNotInLocalFilesystem(stripQuotes(trfm.getChild(execPos).getText())),
         inInfo, inRecordWriter, outInfo, outRecordReader, errRecordReader, errInfo),
         new RowSchema(out_rwsch.getColumnInfos()), input), out_rwsch);
 
@@ -3379,7 +3357,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         }
         dpCtx = qbm.getDPCtx(dest);
         if (dpCtx == null) {
-          validatePartSpec(dest_tab, partSpec);
+          Utilities.validatePartSpec(dest_tab, partSpec);
           dpCtx = new DynamicPartitionCtx(dest_tab, partSpec,
               conf.getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME),
               conf.getIntVar(HiveConf.ConfVars.DYNAMICPARTITIONMAXPARTSPERNODE));
@@ -3457,8 +3435,14 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
       dest_part = qbm.getDestPartitionForAlias(dest);
       dest_tab = dest_part.getTable();
+      Path tabPath = dest_tab.getPath();
+      Path partPath = dest_part.getPartitionPath(); 
+      
+        // if the table is in a different dfs than the partition,
+        // replace the partition's dfs with the table's dfs.
+      dest_path = new Path(tabPath.toUri().getScheme(), tabPath.toUri()
+          .getAuthority(), partPath.toUri().getPath());
 
-      dest_path = dest_part.getPath()[0];
       if ("har".equalsIgnoreCase(dest_path.toUri().getScheme())) {
         throw new SemanticException(ErrorMsg.OVERWRITE_ARCHIVED_PART
             .getMsg());
@@ -3653,7 +3637,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     if (dest_part != null) {
       try {
-        String staticSpec = Warehouse.makePartName(dest_part.getSpec());
+        String staticSpec = Warehouse.makePartPath(dest_part.getSpec());
         fileSinkDesc.setStaticSpec(staticSpec);
       } catch (MetaException e) {
         throw new SemanticException(e);
@@ -3678,19 +3662,6 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     return output;
   }
 
-  private void validatePartSpec(Table tbl, Map<String, String> partSpec)
-      throws SemanticException {
-    List<FieldSchema> parts = tbl.getPartitionKeys();
-    Set<String> partCols = new HashSet<String>(parts.size());
-    for (FieldSchema col: parts) {
-      partCols.add(col.getName());
-    }
-    for (String col: partSpec.keySet()) {
-      if (!partCols.contains(col)) {
-        throw new SemanticException(ErrorMsg.NONEXISTPARTCOL.getMsg());
-      }
-    }
-  }
 
   /**
    * Generate the conversion SelectOperator that converts the columns into the
@@ -5788,16 +5759,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     	  if (partSpec == null) {
     	    throw new SemanticException(ErrorMsg.NEED_PARTITION_SPECIFICATION.getMsg());
     	  }
-    	  // get all partitions that matches with the partition spec
-    	  try {
-    	    List<Partition> partitions = db.getPartitions(tab, partSpec);
+    	  List<Partition> partitions = qbp.getTableSpec().partitions;
+    	  if (partitions != null) {
     	    for (Partition partn : partitions) {
     	      // inputs.add(new ReadEntity(partn)); // is this needed at all?
     	      outputs.add(new WriteEntity(partn));
-    	    }
-    	  } catch (HiveException e) {
-    	    throw new SemanticException(e);
-    	  }
+          }
+        }
     	}
     }
   }
@@ -6919,6 +6887,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
               shared.serdeProps);
         }
         break;
+
+      case HiveParser.TOK_FILEFORMAT_GENERIC:
+        handleGenericFileFormat(child);
+        break;
+
       default:
         assert false;
       }
@@ -7175,7 +7148,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     for (ExecDriver mrtask: mrtasks) {
       try {
         ContentSummary inputSummary = Utilities.getInputSummary
-          (ctx, (MapredWork)mrtask.getWork(), p);
+          (ctx, mrtask.getWork(), p);
         int numReducers = getNumberOfReducers(mrtask.getWork(), conf);
 
         if (LOG.isDebugEnabled()) {
