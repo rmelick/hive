@@ -65,6 +65,7 @@ import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.plan.AddPartitionDesc;
 import org.apache.hadoop.hive.ql.plan.AlterTableDesc;
+import org.apache.hadoop.hive.ql.plan.AlterIndexDesc;
 import org.apache.hadoop.hive.ql.plan.AlterTableSimpleDesc;
 import org.apache.hadoop.hive.ql.plan.CreateDatabaseDesc;
 import org.apache.hadoop.hive.ql.plan.CreateIndexDesc;
@@ -87,6 +88,7 @@ import org.apache.hadoop.hive.ql.plan.SwitchDatabaseDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
 import org.apache.hadoop.hive.ql.plan.UnlockTableDesc;
 import org.apache.hadoop.hive.ql.plan.AlterTableDesc.AlterTableTypes;
+import org.apache.hadoop.hive.ql.plan.AlterIndexDesc.AlterIndexTypes;
 import org.apache.hadoop.hive.serde.Constants;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.mapred.TextInputFormat;
@@ -421,7 +423,13 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
     HashMap<String, String> mapProp = getProps((ASTNode) (ast.getChild(2))
         .getChild(0));
 
-    // Stub for alter index properties
+    AlterIndexDesc alterIdxDesc =
+      new AlterIndexDesc(AlterIndexTypes.ADDPROPS);
+    alterIdxDesc.setProps(mapProp);
+    alterIdxDesc.setIndexName(indexName);
+    alterIdxDesc.setBaseTableName(baseTableName);
+
+    rootTasks.add(TaskFactory.get(new DDLWork(alterIdxDesc), conf));
   }
 
   private List<Task<?>> getIndexBuilderMapRed(String baseTableName, String indexName,
