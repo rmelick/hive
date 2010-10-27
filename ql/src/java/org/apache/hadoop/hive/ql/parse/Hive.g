@@ -4,7 +4,7 @@ options
 {
 output=AST;
 ASTLabelType=CommonTree;
-backtrack=true;
+backtrack=false;
 k=3;
 }
 
@@ -446,8 +446,17 @@ alterViewStatementSuffix
 alterIndexStatementSuffix
 @init { msgs.push("alter index statement"); }
 @after { msgs.pop(); }
-    : alterIndexRebuild
-    | alterIndexProperties
+    : indexName=Identifier
+      (KW_ON tableName=Identifier)
+      partitionSpec?
+    (
+      KW_REBUILD
+      ->^(TOK_ALTERINDEX_REBUILD $tableName $indexName partitionSpec?)
+    |
+      KW_SET KW_IDXPROPERTIES
+      indexProperties
+      ->^(TOK_ALTERINDEX_PROPERTIES $tableName $indexName indexProperties)
+    )
     ;
 
 alterStatementSuffixRename
@@ -611,27 +620,6 @@ alterStatementSuffixClusterbySortby
 	name=Identifier KW_NOT KW_CLUSTERED
 	->^(TOK_ALTERTABLE_CLUSTER_SORT $name)
 	;
-
-alterIndexRebuild
-@init { msgs.push("update index statement");}
-@after {msgs.pop();}
-    : indexName=Identifier 
-      (KW_ON tableName=Identifier)
-      partitionSpec?
-      KW_REBUILD
-    ->^(TOK_ALTERINDEX_REBUILD $tableName $indexName partitionSpec?)
-    ;
-
-alterIndexProperties
-@init { msgs.push("update index statement");}
-@after {msgs.pop();}
-    : indexName=Identifier 
-      (KW_ON tableName=Identifier)
-      partitionSpec?
-      KW_SET KW_IDXPROPERTIES
-      indexProperties
-    ->^(TOK_ALTERINDEX_PROPERTIES $tableName $indexName partitionSpec? indexProperties)
-    ;
 
 fileFormat
 @init { msgs.push("file format specification"); }
