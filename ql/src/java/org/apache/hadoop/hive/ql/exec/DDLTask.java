@@ -68,8 +68,6 @@ import org.apache.hadoop.hive.ql.DriverContext;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
-import org.apache.hadoop.hive.ql.index.HiveIndex;
-import org.apache.hadoop.hive.ql.index.HiveIndex.IndexType;
 import org.apache.hadoop.hive.ql.lockmgr.HiveLock;
 import org.apache.hadoop.hive.ql.lockmgr.HiveLockManager;
 import org.apache.hadoop.hive.ql.lockmgr.HiveLockMode;
@@ -1125,45 +1123,18 @@ public class DDLTask extends Task<DDLWork> implements Serializable {
       DataOutput outStream = fs.create(resFile);
 
       // column headers
-      /* TODO: Use MetaDataFormatUtils, like in describeTable() */
-      String[] columnNames = {"Index_Name", "Table_Name", "Column_Name", "Index_Table_Name",
-          "Index_Type", "Comment"};
-      for (String column : columnNames)
-      {
-        outStream.writeBytes(column);
-        outStream.write(separator);
-      }
+      outStream.writeBytes(MetaDataFormatUtils.getIndexColumnsHeader());
+
+      outStream.write(terminator);
       outStream.write(terminator);
 
       for (Index index : indexes)
       {
-        outStream.writeBytes(index.getIndexName());
-        outStream.write(separator);
-
-        outStream.writeBytes(index.getOrigTableName());
-        outStream.write(separator);
-
-        outStream.writeBytes(index.getSd().getCols().get(0).getName());
-        outStream.write(separator);
-
-        outStream.writeBytes(index.getIndexTableName());
-        outStream.write(separator);
-
-        String indexHandlerClass = index.getIndexHandlerClass();
-        IndexType indexType = HiveIndex.getIndexTypeByClassName(indexHandlerClass);
-        outStream.writeBytes(indexType.getName());
-        outStream.write(separator);
-
-        String indexComment = index.getParameters().get("comment");
-        if (indexComment != null) {
-          outStream.writeBytes(indexComment);
-        }
-        outStream.write(separator);
-
-        outStream.write(terminator);
+        outStream.writeBytes(MetaDataFormatUtils.getAllColumnsInformation(index));
       }
 
       ((FSDataOutputStream) outStream).close();
+
     } catch (FileNotFoundException e) {
       LOG.info("show indexes: " + stringifyException(e));
       throw new HiveException(e.toString());

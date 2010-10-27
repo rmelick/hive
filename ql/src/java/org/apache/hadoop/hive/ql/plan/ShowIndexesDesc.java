@@ -38,7 +38,7 @@ public class ShowIndexesDesc extends DDLDesc implements Serializable {
   private static final String schema = "idx_name,tab_name,col_name,idx_tab_name,idx_type,comment"
                                         + "#string:string:string:string:string:string";
 
-  public String getSchema() {
+  public static String getSchema() {
     return schema;
   }
 
