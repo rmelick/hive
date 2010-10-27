@@ -4,6 +4,8 @@ drop index src_index_4 on src;
 drop index src_index_5 on src;
 drop index src_index_6 on src;
 drop index src_index_7 on src;
+drop index x on `_t`;
+drop table `_t`;
 
 create index src_index_2 on table src(key) as 'compact' WITH DEFERRED REBUILD;
 desc extended default__src_src_index_2__;
@@ -24,10 +26,10 @@ create index src_index_7 on table src(key) as 'compact' WITH DEFERRED REBUILD in
 desc extended src_idx_src_index_7;
 
 create table `_t`(`_i` int, `_j` int);
-create index x on table `_t` as 'compact' WITH DEFERRED REBUILD;
-alter index x on table `_t`;
+create index x on table `_t`(`_j`) as 'compact' WITH DEFERRED REBUILD;
+alter index x on `_t` rebuild;
 
-drop index x on table `_t`;
+drop index x on `_t`;
 drop table `_t`;
 
 drop index src_index_2 on src;

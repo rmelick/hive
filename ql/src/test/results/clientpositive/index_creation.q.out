@@ -22,6 +22,14 @@ PREHOOK: query: drop index src_index_7 on src
 PREHOOK: type: DROPINDEX
 POSTHOOK: query: drop index src_index_7 on src
 POSTHOOK: type: DROPINDEX
+PREHOOK: query: drop index x on `_t`
+PREHOOK: type: DROPINDEX
+POSTHOOK: query: drop index x on `_t`
+POSTHOOK: type: DROPINDEX
+PREHOOK: query: drop table `_t`
+PREHOOK: type: DROPTABLE
+POSTHOOK: query: drop table `_t`
+POSTHOOK: type: DROPTABLE
 PREHOOK: query: create index src_index_2 on table src(key) as 'compact' WITH DEFERRED REBUILD
 PREHOOK: type: CREATEINDEX
 POSTHOOK: query: create index src_index_2 on table src(key) as 'compact' WITH DEFERRED REBUILD
@@ -39,14 +47,14 @@ _offsets            	array<bigint>
 # Detailed Table Information	 	 
 Database:           	default             	 
 Owner:              	null                	 
-CreateTime:         	Tue Sep 14 08:20:33 PDT 2010	 
+CreateTime:         	Tue Oct 26 20:31:39 PDT 2010	 
 LastAccessTime:     	Wed Dec 31 16:00:00 PST 1969	 
 Protect Mode:       	None                	 
 Retention:          	0                   	 
-Location:           	pfile:/home/thiruvel/projects/hive/hive/build/ql/test/data/warehouse/default__src_src_index_2__	 
+Location:           	pfile:/home/skye/Documents/github-hive/build/ql/test/data/warehouse/default__src_src_index_2__	 
 Table Type:         	INDEX_TABLE         	 
 Table Parameters:	 	 
-	transient_lastDdlTime	1284477633          
+	transient_lastDdlTime	1288150299          
 	 	 
 # Storage Information	 	 
 SerDe Library:      	org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe	 
@@ -76,14 +84,14 @@ _offsets            	array<bigint>
 # Detailed Table Information	 	 
 Database:           	default             	 
 Owner:              	null                	 
-CreateTime:         	Tue Sep 14 08:20:33 PDT 2010	 
+CreateTime:         	Tue Oct 26 20:31:40 PDT 2010	 
 LastAccessTime:     	Wed Dec 31 16:00:00 PST 1969	 
 Protect Mode:       	None                	 
 Retention:          	0                   	 
-Location:           	pfile:/home/thiruvel/projects/hive/hive/build/ql/test/data/warehouse/src_idx_src_index_3	 
+Location:           	pfile:/home/skye/Documents/github-hive/build/ql/test/data/warehouse/src_idx_src_index_3	 
 Table Type:         	INDEX_TABLE         	 
 Table Parameters:	 	 
-	transient_lastDdlTime	1284477633          
+	transient_lastDdlTime	1288150300          
 	 	 
 # Storage Information	 	 
 SerDe Library:      	org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe	 
@@ -113,14 +121,14 @@ _offsets            	array<bigint>
 # Detailed Table Information	 	 
 Database:           	default             	 
 Owner:              	null                	 
-CreateTime:         	Tue Sep 14 08:20:33 PDT 2010	 
+CreateTime:         	Tue Oct 26 20:31:41 PDT 2010	 
 LastAccessTime:     	Wed Dec 31 16:00:00 PST 1969	 
 Protect Mode:       	None                	 
 Retention:          	0                   	 
-Location:           	pfile:/home/thiruvel/projects/hive/hive/build/ql/test/data/warehouse/default__src_src_index_4__	 
+Location:           	pfile:/home/skye/Documents/github-hive/build/ql/test/data/warehouse/default__src_src_index_4__	 
 Table Type:         	INDEX_TABLE         	 
 Table Parameters:	 	 
-	transient_lastDdlTime	1284477633          
+	transient_lastDdlTime	1288150301          
 	 	 
 # Storage Information	 	 
 SerDe Library:      	org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe	 
@@ -151,14 +159,14 @@ _offsets            	array<bigint>
 # Detailed Table Information	 	 
 Database:           	default             	 
 Owner:              	null                	 
-CreateTime:         	Tue Sep 14 08:20:33 PDT 2010	 
+CreateTime:         	Tue Oct 26 20:31:41 PDT 2010	 
 LastAccessTime:     	Wed Dec 31 16:00:00 PST 1969	 
 Protect Mode:       	None                	 
 Retention:          	0                   	 
-Location:           	pfile:/home/thiruvel/projects/hive/hive/build/ql/test/data/warehouse/default__src_src_index_5__	 
+Location:           	pfile:/home/skye/Documents/github-hive/build/ql/test/data/warehouse/default__src_src_index_5__	 
 Table Type:         	INDEX_TABLE         	 
 Table Parameters:	 	 
-	transient_lastDdlTime	1284477633          
+	transient_lastDdlTime	1288150301          
 	 	 
 # Storage Information	 	 
 SerDe Library:      	org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe	 
@@ -190,14 +198,14 @@ _offsets            	array<bigint>       	from deserializer
 # Detailed Table Information	 	 
 Database:           	default             	 
 Owner:              	null                	 
-CreateTime:         	Tue Sep 14 08:20:34 PDT 2010	 
+CreateTime:         	Tue Oct 26 20:31:41 PDT 2010	 
 LastAccessTime:     	Wed Dec 31 16:00:00 PST 1969	 
 Protect Mode:       	None                	 
 Retention:          	0                   	 
-Location:           	pfile:/home/thiruvel/projects/hive/hive/build/ql/test/data/warehouse/default__src_src_index_6__	 
+Location:           	pfile:/home/skye/Documents/github-hive/build/ql/test/data/warehouse/default__src_src_index_6__	 
 Table Type:         	INDEX_TABLE         	 
 Table Parameters:	 	 
-	transient_lastDdlTime	1284477634          
+	transient_lastDdlTime	1288150301          
 	 	 
 # Storage Information	 	 
 SerDe Library:      	org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe	 
@@ -227,14 +235,14 @@ _offsets            	array<bigint>       	from deserializer
 # Detailed Table Information	 	 
 Database:           	default             	 
 Owner:              	null                	 
-CreateTime:         	Tue Sep 14 08:20:34 PDT 2010	 
+CreateTime:         	Tue Oct 26 20:31:42 PDT 2010	 
 LastAccessTime:     	Wed Dec 31 16:00:00 PST 1969	 
 Protect Mode:       	None                	 
 Retention:          	0                   	 
-Location:           	pfile:/home/thiruvel/projects/hive/hive/build/ql/test/data/warehouse/src_idx_src_index_7	 
+Location:           	pfile:/home/skye/Documents/github-hive/build/ql/test/data/warehouse/src_idx_src_index_7	 
 Table Type:         	INDEX_TABLE         	 
 Table Parameters:	 	 
-	transient_lastDdlTime	1284477634          
+	transient_lastDdlTime	1288150302          
 	 	 
 # Storage Information	 	 
 SerDe Library:      	org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe	 
@@ -247,34 +255,93 @@ Sort Columns:       	[Order(col:key, order:1)]
 Storage Desc Params:	 	 
 	serialization.format	1                   
 	 	 
+PREHOOK: query: create table `_t`(`_i` int, `_j` int)
+PREHOOK: type: CREATETABLE
+POSTHOOK: query: create table `_t`(`_i` int, `_j` int)
+POSTHOOK: type: CREATETABLE
+POSTHOOK: Output: default@_t
+PREHOOK: query: create index x on table `_t`(`_j`) as 'compact' WITH DEFERRED REBUILD
+PREHOOK: type: CREATEINDEX
+POSTHOOK: query: create index x on table `_t`(`_j`) as 'compact' WITH DEFERRED REBUILD
+POSTHOOK: type: CREATEINDEX
+PREHOOK: query: alter index x on `_t` rebuild
+PREHOOK: type: QUERY
+PREHOOK: Input: default@_t
+PREHOOK: Output: default@default___t_x__
+POSTHOOK: query: alter index x on `_t` rebuild
+POSTHOOK: type: QUERY
+POSTHOOK: Input: default@_t
+POSTHOOK: Output: default@default___t_x__
+POSTHOOK: Lineage: default___t_x__._bucketname SIMPLE [(_t)_t.FieldSchema(name:INPUT__FILE__NAME, type:string, comment:), ]
+POSTHOOK: Lineage: default___t_x__._j SIMPLE [(_t)_t.FieldSchema(name:_j, type:int, comment:null), ]
+POSTHOOK: Lineage: default___t_x__._offsets EXPRESSION [(_t)_t.FieldSchema(name:BLOCK__OFFSET__INSIDE__FILE, type:bigint, comment:), ]
+PREHOOK: query: drop index x on `_t`
+PREHOOK: type: DROPINDEX
+POSTHOOK: query: drop index x on `_t`
+POSTHOOK: type: DROPINDEX
+POSTHOOK: Lineage: default___t_x__._bucketname SIMPLE [(_t)_t.FieldSchema(name:INPUT__FILE__NAME, type:string, comment:), ]
+POSTHOOK: Lineage: default___t_x__._j SIMPLE [(_t)_t.FieldSchema(name:_j, type:int, comment:null), ]
+POSTHOOK: Lineage: default___t_x__._offsets EXPRESSION [(_t)_t.FieldSchema(name:BLOCK__OFFSET__INSIDE__FILE, type:bigint, comment:), ]
+PREHOOK: query: drop table `_t`
+PREHOOK: type: DROPTABLE
+PREHOOK: Input: default@_t
+PREHOOK: Output: default@_t
+POSTHOOK: query: drop table `_t`
+POSTHOOK: type: DROPTABLE
+POSTHOOK: Input: default@_t
+POSTHOOK: Output: default@_t
+POSTHOOK: Lineage: default___t_x__._bucketname SIMPLE [(_t)_t.FieldSchema(name:INPUT__FILE__NAME, type:string, comment:), ]
+POSTHOOK: Lineage: default___t_x__._j SIMPLE [(_t)_t.FieldSchema(name:_j, type:int, comment:null), ]
+POSTHOOK: Lineage: default___t_x__._offsets EXPRESSION [(_t)_t.FieldSchema(name:BLOCK__OFFSET__INSIDE__FILE, type:bigint, comment:), ]
 PREHOOK: query: drop index src_index_2 on src
 PREHOOK: type: DROPINDEX
 POSTHOOK: query: drop index src_index_2 on src
 POSTHOOK: type: DROPINDEX
+POSTHOOK: Lineage: default___t_x__._bucketname SIMPLE [(_t)_t.FieldSchema(name:INPUT__FILE__NAME, type:string, comment:), ]
+POSTHOOK: Lineage: default___t_x__._j SIMPLE [(_t)_t.FieldSchema(name:_j, type:int, comment:null), ]
+POSTHOOK: Lineage: default___t_x__._offsets EXPRESSION [(_t)_t.FieldSchema(name:BLOCK__OFFSET__INSIDE__FILE, type:bigint, comment:), ]
 PREHOOK: query: drop index src_index_3 on src
 PREHOOK: type: DROPINDEX
 POSTHOOK: query: drop index src_index_3 on src
 POSTHOOK: type: DROPINDEX
+POSTHOOK: Lineage: default___t_x__._bucketname SIMPLE [(_t)_t.FieldSchema(name:INPUT__FILE__NAME, type:string, comment:), ]
+POSTHOOK: Lineage: default___t_x__._j SIMPLE [(_t)_t.FieldSchema(name:_j, type:int, comment:null), ]
+POSTHOOK: Lineage: default___t_x__._offsets EXPRESSION [(_t)_t.FieldSchema(name:BLOCK__OFFSET__INSIDE__FILE, type:bigint, comment:), ]
 PREHOOK: query: drop index src_index_4 on src
 PREHOOK: type: DROPINDEX
 POSTHOOK: query: drop index src_index_4 on src
 POSTHOOK: type: DROPINDEX
+POSTHOOK: Lineage: default___t_x__._bucketname SIMPLE [(_t)_t.FieldSchema(name:INPUT__FILE__NAME, type:string, comment:), ]
+POSTHOOK: Lineage: default___t_x__._j SIMPLE [(_t)_t.FieldSchema(name:_j, type:int, comment:null), ]
+POSTHOOK: Lineage: default___t_x__._offsets EXPRESSION [(_t)_t.FieldSchema(name:BLOCK__OFFSET__INSIDE__FILE, type:bigint, comment:), ]
 PREHOOK: query: drop index src_index_5 on src
 PREHOOK: type: DROPINDEX
 POSTHOOK: query: drop index src_index_5 on src
 POSTHOOK: type: DROPINDEX
+POSTHOOK: Lineage: default___t_x__._bucketname SIMPLE [(_t)_t.FieldSchema(name:INPUT__FILE__NAME, type:string, comment:), ]
+POSTHOOK: Lineage: default___t_x__._j SIMPLE [(_t)_t.FieldSchema(name:_j, type:int, comment:null), ]
+POSTHOOK: Lineage: default___t_x__._offsets EXPRESSION [(_t)_t.FieldSchema(name:BLOCK__OFFSET__INSIDE__FILE, type:bigint, comment:), ]
 PREHOOK: query: drop index src_index_6 on src
 PREHOOK: type: DROPINDEX
 POSTHOOK: query: drop index src_index_6 on src
 POSTHOOK: type: DROPINDEX
+POSTHOOK: Lineage: default___t_x__._bucketname SIMPLE [(_t)_t.FieldSchema(name:INPUT__FILE__NAME, type:string, comment:), ]
+POSTHOOK: Lineage: default___t_x__._j SIMPLE [(_t)_t.FieldSchema(name:_j, type:int, comment:null), ]
+POSTHOOK: Lineage: default___t_x__._offsets EXPRESSION [(_t)_t.FieldSchema(name:BLOCK__OFFSET__INSIDE__FILE, type:bigint, comment:), ]
 PREHOOK: query: drop index src_index_7 on src
 PREHOOK: type: DROPINDEX
 POSTHOOK: query: drop index src_index_7 on src
 POSTHOOK: type: DROPINDEX
+POSTHOOK: Lineage: default___t_x__._bucketname SIMPLE [(_t)_t.FieldSchema(name:INPUT__FILE__NAME, type:string, comment:), ]
+POSTHOOK: Lineage: default___t_x__._j SIMPLE [(_t)_t.FieldSchema(name:_j, type:int, comment:null), ]
+POSTHOOK: Lineage: default___t_x__._offsets EXPRESSION [(_t)_t.FieldSchema(name:BLOCK__OFFSET__INSIDE__FILE, type:bigint, comment:), ]
 PREHOOK: query: show tables
 PREHOOK: type: SHOWTABLES
 POSTHOOK: query: show tables
 POSTHOOK: type: SHOWTABLES
+POSTHOOK: Lineage: default___t_x__._bucketname SIMPLE [(_t)_t.FieldSchema(name:INPUT__FILE__NAME, type:string, comment:), ]
+POSTHOOK: Lineage: default___t_x__._j SIMPLE [(_t)_t.FieldSchema(name:_j, type:int, comment:null), ]
+POSTHOOK: Lineage: default___t_x__._offsets EXPRESSION [(_t)_t.FieldSchema(name:BLOCK__OFFSET__INSIDE__FILE, type:bigint, comment:), ]
 src
 src1
 src_json
