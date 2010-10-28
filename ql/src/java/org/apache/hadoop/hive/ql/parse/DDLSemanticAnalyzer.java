@@ -807,7 +807,7 @@ public class DDLSemanticAnalyzer extends BaseSemanticAnalyzer {
     }
     rootTasks.add(TaskFactory.get(new DDLWork(getInputs(), getOutputs(),
         descTblDesc), conf));
-    setFetchTask(createFetchTask(descTblDesc.getSchema()));
+    setFetchTask(createFetchTask(DescTableDesc.getSchema()));
     LOG.info("analyzeDescribeTable done");
   }
 
