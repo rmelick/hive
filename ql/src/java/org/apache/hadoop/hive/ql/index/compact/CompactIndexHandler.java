@@ -125,7 +125,6 @@ public class CompactIndexHandler extends AbstractIndexHandler {
       PartitionDesc baseTablePartDesc, String baseTableName, String dbName) {
 
     String indexCols = MetaStoreUtils.getUnparsedColumnNamesFromFieldSchema(indexField);
-    System.out.println("indexCols is " + indexCols);
 
     //form a new insert overwrite query.
     StringBuilder command= new StringBuilder();
