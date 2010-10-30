@@ -42,6 +42,7 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.HiveUtils;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
@@ -574,6 +575,24 @@ public class MetaStoreUtils {
       }
       sb.append(fieldSchemas.get(i).getName());
     }
+    System.out.println("column names are " + sb);
+    return sb.toString();
+  }
+
+  /**
+   * Converts FieldSchemas to columnNames. Returns the column names with
+   * backticks.
+   */
+  public static String getUnparsedColumnNamesFromFieldSchema(
+      List<FieldSchema> fieldSchemas) {
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < fieldSchemas.size(); i++) {
+      if (i > 0) {
+        sb.append(",");
+      }
+      sb.append(HiveUtils.unparseIdentifier(fieldSchemas.get(i).getName()));
+    }
+    System.out.println("column names (unparsed) are" + sb);
     return sb.toString();
   }
 

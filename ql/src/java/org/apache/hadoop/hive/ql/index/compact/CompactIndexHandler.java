@@ -19,7 +19,6 @@
 package org.apache.hadoop.hive.ql.index.compact;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,7 +38,6 @@ import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.hooks.ReadEntity;
 import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 import org.apache.hadoop.hive.ql.index.AbstractIndexHandler;
-import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
 import org.apache.hadoop.hive.ql.metadata.Partition;
@@ -49,7 +47,7 @@ import org.apache.hadoop.hive.ql.plan.PartitionDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
 
 public class CompactIndexHandler extends AbstractIndexHandler {
-  
+
   private Configuration configuration;
 
   @Override
@@ -87,7 +85,7 @@ public class CompactIndexHandler extends AbstractIndexHandler {
         // whole table
         Task<?> indexBuilder = getIndexBuilderMapRedTask(inputs, outputs, index.getSd().getCols(), false,
             new PartitionDesc(desc, null), indexTbl.getTableName(),
-            new PartitionDesc(Utilities.getTableDesc(baseTbl), null), 
+            new PartitionDesc(Utilities.getTableDesc(baseTbl), null),
             baseTbl.getTableName(), indexTbl.getDbName());
         indexBuilderTasks.add(indexBuilder);
       } else {
@@ -104,9 +102,10 @@ public class CompactIndexHandler extends AbstractIndexHandler {
               break;
             }
           }
-          if (basePart == null)
+          if (basePart == null) {
             throw new RuntimeException(
                 "Partitions of base table and index table are inconsistent.");
+          }
           // for each partition, spawn a map reduce task.
           Task<?> indexBuilder = getIndexBuilderMapRedTask(inputs, outputs, index.getSd().getCols(), true,
               new PartitionDesc(indexPart), indexTbl.getTableName(),
@@ -120,12 +119,13 @@ public class CompactIndexHandler extends AbstractIndexHandler {
     }
   }
 
-  private Task<?> getIndexBuilderMapRedTask(Set<ReadEntity> inputs, Set<WriteEntity> outputs, 
+  private Task<?> getIndexBuilderMapRedTask(Set<ReadEntity> inputs, Set<WriteEntity> outputs,
       List<FieldSchema> indexField, boolean partitioned,
       PartitionDesc indexTblPartDesc, String indexTableName,
       PartitionDesc baseTablePartDesc, String baseTableName, String dbName) {
-    
-    String indexCols = HiveUtils.unparseIdentifier(MetaStoreUtils.getColumnNamesFromFieldSchema(indexField));
+
+    String indexCols = MetaStoreUtils.getUnparsedColumnNamesFromFieldSchema(indexField);
+    System.out.println("indexCols is " + indexCols);
 
     //form a new insert overwrite query.
     StringBuilder command= new StringBuilder();
@@ -138,12 +138,13 @@ public class CompactIndexHandler extends AbstractIndexHandler {
       for (int i = 0; i < ret.size(); i++) {
         String partKV = ret.get(i);
         command.append(partKV);
-        if (i < ret.size() - 1)
+        if (i < ret.size() - 1) {
           command.append(",");
+        }
       }
       command.append(" ) ");
     }
-    
+
     command.append(" SELECT ");
     command.append(indexCols);
     command.append(",");
@@ -161,8 +162,9 @@ public class CompactIndexHandler extends AbstractIndexHandler {
       for (int i = 0; i < pkv.size(); i++) {
         String partKV = pkv.get(i);
         command.append(partKV);
-        if (i < pkv.size() - 1)
+        if (i < pkv.size() - 1) {
           command.append(" AND ");
+        }
       }
     }
     command.append(" GROUP BY ");
@@ -174,9 +176,9 @@ public class CompactIndexHandler extends AbstractIndexHandler {
     Task<?> rootTask = driver.getPlan().getRootTasks().get(0);
     inputs.addAll(driver.getPlan().getInputs());
     outputs.addAll(driver.getPlan().getOutputs());
-    
+
     IndexMetadataChangeWork indexMetaChange = new IndexMetadataChangeWork(partSpec, indexTableName, dbName);
-    IndexMetadataChangeTask indexMetaChangeTsk = new IndexMetadataChangeTask(); 
+    IndexMetadataChangeTask indexMetaChangeTsk = new IndexMetadataChangeTask();
     indexMetaChangeTsk.setWork(indexMetaChange);
     rootTask.addDependentTask(indexMetaChangeTsk);
 
